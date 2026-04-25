@@ -114,6 +114,7 @@ function App() {
   const [editingName, setEditingName] = useState('')
   const [aktiveKategorie, setAktiveKategorie] = useState('Alle')
   const [suche, setSuche] = useState('')
+  const [aktiverTab, setAktiverTab] = useState(null)
   useEffect(() => {
     localStorage.setItem('planixy-rooms', JSON.stringify(rooms))
   }, [rooms])
@@ -540,6 +541,115 @@ function App() {
             ))
           }
         </div>
+      </div>
+      {/* Mobile Overlay */}
+      <div className={`drawer-overlay ${aktiverTab ? 'open' : ''}`} onClick={() => setAktiverTab(null)} />
+
+      {/* Mobile Drawer */}
+      <div className={`drawer ${aktiverTab ? 'open' : ''}`}>
+        <div style={{ padding: '12px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ width: '40px', height: '4px', background: '#E8E6E0', borderRadius: '2px', margin: '0 auto 16px' }}></div>
+        </div>
+
+        {/* Räume Tab */}
+        {aktiverTab === 'raeume' && (
+          <div style={{ padding: '0 16px 24px' }}>
+            <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '12px', letterSpacing: '0.08em' }}>MEINE RÄUME</p>
+            {rooms.map(room => (
+              <div key={room.id} onClick={() => { setActiveRoomId(room.id); setAktiverTab(null) }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: '10px', marginBottom: '6px', background: activeRoomId === room.id ? '#EEF4FC' : '#F7F6F2', cursor: 'pointer' }}>
+                <span style={{ fontSize: '14px', color: activeRoomId === room.id ? '#185FA5' : '#444441', fontWeight: activeRoomId === room.id ? '500' : '400' }}>{room.name}</span>
+                {rooms.length > 1 && <span onClick={(e) => { e.stopPropagation(); deleteRoom(room.id) }} style={{ color: '#D3D1C7', fontSize: '12px' }}>✕</span>}
+              </div>
+            ))}
+            <div onClick={() => { addRoom(); setAktiverTab(null) }}
+              style={{ padding: '12px 14px', borderRadius: '10px', border: '1.5px dashed #D3D1C7', textAlign: 'center', fontSize: '13px', color: '#888780', marginTop: '8px', cursor: 'pointer' }}>
+              + Raum hinzufügen
+            </div>
+          </div>
+        )}
+
+        {/* Möbel Tab */}
+        {aktiverTab === 'moebel' && (
+          <div style={{ padding: '0 16px 24px' }}>
+            <input type="text" placeholder="Möbel suchen..." value={suche} onChange={e => setSuche(e.target.value)}
+              style={{ width: '100%', padding: '10px 12px', fontSize: '13px', border: '1px solid #E8E6E0', borderRadius: '10px', background: '#F7F6F2', outline: 'none', fontFamily: "'DM Sans', sans-serif", marginBottom: '12px' }}
+            />
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
+              {kategorien.map(kat => (
+                <div key={kat} onClick={() => setAktiveKategorie(kat)} style={{ padding: '5px 12px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', background: aktiveKategorie === kat ? '#185FA5' : '#F7F6F2', color: aktiveKategorie === kat ? 'white' : '#888780', border: `1px solid ${aktiveKategorie === kat ? '#185FA5' : '#E8E6E0'}` }}>
+                  {kat}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+              {gefilterteMoebel.map(item => (
+                <div key={item.name} onClick={() => { addFurniture(item); setAktiverTab(null) }}
+                  style={{ padding: '10px 6px', border: '1px solid #E8E6E0', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', background: '#FAFAF8', fontSize: '11px' }}>
+                  <div style={{ width: '28px', height: '28px', background: item.color, border: `1.5px solid ${item.border}`, borderRadius: '6px', margin: '0 auto 6px' }}></div>
+                  <div style={{ fontWeight: '500', color: '#444441' }}>{item.name}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Einstellungen Tab */}
+        {aktiverTab === 'einstellungen' && (
+          <div style={{ padding: '0 16px 24px' }}>
+            <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.08em' }}>RAUMGRÖSSE</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+              <span style={{ fontSize: '13px', color: '#888780' }}>Breite</span>
+              <input type="number" min="1" max="20" value={activeRoom?.breite || 6}
+                onChange={e => updateRoom(activeRoomId, { breite: Number(e.target.value) })}
+                style={{ width: '60px', padding: '8px', border: '1px solid #E8E6E0', borderRadius: '8px', fontSize: '13px', textAlign: 'center', fontFamily: "'DM Sans', sans-serif" }}
+              />
+              <span style={{ fontSize: '13px', color: '#888780' }}>m × Tiefe</span>
+              <input type="number" min="1" max="20" value={activeRoom?.tiefe || 5}
+                onChange={e => updateRoom(activeRoomId, { tiefe: Number(e.target.value) })}
+                style={{ width: '60px', padding: '8px', border: '1px solid #E8E6E0', borderRadius: '8px', fontSize: '13px', textAlign: 'center', fontFamily: "'DM Sans', sans-serif" }}
+              />
+              <span style={{ fontSize: '12px', background: '#EAF3DE', color: '#3B6D11', padding: '4px 8px', borderRadius: '8px' }}>{(activeRoom?.breite || 6) * (activeRoom?.tiefe || 5)} m²</span>
+            </div>
+
+            <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.08em' }}>BODENBELAG</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '20px' }}>
+              {bodenBelaege.map(boden => (
+                <div key={boden.name} onClick={() => setBoden(boden.klasse)}
+                  style={{ padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', border: `${(activeRoom?.boden || 'boden-standard') === boden.klasse ? '2px' : '1px'} solid ${(activeRoom?.boden || 'boden-standard') === boden.klasse ? '#185FA5' : '#E8E6E0'}`, background: (activeRoom?.boden || 'boden-standard') === boden.klasse ? '#EEF4FC' : '#FAFAF8' }}>
+                  <div style={{ fontSize: '18px', marginBottom: '4px' }}>{boden.icon}</div>
+                  <div style={{ fontSize: '10px', color: (activeRoom?.boden || 'boden-standard') === boden.klasse ? '#185FA5' : '#444441' }}>{boden.name}</div>
+                </div>
+              ))}
+            </div>
+
+            <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.08em' }}>WANDFARBE</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+              {wandFarben.map(wand => (
+                <div key={wand.name} onClick={() => setWandfarbe(wand.farbe)}
+                  style={{ padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', border: `${(activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '2px' : '1px'} solid ${(activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '#185FA5' : '#E8E6E0'}`, background: (activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '#EEF4FC' : '#FAFAF8' }}>
+                  <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: wand.farbe, margin: '0 auto 4px', border: '1px solid #E8E6E0' }}></div>
+                  <div style={{ fontSize: '9px', color: '#444441' }}>{wand.name}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile Tab Bar */}
+      <div className="mobile-tabs">
+        {[
+          { id: 'raeume', icon: '🏠', label: 'Räume' },
+          { id: 'moebel', icon: '🛋️', label: 'Möbel' },
+          { id: 'einstellungen', icon: '⚙️', label: 'Design' },
+        ].map(tab => (
+          <div key={tab.id} onClick={() => setAktiverTab(aktiverTab === tab.id ? null : tab.id)}
+            style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: aktiverTab === tab.id ? '#185FA5' : '#B4B2A9', transition: 'color 0.15s' }}>
+            <div style={{ fontSize: '22px', marginBottom: '2px' }}>{tab.icon}</div>
+            <div style={{ fontSize: '10px', fontWeight: aktiverTab === tab.id ? '500' : '400' }}>{tab.label}</div>
+          </div>
+        ))}
       </div>
 
     </div>
