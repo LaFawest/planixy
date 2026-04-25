@@ -199,34 +199,38 @@ function App() {
     const canvas = document.getElementById('canvas')
     const rect = canvas.getBoundingClientRect()
     const item = furniture.find(f => f.id === id)
-    const startX = e.clientX
-    const startY = e.clientY
+    const startX = e.clientX || e.touches?.[0]?.clientX
+    const startY = e.clientY || e.touches?.[0]?.clientY
     const startLeft = item.left
     const startTop = item.top
     const rotation = item.rotation || 0
     const gedreht = rotation === 90 || rotation === 270
-
-    // Visuell sichtbare Dimensionen nach Drehung
     const visBreite = gedreht ? item.height : item.width
     const visHoehe  = gedreht ? item.width  : item.height
-
-    // Offset damit das Möbel zentriert bleibt
     const offsetX = (item.width  - visBreite) / 2
     const offsetY = (item.height - visHoehe)  / 2
 
     const onMove = (mv) => {
-      let newLeft = startLeft + (mv.clientX - startX)
-      let newTop  = startTop  + (mv.clientY - startY)
+      const clientX = mv.clientX || mv.touches?.[0]?.clientX
+      const clientY = mv.clientY || mv.touches?.[0]?.clientY
+      let newLeft = startLeft + (clientX - startX)
+      let newTop  = startTop  + (clientY - startY)
       newLeft = Math.max(-offsetX, Math.min(rect.width  - item.width  + offsetX, newLeft))
       newTop  = Math.max(-offsetY, Math.min(rect.height - item.height + offsetY, newTop))
       updateFurniture(furniture.map(f => f.id === id ? { ...f, left: newLeft, top: newTop } : f))
     }
+
     const onUp = () => {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onUp)
     }
+
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onMove, { passive: false })
+    window.addEventListener('touchend', onUp)
   }
 
   const gefilterteMoebel = furnitureLibrary.filter(item => {
@@ -357,7 +361,7 @@ function App() {
                   transformOrigin: 'center center',
                   transition: 'transform 0.2s ease',
                 }}>
-                <div onMouseDown={(e) => handleDrag(e, item.id)} style={{
+                <<div onMouseDown={(e) => handleDrag(e, item.id)} onTouchStart={(e) => handleDrag(e, item.id)} style={{
                   width: '100%', height: '100%',
                   background: item.color,
                   border: `${item.istWandElement ? '3px' : '1.5px'} solid ${item.border}`,
