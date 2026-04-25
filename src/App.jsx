@@ -207,10 +207,14 @@ function App() {
     const startTop = item.top
     const rotation = item.rotation || 0
     const gedreht = rotation === 90 || rotation === 270
-    const visBreite = gedreht ? item.height : item.width
-    const visHoehe  = gedreht ? item.width  : item.height
-    const offsetX = (item.width  - visBreite) / 2
-    const offsetY = (item.height - visHoehe)  / 2
+
+    // Bei Drehung tauschen Breite und Höhe
+    const effW = gedreht ? item.height : item.width
+    const effH = gedreht ? item.width  : item.height
+
+    // Mittelpunkt-Offset bei Drehung
+    const dx = (item.width  - effW) / 2
+    const dy = (item.height - effH) / 2
 
     const onMove = (mv) => {
       mv.preventDefault()
@@ -218,8 +222,11 @@ function App() {
       const clientY = mv.clientY || mv.touches?.[0]?.clientY
       let newLeft = startLeft + (clientX - startX)
       let newTop  = startTop  + (clientY - startY)
-      newLeft = Math.max(-offsetX, Math.min(rect.width  - item.width  + offsetX, newLeft))
-      newTop  = Math.max(-offsetY, Math.min(rect.height - item.height + offsetY, newTop))
+
+      // Grenzen basierend auf effektiver Größe
+      newLeft = Math.max(-dx, Math.min(rect.width  - item.width  + dx, newLeft))
+      newTop  = Math.max(-dy, Math.min(rect.height - item.height + dy, newTop))
+
       updateFurniture(furniture.map(f => f.id === id ? { ...f, left: newLeft, top: newTop } : f))
     }
 
@@ -351,7 +358,7 @@ function App() {
         </div>
 
         {/* Canvas */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F0', position: 'relative' }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F0', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', fontSize: '11px', color: '#B4B2A9', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid #E8E6E0', zIndex: 10, whiteSpace: 'nowrap' }}>
             {ansicht === '2d' ? 'Doppelklick auf Raumnamen zum Umbenennen · Blau = Drehen · Rot = Löschen' : 'Maus ziehen = Kamera drehen · Scrollrad = Zoom'}
           </div>
@@ -415,7 +422,7 @@ function App() {
               ))}
             </div>
           ) : (
-            <div style={{ width: '100%', height: '100%' }}>
+            <div style={{ position: 'absolute', inset: 0 }}>
               <RoomView3D room={activeRoom} furniture={furniture} />
             </div>
           )}

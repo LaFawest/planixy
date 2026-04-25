@@ -9,98 +9,204 @@ export default function RoomView3D({ room, furniture }) {
     const width = mount.clientWidth
     const height = mount.clientHeight
 
-    // Scene
     const scene = new THREE.Scene()
     scene.background = new THREE.Color('#F5F4F0')
+    scene.fog = new THREE.Fog('#F5F4F0', 20, 40)
 
-    // Camera
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
     camera.position.set(8, 10, 12)
     camera.lookAt(0, 0, 0)
 
-    // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true })
     renderer.setSize(width, height)
+    renderer.setPixelRatio(window.devicePixelRatio)
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    renderer.toneMapping = THREE.ACESFilmicToneMapping
+    renderer.toneMappingExposure = 1.2
     mount.appendChild(renderer.domElement)
 
-    // Lichter
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
-    scene.add(ambientLight)
-
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8)
-    dirLight.position.set(10, 20, 10)
-    dirLight.castShadow = true
-    dirLight.shadow.mapSize.width = 2048
-    dirLight.shadow.mapSize.height = 2048
-    scene.add(dirLight)
-
-    // Raum Dimensionen
     const raumBreite = (room?.breite || 6)
     const raumTiefe  = (room?.tiefe  || 5)
     const wandHoehe  = 3
 
-    // Boden
+    // === BELEUCHTUNG ===
+    const ambientLight = new THREE.AmbientLight(0xfff5e6, 0.4)
+    scene.add(ambientLight)
+
+    const sunLight = new THREE.DirectionalLight(0xfff5e6, 1.2)
+    sunLight.position.set(raumBreite * 0.8, 8, raumTiefe * 0.8)
+    sunLight.castShadow = true
+    sunLight.shadow.mapSize.width = 4096
+    sunLight.shadow.mapSize.height = 4096
+    sunLight.shadow.camera.near = 0.5
+    sunLight.shadow.camera.far = 50
+    sunLight.shadow.camera.left = -10
+    sunLight.shadow.camera.right = 10
+    sunLight.shadow.camera.top = 10
+    sunLight.shadow.camera.bottom = -10
+    sunLight.shadow.bias = -0.001
+    sunLight.shadow.radius = 4
+    scene.add(sunLight)
+
+    const windowLight = new THREE.DirectionalLight(0xc8e8ff, 0.6)
+    windowLight.position.set(-raumBreite, 4, 0)
+    scene.add(windowLight)
+
+    const ceilingLight = new THREE.PointLight(0xfff8e6, 1.5, raumBreite * 3)
+    ceilingLight.position.set(0, wandHoehe - 0.2, 0)
+    ceilingLight.castShadow = true
+    scene.add(ceilingLight)
+
+    const lampGeo = new THREE.SphereGeometry(0.12, 16, 16)
+    const lampMat = new THREE.MeshBasicMaterial({ color: 0xfffde0 })
+    const lamp = new THREE.Mesh(lampGeo, lampMat)
+    lamp.position.set(0, wandHoehe - 0.1, 0)
+    scene.add(lamp)
+
+    const fillLight = new THREE.HemisphereLight(0xffffff, 0xC8A97A, 0.3)
+    scene.add(fillLight)
+
+    // === BODEN ===
+    const bodenFarbe = getBodenFarbe(room?.boden)
     const bodenGeo = new THREE.PlaneGeometry(raumBreite, raumTiefe)
-    const bodenMat = new THREE.MeshLambertMaterial({
-      color: getBodenFarbe(room?.boden),
-    })
+    const bodenMat = new THREE.MeshLambertMaterial({ color: bodenFarbe })
     const boden = new THREE.Mesh(bodenGeo, bodenMat)
     boden.rotation.x = -Math.PI / 2
     boden.receiveShadow = true
     scene.add(boden)
 
-    // Wände
+    if (room?.boden && room.boden !== 'boden-standard') {
+      const gridHelper = new THREE.GridHelper(
+        Math.max(raumBreite, raumTiefe),
+        room.boden === 'boden-fliesen' ? 6 : 12,
+        0x00000020, 0x00000020
+      )
+      gridHelper.position.y = 0.01
+      scene.add(gridHelper)
+    }
+
+    // === WÄNDE (alle 4, Transparenz wird dynamisch gesetzt) ===
     const wandFarbe = room?.wandfarbe || '#FFFFFF'
-    const wandMat = new THREE.MeshLambertMaterial({ color: wandFarbe, side: THREE.BackSide })
+    const wandMat = new THREE.MeshLambertMaterial({ color: wandFarbe, transparent: true, opacity: 1 })
 
-    // Hinterwand
-    const wand1Geo = new THREE.PlaneGeometry(raumBreite, wandHoehe)
-    const wand1 = new THREE.Mesh(wand1Geo, wandMat)
-    wand1.position.set(0, wandHoehe / 2, -raumTiefe / 2)
-    scene.add(wand1)
+    // Wand hinten (Z-)
+    const wandHintenGeo = new THREE.PlaneGeometry(raumBreite, wandHoehe)
+    const wandHinten = new THREE.Mesh(wandHintenGeo, wandMat.clone())
+    wandHinten.position.set(0, wandHoehe / 2, -raumTiefe / 2)
+    wandHinten.receiveShadow = true
+    scene.add(wandHinten)
 
-    // Seitenwand
-    const wand2Geo = new THREE.PlaneGeometry(raumTiefe, wandHoehe)
-    const wand2 = new THREE.Mesh(wand2Geo, wandMat)
-    wand2.position.set(-raumBreite / 2, wandHoehe / 2, 0)
-    wand2.rotation.y = Math.PI / 2
-    scene.add(wand2)
+    // Wand vorne (Z+)
+    const wandVorneGeo = new THREE.PlaneGeometry(raumBreite, wandHoehe)
+    const wandVorne = new THREE.Mesh(wandVorneGeo, wandMat.clone())
+    wandVorne.position.set(0, wandHoehe / 2, raumTiefe / 2)
+    wandVorne.rotation.y = Math.PI
+    wandVorne.receiveShadow = true
+    scene.add(wandVorne)
 
-    // Wand Kanten
-    const kantenMat = new THREE.LineBasicMaterial({ color: '#D3D1C7' })
+    // Wand links (X-)
+    const wandLinksGeo = new THREE.PlaneGeometry(raumTiefe, wandHoehe)
+    const wandLinks = new THREE.Mesh(wandLinksGeo, wandMat.clone())
+    wandLinks.position.set(-raumBreite / 2, wandHoehe / 2, 0)
+    wandLinks.rotation.y = Math.PI / 2
+    wandLinks.receiveShadow = true
+    scene.add(wandLinks)
 
-    // Möbel
+    // Wand rechts (X+)
+    const wandRechtsGeo = new THREE.PlaneGeometry(raumTiefe, wandHoehe)
+    const wandRechts = new THREE.Mesh(wandRechtsGeo, wandMat.clone())
+    wandRechts.position.set(raumBreite / 2, wandHoehe / 2, 0)
+    wandRechts.rotation.y = -Math.PI / 2
+    wandRechts.receiveShadow = true
+    scene.add(wandRechts)
+
+    // Decke
+    const deckeGeo = new THREE.PlaneGeometry(raumBreite, raumTiefe)
+    const deckeMat = new THREE.MeshLambertMaterial({ color: '#F0EDE8', side: THREE.DoubleSide })
+    const decke = new THREE.Mesh(deckeGeo, deckeMat)
+    decke.rotation.x = Math.PI / 2
+    decke.position.y = wandHoehe
+    scene.add(decke)
+
+    // Sockelleisten
+    const sockelMat = new THREE.MeshLambertMaterial({ color: '#E0DDD8' })
+    const s1 = new THREE.Mesh(new THREE.BoxGeometry(raumBreite, 0.08, 0.04), sockelMat)
+    s1.position.set(0, 0.04, -raumTiefe / 2 + 0.02)
+    scene.add(s1)
+    const s2 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, raumTiefe), sockelMat)
+    s2.position.set(-raumBreite / 2 + 0.02, 0.04, 0)
+    scene.add(s2)
+
+    // === MÖBEL & WAND-ELEMENTE ===
     furniture.forEach(item => {
       const moebelBreite = item.width  / 60
       const moebelTiefe  = item.height / 60
-      const moebelHoehe  = getMoebelHoehe(item.name)
 
-      const geo = new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe)
-      const mat = new THREE.MeshLambertMaterial({ color: item.color })
-      const mesh = new THREE.Mesh(geo, mat)
+      // Position korrekt berechnen
+      const scaleFactor = 1 / 60
+      const x = (item.left * scaleFactor) - (raumBreite / 2) + (moebelBreite / 2)
+      const z = (item.top  * scaleFactor) - (raumTiefe  / 2) + (moebelTiefe  / 2)
+      const rotation = -(item.rotation || 0) * Math.PI / 180
 
-      // Position umrechnen (Canvas px → 3D Koordinaten)
-      const x = (item.left / 60) - raumBreite  / 2 + moebelBreite / 2
-      const z = (item.top  / 60) - raumTiefe   / 2 + moebelTiefe  / 2
+      if (item.istWandElement) {
+        // Fenster & Türen
+        const elBreite = item.width  / 60
+        const elHoehe  = item.typ === 'fenster' ? 1.2 : 2.1
+        const elTiefe  = 0.08
 
-      mesh.position.set(x, moebelHoehe / 2, z)
-      mesh.rotation.y = -(item.rotation || 0) * Math.PI / 180
-      mesh.castShadow = true
-      mesh.receiveShadow = true
+        if (item.typ === 'fenster') {
+          // Fensterrahmen
+          const rahmenMat = new THREE.MeshLambertMaterial({ color: '#FFFFFF' })
+          const rahmen = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, elTiefe), rahmenMat)
+          rahmen.position.set(x, 1.2, z)
+          rahmen.rotation.y = rotation
+          rahmen.castShadow = true
+          scene.add(rahmen)
 
-      // Kante
-      const edges = new THREE.EdgesGeometry(geo)
-      const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: item.border }))
-      line.position.copy(mesh.position)
-      line.rotation.copy(mesh.rotation)
+          // Glasscheibe
+          const glasMat = new THREE.MeshLambertMaterial({ color: '#C8E8FF', transparent: true, opacity: 0.4 })
+          const glas = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.1, elHoehe - 0.1, 0.02), glasMat)
+          glas.position.set(x, 1.2, z)
+          glas.rotation.y = rotation
+          scene.add(glas)
+        } else {
+          // Tür
+          const tuerMat = new THREE.MeshLambertMaterial({ color: '#D4B896' })
+          const tuer = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, elTiefe), tuerMat)
+          tuer.position.set(x, elHoehe / 2, z)
+          tuer.rotation.y = rotation
+          tuer.castShadow = true
+          scene.add(tuer)
 
-      scene.add(mesh)
-      scene.add(line)
+          // Türknauf
+          const knaufMat = new THREE.MeshLambertMaterial({ color: '#BA7517' })
+          const knauf = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), knaufMat)
+          knauf.position.set(x + 0.3, 1.0, z + 0.05)
+          scene.add(knauf)
+        }
+      } else {
+        // Normale Möbel
+        const moebelHoehe = getMoebelHoehe(item.name)
+        const geo = new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe)
+        const mat = new THREE.MeshLambertMaterial({ color: item.color })
+        const mesh = new THREE.Mesh(geo, mat)
+        mesh.position.set(x, moebelHoehe / 2, z)
+        mesh.rotation.y = rotation
+        mesh.castShadow = true
+        mesh.receiveShadow = true
+
+        const edges = new THREE.EdgesGeometry(geo)
+        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: item.border }))
+        line.position.copy(mesh.position)
+        line.rotation.copy(mesh.rotation)
+
+        scene.add(mesh)
+        scene.add(line)
+      }
     })
 
-    // Kamera Steuerung (Maus)
+    // === KAMERA STEUERUNG ===
     let isDragging = false
     let previousMouse = { x: 0, y: 0 }
     let spherical = { theta: Math.PI / 4, phi: Math.PI / 3, radius: 18 }
@@ -110,6 +216,26 @@ export default function RoomView3D({ room, furniture }) {
       camera.position.y = spherical.radius * Math.cos(spherical.phi)
       camera.position.z = spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta)
       camera.lookAt(0, 0, 0)
+
+      // Wände dynamisch ein/ausblenden je nach Kameraposition
+      const camX = camera.position.x
+      const camZ = camera.position.z
+
+      // Wenn Kamera von vorne kommt → Vorderwand ausblenden
+      wandVorne.material.opacity  = camZ > 0 ? 0 : 1
+      wandVorne.material.transparent = camZ > 0
+
+      // Wenn Kamera von hinten kommt → Hinterwand ausblenden
+      wandHinten.material.opacity = camZ < 0 ? 0 : 1
+      wandHinten.material.transparent = camZ < 0
+
+      // Wenn Kamera von rechts kommt → Rechte Wand ausblenden
+      wandRechts.material.opacity = camX > 0 ? 0 : 1
+      wandRechts.material.transparent = camX > 0
+
+      // Wenn Kamera von links kommt → Linke Wand ausblenden
+      wandLinks.material.opacity  = camX < 0 ? 0 : 1
+      wandLinks.material.transparent = camX < 0
     }
     updateCamera()
 
@@ -120,30 +246,47 @@ export default function RoomView3D({ room, furniture }) {
       const dx = e.clientX - previousMouse.x
       const dy = e.clientY - previousMouse.y
       spherical.theta -= dx * 0.01
-      spherical.phi   = Math.max(0.1, Math.min(Math.PI / 2, spherical.phi + dy * 0.01))
+      spherical.phi = Math.max(0.1, Math.min(Math.PI / 2.2, spherical.phi + dy * 0.01))
       previousMouse = { x: e.clientX, y: e.clientY }
       updateCamera()
     }
     const onWheel = (e) => {
-      spherical.radius = Math.max(5, Math.min(30, spherical.radius + e.deltaY * 0.05))
+      spherical.radius = Math.max(4, Math.min(30, spherical.radius + e.deltaY * 0.05))
       updateCamera()
     }
 
+    let lastTouch = null
+    const onTouchStart = (e) => { lastTouch = e.touches[0]; isDragging = true }
+    const onTouchMove  = (e) => {
+      if (!isDragging || !lastTouch) return
+      const dx = e.touches[0].clientX - lastTouch.clientX
+      const dy = e.touches[0].clientY - lastTouch.clientY
+      spherical.theta -= dx * 0.01
+      spherical.phi = Math.max(0.1, Math.min(Math.PI / 2.2, spherical.phi + dy * 0.01))
+      lastTouch = e.touches[0]
+      updateCamera()
+    }
+    const onTouchEnd = () => { isDragging = false; lastTouch = null }
+
     mount.addEventListener('mousedown', onMouseDown)
+    mount.addEventListener('touchstart', onTouchStart)
+    mount.addEventListener('touchmove', onTouchMove)
+    mount.addEventListener('touchend', onTouchEnd)
     window.addEventListener('mouseup', onMouseUp)
     window.addEventListener('mousemove', onMouseMove)
     mount.addEventListener('wheel', onWheel)
 
-    // Animation Loop
     const animate = () => {
       requestAnimationFrame(animate)
       renderer.render(scene, camera)
     }
     animate()
 
-    // Cleanup
     return () => {
       mount.removeEventListener('mousedown', onMouseDown)
+      mount.removeEventListener('touchstart', onTouchStart)
+      mount.removeEventListener('touchmove', onTouchMove)
+      mount.removeEventListener('touchend', onTouchEnd)
       window.removeEventListener('mouseup', onMouseUp)
       window.removeEventListener('mousemove', onMouseMove)
       mount.removeEventListener('wheel', onWheel)
@@ -171,8 +314,8 @@ function getBodenFarbe(boden) {
 
 function getMoebelHoehe(name) {
   const hoehen = {
-    'Sofa': 0.85, 'Sessel': 0.85, 'Bett': 0.6, 'Einzelbett': 0.6,
-    'Doppelbett': 0.6, 'Tisch': 0.75, 'Esstisch': 0.75, 'Couchtisch': 0.45,
+    'Sofa': 0.85, 'Sessel': 0.85, 'Einzelbett': 0.6,
+    'Doppelbett': 0.6, 'Esstisch': 0.75, 'Couchtisch': 0.45,
     'Schreibtisch': 0.75, 'TV-Board': 0.5, 'Sideboard': 0.8,
     'Kleiderschrank': 2.1, 'Regal': 1.8, 'Bücherregal': 1.8,
     'Kühlschrank': 1.8, 'Herd': 0.9, 'Spüle': 0.9,
