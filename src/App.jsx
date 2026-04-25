@@ -211,6 +211,7 @@ function App() {
     const offsetY = (item.height - visHoehe)  / 2
 
     const onMove = (mv) => {
+      mv.preventDefault()
       const clientX = mv.clientX || mv.touches?.[0]?.clientX
       const clientY = mv.clientY || mv.touches?.[0]?.clientY
       let newLeft = startLeft + (clientX - startX)
