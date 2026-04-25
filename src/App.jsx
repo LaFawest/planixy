@@ -361,7 +361,7 @@ function App() {
                   transformOrigin: 'center center',
                   transition: 'transform 0.2s ease',
                 }}>
-                <<div onMouseDown={(e) => handleDrag(e, item.id)} onTouchStart={(e) => handleDrag(e, item.id)} style={{
+                <div onMouseDown={(e) => handleDrag(e, item.id)} onTouchStart={(e) => handleDrag(e, item.id)} style={{
                   width: '100%', height: '100%',
                   background: item.color,
                   border: `${item.istWandElement ? '3px' : '1.5px'} solid ${item.border}`,
