@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import RoomView3D from './RoomView3D'
 
 const furnitureLibrary = [
   { name: 'Sofa',           kategorie: 'Wohnen',     width: 100, height: 52,  color: '#B5D4F4', border: '#378ADD' },
@@ -115,6 +116,7 @@ function App() {
   const [aktiveKategorie, setAktiveKategorie] = useState('Alle')
   const [suche, setSuche] = useState('')
   const [aktiverTab, setAktiverTab] = useState(null)
+  const [ansicht, setAnsicht] = useState('2d')
   useEffect(() => {
     localStorage.setItem('planixy-rooms', JSON.stringify(rooms))
   }, [rooms])
@@ -307,6 +309,16 @@ function App() {
         {/* Topbar */}
         <div style={{ padding: '14px 28px', borderBottom: '1px solid #E8E6E0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, gap: '12px', background: 'white', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', fontWeight: '500', color: '#2C2C2A', minWidth: '80px' }}>{activeRoom?.name}</h3>
+          <div style={{ display: 'flex', border: '1px solid #E8E6E0', borderRadius: '8px', overflow: 'hidden' }}>
+            {['2d', '3d'].map(a => (
+              <button key={a} onClick={() => setAnsicht(a)} style={{
+                padding: '6px 14px', fontSize: '12px', fontFamily: "'DM Sans', sans-serif",
+                background: ansicht === a ? '#185FA5' : 'white',
+                color: ansicht === a ? 'white' : '#888780',
+                border: 'none', cursor: 'pointer', fontWeight: ansicht === a ? '500' : '400',
+              }}>{a.toUpperCase()}</button>
+            ))}
+          </div>
           <div className="topbar-mitte" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#888780' }}>
             <span>Breite</span>
             <input type="number" min="1" max="20" value={activeRoom?.breite || 6}
@@ -340,64 +352,73 @@ function App() {
 
         {/* Canvas */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F0', position: 'relative' }}>
-          <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', fontSize: '11px', color: '#B4B2A9', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid #E8E6E0' }}>
-            Doppelklick auf Raumnamen zum Umbenennen · Blau = Drehen · Rot = Löschen
+          <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', fontSize: '11px', color: '#B4B2A9', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid #E8E6E0', zIndex: 10, whiteSpace: 'nowrap' }}>
+            {ansicht === '2d' ? 'Doppelklick auf Raumnamen zum Umbenennen · Blau = Drehen · Rot = Löschen' : 'Maus ziehen = Kamera drehen · Scrollrad = Zoom'}
           </div>
-          <div id="canvas" className={`canvas-wrap ${activeRoom?.boden || 'boden-standard'}`} style={{
-            width: `${(activeRoom?.breite || 6) * 60}px`,
-            height: `${(activeRoom?.tiefe || 5) * 60}px`,
-            border: `8px solid ${activeRoom?.wandfarbe || '#FFFFFF'}`,
-            borderRadius: '6px',
-            position: 'relative', boxShadow: '0 4px 24px rgba(24,95,165,0.08)',
-            outline: '2px solid #B5D4F4',
-          }}>
-            {furniture.map(item => (
-              <div key={item.id} style={{
-                position: 'absolute', left: item.left, top: item.top,
-                width: item.width, height: item.height,
-              }}>
-                <div style={{
-                  width: '100%', height: '100%',
-                  transform: `rotate(${item.rotation || 0}deg)`,
-                  transformOrigin: 'center center',
-                  transition: 'transform 0.2s ease',
+
+          {ansicht === '2d' ? (
+            <div id="canvas" className={`canvas-wrap ${activeRoom?.boden || 'boden-standard'}`} style={{
+              width: `${(activeRoom?.breite || 6) * 60}px`,
+              height: `${(activeRoom?.tiefe || 5) * 60}px`,
+              border: `8px solid ${activeRoom?.wandfarbe || '#FFFFFF'}`,
+              borderRadius: '6px',
+              position: 'relative', boxShadow: '0 4px 24px rgba(24,95,165,0.08)',
+              outline: '2px solid #B5D4F4',
+            }}>
+              {furniture.map(item => (
+                <div key={item.id} style={{
+                  position: 'absolute', left: item.left, top: item.top,
+                  width: item.width, height: item.height,
                 }}>
-                <div onMouseDown={(e) => handleDrag(e, item.id)} onTouchStart={(e) => handleDrag(e, item.id)} style={{
-                  width: '100%', height: '100%',
-                  background: item.color,
-                  border: `${item.istWandElement ? '3px' : '1.5px'} solid ${item.border}`,
-                  borderRadius: item.istWandElement ? '3px' : '5px',
-                  display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', fontSize: '10px', fontWeight: '500',
-                  cursor: 'grab', userSelect: 'none', color: item.border, position: 'relative',
-                  transition: 'box-shadow 0.15s',
-                  boxShadow: item.istWandElement ? `0 0 0 1px ${item.border}22` : 'none',
-                }}
-                  onMouseEnter={e => e.currentTarget.style.boxShadow = `0 0 0 2px ${item.border}`}
-                  onMouseLeave={e => e.currentTarget.style.boxShadow = item.istWandElement ? `0 0 0 1px ${item.border}22` : 'none'}
-                >
-                  {item.name}
-                  <span 
-                    onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                    onClick={(e) => { e.stopPropagation(); removeFurniture(item.id) }} style={{
-                    position: 'absolute', top: '-8px', right: '-8px', width: '16px', height: '16px',
-                    borderRadius: '50%', background: '#E24B4A', color: 'white', fontSize: '10px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                  }}>✕</span>
-                  <span
-                    onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
-                    onClick={(e) => { e.stopPropagation(); rotateFurniture(item.id) }} style={{
-                    position: 'absolute', top: '-8px', left: '-8px', width: '16px', height: '16px',
-                    borderRadius: '50%', background: '#185FA5', color: 'white', fontSize: '11px',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                  }}>↻</span>
+                  <div style={{
+                    width: '100%', height: '100%',
+                    transform: `rotate(${item.rotation || 0}deg)`,
+                    transformOrigin: 'center center',
+                    transition: 'transform 0.2s ease',
+                  }}>
+                    <div onMouseDown={(e) => handleDrag(e, item.id)} onTouchStart={(e) => handleDrag(e, item.id)} style={{
+                      width: '100%', height: '100%',
+                      background: item.color,
+                      border: `${item.istWandElement ? '3px' : '1.5px'} solid ${item.border}`,
+                      borderRadius: item.istWandElement ? '3px' : '5px',
+                      display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', fontSize: '10px', fontWeight: '500',
+                      cursor: 'grab', userSelect: 'none', color: item.border, position: 'relative',
+                      transition: 'box-shadow 0.15s',
+                      boxShadow: item.istWandElement ? `0 0 0 1px ${item.border}22` : 'none',
+                    }}
+                      onMouseEnter={e => e.currentTarget.style.boxShadow = `0 0 0 2px ${item.border}`}
+                      onMouseLeave={e => e.currentTarget.style.boxShadow = item.istWandElement ? `0 0 0 1px ${item.border}22` : 'none'}
+                    >
+                      {item.name}
+                      <span
+                        onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
+                        onClick={(e) => { e.stopPropagation(); removeFurniture(item.id) }}
+                        style={{
+                          position: 'absolute', top: '-8px', right: '-8px', width: '16px', height: '16px',
+                          borderRadius: '50%', background: '#E24B4A', color: 'white', fontSize: '10px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                        }}>✕</span>
+                      <span
+                        onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
+                        onClick={(e) => { e.stopPropagation(); rotateFurniture(item.id) }}
+                        style={{
+                          position: 'absolute', top: '-8px', left: '-8px', width: '16px', height: '16px',
+                          borderRadius: '50%', background: '#185FA5', color: 'white', fontSize: '11px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                        }}>↻</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ))}
             </div>
-            ))}
-          </div>
+          ) : (
+            <div style={{ width: '100%', height: '100%' }}>
+              <RoomView3D room={activeRoom} furniture={furniture} />
+            </div>
+          )}
         </div>
       </div>
 
