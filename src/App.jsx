@@ -60,49 +60,40 @@ const kategorieFarben = {
   'Deko':       { bg: '#FBEAF0', color: '#993556' },
 }
 const wandElemente = [
-  { name: 'Tür',          typ: 'tuer',    width: 40, height: 12, color: '#FFF8E6', border: '#BA7517' },
-  { name: 'Drehtür',      typ: 'tuer',    width: 44, height: 12, color: '#FFF8E6', border: '#BA7517' },
-  { name: 'Schiebetür',   typ: 'tuer',    width: 50, height: 10, color: '#FFF8E6', border: '#BA7517' },
-  { name: 'Fenster klein',typ: 'fenster', width: 40, height: 10, color: '#E6F4FB', border: '#185FA5' },
-  { name: 'Fenster groß', typ: 'fenster', width: 70, height: 10, color: '#E6F4FB', border: '#185FA5' },
-  { name: 'Balkontür',    typ: 'tuer',    width: 44, height: 12, color: '#FFF8E6', border: '#BA7517' },
+  { name: 'Tür',           typ: 'tuer',    width: 40, height: 12, color: '#FFF8E6', border: '#BA7517' },
+  { name: 'Drehtür',       typ: 'tuer',    width: 44, height: 12, color: '#FFF8E6', border: '#BA7517' },
+  { name: 'Schiebetür',    typ: 'tuer',    width: 50, height: 10, color: '#FFF8E6', border: '#BA7517' },
+  { name: 'Fenster klein', typ: 'fenster', width: 40, height: 10, color: '#E6F4FB', border: '#185FA5' },
+  { name: 'Fenster groß',  typ: 'fenster', width: 70, height: 10, color: '#E6F4FB', border: '#185FA5' },
+  { name: 'Balkontür',     typ: 'tuer',    width: 44, height: 12, color: '#FFF8E6', border: '#BA7517' },
 ]
 const bodenBelaege = [
-  { name: 'Standard',  klasse: 'boden-standard', icon: '⬜' },
-  { name: 'Parkett',   klasse: 'boden-parkett',  icon: '🪵' },
-  { name: 'Laminat',   klasse: 'boden-laminat',  icon: '📋' },
-  { name: 'Fliesen',   klasse: 'boden-fliesen',  icon: '🔲' },
-  { name: 'Teppich',   klasse: 'boden-teppich',  icon: '🟪' },
-  { name: 'Beton',     klasse: 'boden-beton',     icon: '🩶' },
+  { name: 'Standard', klasse: 'boden-standard', icon: '⬜' },
+  { name: 'Parkett',  klasse: 'boden-parkett',  icon: '🪵' },
+  { name: 'Laminat',  klasse: 'boden-laminat',  icon: '📋' },
+  { name: 'Fliesen',  klasse: 'boden-fliesen',  icon: '🔲' },
+  { name: 'Teppich',  klasse: 'boden-teppich',  icon: '🟪' },
+  { name: 'Beton',    klasse: 'boden-beton',     icon: '🩶' },
 ]
 const wandFarben = [
-  { name: 'Weiß',        farbe: '#FFFFFF', text: '#888780' },
-  { name: 'Cremeweiß',   farbe: '#F5F0E8', text: '#888780' },
-  { name: 'Hellgrau',    farbe: '#E8E6E0', text: '#888780' },
-  { name: 'Grau',        farbe: '#B4B2A9', text: '#444441' },
-  { name: 'Anthrazit',   farbe: '#444441', text: '#F5F4F0' },
-  { name: 'Beige',       farbe: '#E8D5B0', text: '#888780' },
-  { name: 'Sandbraun',   farbe: '#C4A882', text: '#444441' },
-  { name: 'Terrakotta',  farbe: '#D4856A', text: '#FFFFFF' },
-  { name: 'Altrosa',     farbe: '#E8B4B8', text: '#444441' },
-  { name: 'Mintgrün',    farbe: '#A8D5C2', text: '#444441' },
-  { name: 'Salbei',      farbe: '#8FB89A', text: '#FFFFFF' },
-  { name: 'Dunkelgrün',  farbe: '#2D5A3D', text: '#FFFFFF' },
-  { name: 'Hellblau',    farbe: '#B8D4E8', text: '#444441' },
-  { name: 'Stahlblau',   farbe: '#4A7FA5', text: '#FFFFFF' },
-  { name: 'Dunkelblau',  farbe: '#1A3A5C', text: '#FFFFFF' },
-  { name: 'Lavendel',    farbe: '#C4B8D4', text: '#444441' },
-  { name: 'Aubergine',   farbe: '#5C3D5C', text: '#FFFFFF' },
-  { name: 'Gelb',        farbe: '#F5E6A0', text: '#888780' },
+  { name: 'Weiß',       farbe: '#FFFFFF' }, { name: 'Cremeweiß',  farbe: '#F5F0E8' },
+  { name: 'Hellgrau',   farbe: '#E8E6E0' }, { name: 'Grau',       farbe: '#B4B2A9' },
+  { name: 'Anthrazit',  farbe: '#444441' }, { name: 'Beige',      farbe: '#E8D5B0' },
+  { name: 'Sandbraun',  farbe: '#C4A882' }, { name: 'Terrakotta', farbe: '#D4856A' },
+  { name: 'Altrosa',    farbe: '#E8B4B8' }, { name: 'Mintgrün',   farbe: '#A8D5C2' },
+  { name: 'Salbei',     farbe: '#8FB89A' }, { name: 'Dunkelgrün', farbe: '#2D5A3D' },
+  { name: 'Hellblau',   farbe: '#B8D4E8' }, { name: 'Stahlblau',  farbe: '#4A7FA5' },
+  { name: 'Dunkelblau', farbe: '#1A3A5C' }, { name: 'Lavendel',   farbe: '#C4B8D4' },
+  { name: 'Aubergine',  farbe: '#5C3D5C' }, { name: 'Gelb',       farbe: '#F5E6A0' },
 ]
 
 let nextId = 10
 let nextRoomId = 4
 
 const initialRooms = [
-  { id: 1, name: 'Wohnzimmer',  breite: 6, tiefe: 5, furniture: [] },
+  { id: 1, name: 'Wohnzimmer',   breite: 6, tiefe: 5, furniture: [] },
   { id: 2, name: 'Schlafzimmer', breite: 5, tiefe: 4, furniture: [] },
-  { id: 3, name: 'Küche',       breite: 4, tiefe: 3, furniture: [] },
+  { id: 3, name: 'Küche',        breite: 4, tiefe: 3, furniture: [] },
 ]
 
 function App() {
@@ -117,29 +108,30 @@ function App() {
   const [suche, setSuche] = useState('')
   const [aktiverTab, setAktiverTab] = useState(null)
   const [ansicht, setAnsicht] = useState('2d')
+  const [fussleiste, setFussleiste] = useState(true)
+  const [fussleisteFarbe, setFussleisteFarbe] = useState('#E0DDD8')
+
   useEffect(() => {
     localStorage.setItem('planixy-rooms', JSON.stringify(rooms))
   }, [rooms])
 
   const activeRoom = rooms.find(r => r.id === activeRoomId)
   const furniture = activeRoom?.furniture || []
+  const canvasB = (activeRoom?.breite || 6) * 60
+  const canvasT = (activeRoom?.tiefe  || 5) * 60
+  const wandDicke = 8
+  const innenB = canvasB - wandDicke * 2
+  const innenT = canvasT - wandDicke * 2
+  const fussleisteBreite = fussleiste ? 8 : 0
+  const grenzB = innenB - fussleisteBreite * 2
+  const grenzT = innenT - fussleisteBreite * 2
+  const grenzStart = fussleisteBreite
 
-  const updateRoom = (id, changes) => {
-    setRooms(prev => prev.map(r => r.id === id ? { ...r, ...changes } : r))
-  }
+  const updateRoom = (id, changes) => setRooms(prev => prev.map(r => r.id === id ? { ...r, ...changes } : r))
+  const setBoden = (boden) => updateRoom(activeRoomId, { boden })
+  const setWandfarbe = (wandfarbe) => updateRoom(activeRoomId, { wandfarbe })
+  const updateFurniture = (newFurniture) => updateRoom(activeRoomId, { furniture: newFurniture })
 
-  const setBoden = (boden) => {
-    updateRoom(activeRoomId, { boden })
-  }
-  const setWandfarbe = (wandfarbe) => {
-    updateRoom(activeRoomId, { wandfarbe })
-  }
-
-  const updateFurniture = (newFurniture) => {
-    updateRoom(activeRoomId, { furniture: newFurniture })
-  }
-
-  // Raum hinzufügen
   const addRoom = () => {
     const newRoom = { id: nextRoomId++, name: `Raum ${nextRoomId - 1}`, breite: 5, tiefe: 4, furniture: [] }
     setRooms(prev => [...prev, newRoom])
@@ -148,7 +140,6 @@ function App() {
     setEditingName(newRoom.name)
   }
 
-  // Raum löschen
   const deleteRoom = (id) => {
     if (rooms.length === 1) return
     const remaining = rooms.filter(r => r.id !== id)
@@ -156,93 +147,73 @@ function App() {
     if (activeRoomId === id) setActiveRoomId(remaining[0].id)
   }
 
-  // Umbenennen starten
-  const startRename = (room) => {
-    setEditingRoomId(room.id)
-    setEditingName(room.name)
-  }
-
-  // Umbenennen speichern
+  const startRename = (room) => { setEditingRoomId(room.id); setEditingName(room.name) }
   const saveRename = () => {
     if (editingName.trim()) updateRoom(editingRoomId, { name: editingName.trim() })
     setEditingRoomId(null)
   }
 
-  // Möbel
   const addFurniture = (item) => {
     updateFurniture([...furniture, {
       ...item, id: nextId++,
-      top: 20 + Math.random() * 150,
-      left: 20 + Math.random() * 200,
+      top: 20 + Math.random() * 100,
+      left: 20 + Math.random() * 100,
       rotation: 0,
     }])
   }
+
   const addWandElement = (item) => {
     updateFurniture([...furniture, {
-      ...item,
-      id: nextId++,
-      top: 0,
-      left: 20 + Math.random() * 200,
-      rotation: 0,
-      istWandElement: true,
+      ...item, id: nextId++,
+      top: 0, left: 20 + Math.random() * 100,
+      rotation: 0, istWandElement: true,
     }])
   }
 
   const removeFurniture = (id) => updateFurniture(furniture.filter(f => f.id !== id))
 
   const rotateFurniture = (id) => {
-    updateFurniture(furniture.map(f =>
-      f.id === id ? { ...f, rotation: ((f.rotation || 0) + 90) % 360 } : f
-    ))
+    updateFurniture(furniture.map(f => {
+      if (f.id !== id) return f
+      const neueRotation = ((f.rotation || 0) + 90) % 360
+      const neueBreite = f.height
+      const neueHoehe  = f.width
+      const mitteX = f.left + f.width  / 2
+      const mitteY = f.top  + f.height / 2
+      let newLeft = Math.max(grenzStart, Math.min(grenzStart + grenzB - neueBreite, mitteX - neueBreite / 2))
+      let newTop  = Math.max(grenzStart, Math.min(grenzStart + grenzT - neueHoehe,  mitteY - neueHoehe  / 2))
+      return { ...f, rotation: neueRotation, left: newLeft, top: newTop, width: neueBreite, height: neueHoehe }
+    }))
   }
 
   const handleDrag = (e, id) => {
     e.preventDefault()
-    const canvas = document.getElementById('canvas')
-    const rect = canvas.getBoundingClientRect()
     const item = furniture.find(f => f.id === id)
     const startX = e.clientX || e.touches?.[0]?.clientX
     const startY = e.clientY || e.touches?.[0]?.clientY
     const startLeft = item.left
-    const startTop = item.top
-    const rotation = item.rotation || 0
-    const gedreht = rotation === 90 || rotation === 270
-
-    // Bei Drehung tauschen Breite und Höhe
-    const effW = gedreht ? item.height : item.width
-    const effH = gedreht ? item.width  : item.height
-
-    // Mittelpunkt-Offset bei Drehung
-    const dx = (item.width  - effW) / 2
-    const dy = (item.height - effH) / 2
+    const startTop  = item.top
 
     const onMove = (mv) => {
       mv.preventDefault()
       const clientX = mv.clientX || mv.touches?.[0]?.clientX
       const clientY = mv.clientY || mv.touches?.[0]?.clientY
-      let newLeft = startLeft + (clientX - startX)
-      let newTop  = startTop  + (clientY - startY)
-
-      // Grenzen basierend auf effektiver Größe
-      newLeft = Math.max(-dx, Math.min(rect.width  - item.width  + dx, newLeft))
-      newTop  = Math.max(-dy, Math.min(rect.height - item.height + dy, newTop))
-
+      // Grenzen: 0 = Innenwand links/oben, innenB/innenT - Möbelgröße = Innenwand rechts/unten
+      let newLeft = Math.max(grenzStart, Math.min(grenzStart + grenzB - item.width,  startLeft + (clientX - startX)))
+      let newTop  = Math.max(grenzStart, Math.min(grenzStart + grenzT - item.height, startTop  + (clientY - startY)))
       updateFurniture(furniture.map(f => f.id === id ? { ...f, left: newLeft, top: newTop } : f))
     }
-
     const onUp = () => {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
       window.removeEventListener('touchmove', onMove)
       window.removeEventListener('touchend', onUp)
     }
-
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
     window.addEventListener('touchmove', onMove, { passive: false })
     window.addEventListener('touchend', onUp)
   }
-
   const gefilterteMoebel = furnitureLibrary.filter(item => {
     const kategorieOk = aktiveKategorie === 'Alle' || item.kategorie === aktiveKategorie
     const sucheOk = item.name.toLowerCase().includes(suche.toLowerCase())
@@ -255,32 +226,20 @@ function App() {
       {/* Sidebar */}
       <div className="sidebar" style={{ width: '220px', background: 'white', borderRight: '1px solid #E8E6E0', padding: '24px 16px', flexShrink: 0, display: 'flex', flexDirection: 'column', boxShadow: '2px 0 8px rgba(0,0,0,0.04)' }}>
         <div style={{ padding: '0 8px', marginBottom: '28px' }}>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', fontWeight: '500', color: '#2C2C2A', letterSpacing: '-0.3px' }}>Planixy</h2>
-          <p style={{ fontSize: '11px', color: '#B4B2A9', marginTop: '2px', letterSpacing: '0.02em' }}>Intelligente Raumplanung</p>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', fontWeight: '500', color: '#2C2C2A' }}>Planixy</h2>
+          <p style={{ fontSize: '11px', color: '#B4B2A9', marginTop: '2px' }}>Intelligente Raumplanung</p>
         </div>
-
         <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '8px', letterSpacing: '0.08em', padding: '0 8px' }}>MEINE RÄUME</p>
-
         <div style={{ flex: 1, overflowY: 'auto' }}>
           {rooms.map(room => (
-            <div key={room.id} className="room-item" style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '9px 12px', borderRadius: '10px', marginBottom: '3px',
-              background: activeRoomId === room.id ? '#EEF4FC' : 'transparent',
-              cursor: 'pointer', transition: 'background 0.15s',
-            }}
-              onClick={() => setActiveRoomId(room.id)}
+            <div key={room.id} className="room-item" onClick={() => setActiveRoomId(room.id)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', borderRadius: '10px', marginBottom: '3px', background: activeRoomId === room.id ? '#EEF4FC' : 'transparent', cursor: 'pointer', transition: 'background 0.15s' }}
               onMouseEnter={e => { if (activeRoomId !== room.id) e.currentTarget.style.background = '#F7F6F2' }}
               onMouseLeave={e => { if (activeRoomId !== room.id) e.currentTarget.style.background = 'transparent' }}
             >
               {editingRoomId === room.id ? (
-                <input autoFocus value={editingName}
-                  onChange={e => setEditingName(e.target.value)}
-                  onBlur={saveRename}
-                  onKeyDown={e => e.key === 'Enter' && saveRename()}
-                  onClick={e => e.stopPropagation()}
-                  style={{ flex: 1, fontSize: '13px', border: 'none', background: 'transparent', outline: 'none', color: '#185FA5', fontFamily: "'DM Sans', sans-serif" }}
-                />
+                <input autoFocus value={editingName} onChange={e => setEditingName(e.target.value)} onBlur={saveRename} onKeyDown={e => e.key === 'Enter' && saveRename()} onClick={e => e.stopPropagation()}
+                  style={{ flex: 1, fontSize: '13px', border: 'none', background: 'transparent', outline: 'none', color: '#185FA5', fontFamily: "'DM Sans', sans-serif" }} />
               ) : (
                 <span onDoubleClick={(e) => { e.stopPropagation(); startRename(room) }}
                   style={{ fontSize: '13px', color: activeRoomId === room.id ? '#185FA5' : '#444441', fontWeight: activeRoomId === room.id ? '500' : '400', flex: 1 }}>
@@ -289,23 +248,17 @@ function App() {
               )}
               {rooms.length > 1 && (
                 <span onClick={(e) => { e.stopPropagation(); deleteRoom(room.id) }}
-                  style={{ fontSize: '11px', color: '#D3D1C7', cursor: 'pointer', marginLeft: '4px', transition: 'color 0.15s' }}
+                  style={{ fontSize: '11px', color: '#D3D1C7', cursor: 'pointer', marginLeft: '4px' }}
                   onMouseEnter={e => e.target.style.color = '#E24B4A'}
-                  onMouseLeave={e => e.target.style.color = '#D3D1C7'}
-                >✕</span>
+                  onMouseLeave={e => e.target.style.color = '#D3D1C7'}>✕</span>
               )}
             </div>
           ))}
         </div>
-
-        <div onClick={addRoom} style={{
-          marginTop: '12px', padding: '9px 12px', borderRadius: '10px',
-          border: '1.5px dashed #D3D1C7', cursor: 'pointer', fontSize: '12px',
-          color: '#888780', textAlign: 'center', transition: 'all 0.15s',
-        }}
+        <div onClick={addRoom}
+          style={{ marginTop: '12px', padding: '9px 12px', borderRadius: '10px', border: '1.5px dashed #D3D1C7', cursor: 'pointer', fontSize: '12px', color: '#888780', textAlign: 'center', transition: 'all 0.15s' }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = '#185FA5'; e.currentTarget.style.color = '#185FA5' }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = '#D3D1C7'; e.currentTarget.style.color = '#888780' }}
-        >
+          onMouseLeave={e => { e.currentTarget.style.borderColor = '#D3D1C7'; e.currentTarget.style.color = '#888780' }}>
           + Raum hinzufügen
         </div>
       </div>
@@ -318,104 +271,68 @@ function App() {
           <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', fontWeight: '500', color: '#2C2C2A', minWidth: '80px' }}>{activeRoom?.name}</h3>
           <div style={{ display: 'flex', border: '1px solid #E8E6E0', borderRadius: '8px', overflow: 'hidden' }}>
             {['2d', '3d'].map(a => (
-              <button key={a} onClick={() => setAnsicht(a)} style={{
-                padding: '6px 14px', fontSize: '12px', fontFamily: "'DM Sans', sans-serif",
-                background: ansicht === a ? '#185FA5' : 'white',
-                color: ansicht === a ? 'white' : '#888780',
-                border: 'none', cursor: 'pointer', fontWeight: ansicht === a ? '500' : '400',
-              }}>{a.toUpperCase()}</button>
+              <button key={a} onClick={() => setAnsicht(a)} style={{ padding: '6px 14px', fontSize: '12px', fontFamily: "'DM Sans', sans-serif", background: ansicht === a ? '#185FA5' : 'white', color: ansicht === a ? 'white' : '#888780', border: 'none', cursor: 'pointer', fontWeight: ansicht === a ? '500' : '400' }}>{a.toUpperCase()}</button>
             ))}
           </div>
           <div className="topbar-mitte" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#888780' }}>
             <span>Breite</span>
-            <input type="number" min="1" max="20" value={activeRoom?.breite || 6}
-              onChange={e => updateRoom(activeRoomId, { breite: Number(e.target.value) })}
-              style={{ width: '52px', padding: '5px 8px', border: '1px solid #E8E6E0', borderRadius: '8px', fontSize: '12px', fontFamily: "'DM Sans', sans-serif", textAlign: 'center', outline: 'none', background: '#F7F6F2' }}
-            />
+            <input type="number" min="1" max="20" value={activeRoom?.breite || 6} onChange={e => updateRoom(activeRoomId, { breite: Number(e.target.value) })}
+              style={{ width: '52px', padding: '5px 8px', border: '1px solid #E8E6E0', borderRadius: '8px', fontSize: '12px', fontFamily: "'DM Sans', sans-serif", textAlign: 'center', outline: 'none', background: '#F7F6F2' }} />
             <span>m × Tiefe</span>
-            <input type="number" min="1" max="20" value={activeRoom?.tiefe || 5}
-              onChange={e => updateRoom(activeRoomId, { tiefe: Number(e.target.value) })}
-              style={{ width: '52px', padding: '5px 8px', border: '1px solid #E8E6E0', borderRadius: '8px', fontSize: '12px', fontFamily: "'DM Sans', sans-serif", textAlign: 'center', outline: 'none', background: '#F7F6F2' }}
-            />
+            <input type="number" min="1" max="20" value={activeRoom?.tiefe || 5} onChange={e => updateRoom(activeRoomId, { tiefe: Number(e.target.value) })}
+              style={{ width: '52px', padding: '5px 8px', border: '1px solid #E8E6E0', borderRadius: '8px', fontSize: '12px', fontFamily: "'DM Sans', sans-serif", textAlign: 'center', outline: 'none', background: '#F7F6F2' }} />
             <span>m</span>
-            <span style={{ background: '#EAF3DE', color: '#3B6D11', fontSize: '11px', padding: '4px 10px', borderRadius: '20px', fontWeight: '500' }}>
-              {(activeRoom?.breite || 6) * (activeRoom?.tiefe || 5)} m²
-            </span>
+            <span style={{ background: '#EAF3DE', color: '#3B6D11', fontSize: '11px', padding: '4px 10px', borderRadius: '20px', fontWeight: '500' }}>{(activeRoom?.breite || 6) * (activeRoom?.tiefe || 5)} m²</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ fontSize: '12px', color: '#B4B2A9' }}>{furniture.length} Objekte</div>
-            <button style={{
-              padding: '8px 18px', background: '#185FA5', color: 'white', border: 'none',
-              borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontFamily: "'DM Sans', sans-serif",
-              fontWeight: '500', letterSpacing: '0.01em', transition: 'background 0.15s',
-            }}
+            <button style={{ padding: '8px 18px', background: '#185FA5', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontFamily: "'DM Sans', sans-serif", fontWeight: '500' }}
               onMouseEnter={e => e.currentTarget.style.background = '#0C447C'}
-              onMouseLeave={e => e.currentTarget.style.background = '#185FA5'}
-            >
-              KI-Vorschlag
-            </button>
+              onMouseLeave={e => e.currentTarget.style.background = '#185FA5'}>KI-Vorschlag</button>
           </div>
         </div>
 
         {/* Canvas */}
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F0', position: 'relative', overflow: 'hidden' }}>
           <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', fontSize: '11px', color: '#B4B2A9', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid #E8E6E0', zIndex: 10, whiteSpace: 'nowrap' }}>
-            {ansicht === '2d' ? 'Doppelklick auf Raumnamen zum Umbenennen · Blau = Drehen · Rot = Löschen' : 'Maus ziehen = Kamera drehen · Scrollrad = Zoom'}
+            {ansicht === '2d' ? 'Doppelklick auf Raumnamen · Blau = Drehen · Rot = Löschen' : 'Maus ziehen = Kamera drehen · Scrollrad = Zoom'}
           </div>
-
           {ansicht === '2d' ? (
             <div id="canvas" className={`canvas-wrap ${activeRoom?.boden || 'boden-standard'}`} style={{
-              width: `${(activeRoom?.breite || 6) * 60}px`,
-              height: `${(activeRoom?.tiefe || 5) * 60}px`,
-              border: `8px solid ${activeRoom?.wandfarbe || '#FFFFFF'}`,
-              borderRadius: '6px',
-              position: 'relative', boxShadow: '0 4px 24px rgba(24,95,165,0.08)',
+              width: `${canvasB}px`, height: `${canvasT}px`,
+              border: `${wandDicke}px solid ${activeRoom?.wandfarbe || '#FFFFFF'}`,
+              borderRadius: '6px', position: 'relative',
+              boxShadow: '0 4px 24px rgba(24,95,165,0.08)',
               outline: '2px solid #B5D4F4',
+              boxSizing: 'border-box',
             }}>
+              {fussleiste && (
+                <>
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '8px', background: fussleisteFarbe, zIndex: 2 }}></div>
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '8px', background: fussleisteFarbe, zIndex: 2 }}></div>
+                  <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '8px', background: fussleisteFarbe, zIndex: 2 }}></div>
+                  <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '8px', background: fussleisteFarbe, zIndex: 2 }}></div>
+                </>
+              )}
               {furniture.map(item => (
-                <div key={item.id} style={{
-                  position: 'absolute', left: item.left, top: item.top,
-                  width: item.width, height: item.height,
-                }}>
-                  <div style={{
-                    width: '100%', height: '100%',
-                    transform: `rotate(${item.rotation || 0}deg)`,
-                    transformOrigin: 'center center',
-                    transition: 'transform 0.2s ease',
-                  }}>
+                <div key={item.id} style={{ position: 'absolute', left: item.left, top: item.top, width: item.width, height: item.height }}>
+                  <div style={{ width: '100%', height: '100%' }}>
                     <div onMouseDown={(e) => handleDrag(e, item.id)} onTouchStart={(e) => handleDrag(e, item.id)} style={{
-                      width: '100%', height: '100%',
-                      background: item.color,
+                      width: '100%', height: '100%', background: item.color,
                       border: `${item.istWandElement ? '3px' : '1.5px'} solid ${item.border}`,
                       borderRadius: item.istWandElement ? '3px' : '5px',
-                      display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', fontSize: '10px', fontWeight: '500',
-                      cursor: 'grab', userSelect: 'none', color: item.border, position: 'relative',
-                      transition: 'box-shadow 0.15s',
-                      boxShadow: item.istWandElement ? `0 0 0 1px ${item.border}22` : 'none',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '10px', fontWeight: '500', cursor: 'grab', userSelect: 'none',
+                      color: item.border, position: 'relative', transition: 'box-shadow 0.15s',
                     }}
                       onMouseEnter={e => e.currentTarget.style.boxShadow = `0 0 0 2px ${item.border}`}
-                      onMouseLeave={e => e.currentTarget.style.boxShadow = item.istWandElement ? `0 0 0 1px ${item.border}22` : 'none'}
+                      onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
                     >
                       {item.name}
-                      <span
-                        onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
-                        onClick={(e) => { e.stopPropagation(); removeFurniture(item.id) }}
-                        style={{
-                          position: 'absolute', top: '-8px', right: '-8px', width: '16px', height: '16px',
-                          borderRadius: '50%', background: '#E24B4A', color: 'white', fontSize: '10px',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                        }}>✕</span>
-                      <span
-                        onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
-                        onClick={(e) => { e.stopPropagation(); rotateFurniture(item.id) }}
-                        style={{
-                          position: 'absolute', top: '-8px', left: '-8px', width: '16px', height: '16px',
-                          borderRadius: '50%', background: '#185FA5', color: 'white', fontSize: '11px',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                        }}>↻</span>
+                      <span onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }} onClick={(e) => { e.stopPropagation(); removeFurniture(item.id) }}
+                        style={{ position: 'absolute', top: '-8px', right: '-8px', width: '16px', height: '16px', borderRadius: '50%', background: '#E24B4A', color: 'white', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>✕</span>
+                      <span onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }} onClick={(e) => { e.stopPropagation(); rotateFurniture(item.id) }}
+                        style={{ position: 'absolute', top: '-8px', left: '-8px', width: '16px', height: '16px', borderRadius: '50%', background: '#185FA5', color: 'white', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>↻</span>
                     </div>
                   </div>
                 </div>
@@ -423,7 +340,7 @@ function App() {
             </div>
           ) : (
             <div style={{ position: 'absolute', inset: 0 }}>
-              <RoomView3D room={activeRoom} furniture={furniture} />
+              <RoomView3D room={activeRoom} furniture={furniture} fussleiste={fussleiste} fussleisteFarbe={fussleisteFarbe} />
             </div>
           )}
         </div>
@@ -431,7 +348,6 @@ function App() {
 
       {/* Panel rechts */}
       <div className="panel-rechts" style={{ width: '220px', background: 'white', borderLeft: '1px solid #E8E6E0', padding: '16px', flexShrink: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', boxShadow: '-2px 0 8px rgba(0,0,0,0.04)' }}>
-        {/* Wand-Elemente */}
         <div>
           <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.06em' }}>FENSTER & TÜREN</p>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -439,19 +355,9 @@ function App() {
               <div key={item.name} onClick={() => addWandElement(item)}
                 style={{ padding: '10px 6px', border: '1px solid #E8E6E0', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', background: '#FAFAF8', fontSize: '11px', color: '#444441', transition: 'all 0.15s' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = item.typ === 'fenster' ? '#185FA5' : '#BA7517'; e.currentTarget.style.background = item.typ === 'fenster' ? '#EEF4FC' : '#FFF8E6' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E6E0'; e.currentTarget.style.background = '#FAFAF8' }}
-              >
-                <div style={{
-                  width: '36px', height: '14px',
-                  background: item.color,
-                  border: `2px solid ${item.border}`,
-                  borderRadius: '3px', margin: '0 auto 6px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {item.typ === 'fenster'
-                    ? <div style={{ width: '60%', height: '2px', background: item.border, opacity: 0.5 }}></div>
-                    : <div style={{ width: '40%', height: '40%', border: `1px solid ${item.border}`, borderRadius: '0 50% 0 0', opacity: 0.6 }}></div>
-                  }
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E6E0'; e.currentTarget.style.background = '#FAFAF8' }}>
+                <div style={{ width: '36px', height: '14px', background: item.color, border: `2px solid ${item.border}`, borderRadius: '3px', margin: '0 auto 6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {item.typ === 'fenster' ? <div style={{ width: '60%', height: '2px', background: item.border, opacity: 0.5 }}></div> : <div style={{ width: '40%', height: '40%', border: `1px solid ${item.border}`, borderRadius: '0 50% 0 0', opacity: 0.6 }}></div>}
                 </div>
                 <div style={{ fontWeight: '500' }}>{item.name}</div>
                 <div style={{ marginTop: '4px', fontSize: '10px', padding: '2px 6px', borderRadius: '10px', background: item.typ === 'fenster' ? '#E6F1FB' : '#FFF8E6', color: item.typ === 'fenster' ? '#185FA5' : '#BA7517', display: 'inline-block' }}>
@@ -461,23 +367,53 @@ function App() {
             ))}
           </div>
         </div>
+        {/* Fußleiste */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <p style={{ fontSize: '10px', color: '#B4B2A9', letterSpacing: '0.06em' }}>FUSSLEISTE</p>
+            <div onClick={() => setFussleiste(!fussleiste)} style={{
+              width: '36px', height: '20px', borderRadius: '10px', cursor: 'pointer', transition: 'background 0.2s',
+              background: fussleiste ? '#185FA5' : '#E8E6E0', position: 'relative',
+            }}>
+              <div style={{
+                position: 'absolute', top: '2px', left: fussleiste ? '18px' : '2px',
+                width: '16px', height: '16px', borderRadius: '50%', background: 'white',
+                transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+              }}></div>
+            </div>
+          </div>
+          {fussleiste && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {[
+                { name: 'Weiß',    farbe: '#FFFFFF' },
+                { name: 'Creme',   farbe: '#E0DDD8' },
+                { name: 'Grau',    farbe: '#B4B2A9' },
+                { name: 'Schwarz', farbe: '#2C2C2A' },
+                { name: 'Holz',    farbe: '#C8A97A' },
+                { name: 'Wand',    farbe: activeRoom?.wandfarbe || '#FFFFFF' },
+              ].map(f => (
+                <div key={f.name} onClick={() => setFussleisteFarbe(f.farbe)} style={{
+                  width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer',
+                  background: f.farbe, border: `${fussleisteFarbe === f.farbe ? '3px' : '1px'} solid ${fussleisteFarbe === f.farbe ? '#185FA5' : '#E8E6E0'}`,
+                  title: f.name,
+                }} title={f.name}></div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <div style={{ height: '1px', background: '#E8E6E0' }}></div>
-        {/* Bodenbelag */}
+
         <div>
           <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.06em' }}>BODENBELAG</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
             {bodenBelaege.map(boden => (
-              <div key={boden.name} onClick={() => setBoden(boden.klasse)}
-                style={{
-                  padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer',
-                  border: `${(activeRoom?.boden || 'boden-standard') === boden.klasse ? '2px' : '1px'} solid ${(activeRoom?.boden || 'boden-standard') === boden.klasse ? '#185FA5' : '#E8E6E0'}`,
-                  background: (activeRoom?.boden || 'boden-standard') === boden.klasse ? '#EEF4FC' : '#FAFAF8',
-                  fontSize: '10px', color: (activeRoom?.boden || 'boden-standard') === boden.klasse ? '#185FA5' : '#444441',
-                  fontWeight: (activeRoom?.boden || 'boden-standard') === boden.klasse ? '500' : '400',
-                  transition: 'all 0.15s',
-                }}
-              >
+              <div key={boden.name} onClick={() => setBoden(boden.klasse)} style={{
+                padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s',
+                border: `${(activeRoom?.boden || 'boden-standard') === boden.klasse ? '2px' : '1px'} solid ${(activeRoom?.boden || 'boden-standard') === boden.klasse ? '#185FA5' : '#E8E6E0'}`,
+                background: (activeRoom?.boden || 'boden-standard') === boden.klasse ? '#EEF4FC' : '#FAFAF8',
+                fontSize: '10px', color: (activeRoom?.boden || 'boden-standard') === boden.klasse ? '#185FA5' : '#444441',
+              }}>
                 <div style={{ fontSize: '18px', marginBottom: '4px' }}>{boden.icon}</div>
                 {boden.name}
               </div>
@@ -485,41 +421,27 @@ function App() {
           </div>
         </div>
 
-        {/* Wandfarbe */}
         <div>
           <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.06em' }}>WANDFARBE</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
             {wandFarben.map(wand => (
-              <div key={wand.name} onClick={() => setWandfarbe(wand.farbe)}
-                style={{
-                  padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer',
-                  border: `${(activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '2px' : '1px'} solid ${(activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '#185FA5' : '#E8E6E0'}`,
-                  background: (activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '#EEF4FC' : '#FAFAF8',
-                  transition: 'all 0.15s',
-                }}
-              >
-                <div style={{
-                  width: '28px', height: '28px', borderRadius: '50%',
-                  background: wand.farbe, margin: '0 auto 4px',
-                  border: '1px solid #E8E6E0',
-                }}></div>
-                <div style={{
-                  fontSize: '10px',
-                  color: (activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '#185FA5' : '#444441',
-                  fontWeight: (activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '500' : '400',
-                }}>
-                  {wand.name}
-                </div>
+              <div key={wand.name} onClick={() => setWandfarbe(wand.farbe)} style={{
+                padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s',
+                border: `${(activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '2px' : '1px'} solid ${(activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '#185FA5' : '#E8E6E0'}`,
+                background: (activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '#EEF4FC' : '#FAFAF8',
+              }}>
+                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: wand.farbe, margin: '0 auto 4px', border: '1px solid #E8E6E0' }}></div>
+                <div style={{ fontSize: '10px', color: (activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '#185FA5' : '#444441', fontWeight: (activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '500' : '400' }}>{wand.name}</div>
               </div>
             ))}
           </div>
         </div>
 
         <div style={{ height: '1px', background: '#E8E6E0' }}></div>
-        <div style={{ height: '1px', background: '#E8E6E0' }}></div>
+
         <input type="text" placeholder="Möbel suchen..." value={suche} onChange={e => setSuche(e.target.value)}
-          style={{ width: '100%', padding: '8px 12px', fontSize: '12px', border: '1px solid #E8E6E0', borderRadius: '10px', background: '#F7F6F2', outline: 'none', fontFamily: "'DM Sans', sans-serif", color: '#2C2C2A' }}
-        />
+          style={{ width: '100%', padding: '8px 12px', fontSize: '12px', border: '1px solid #E8E6E0', borderRadius: '10px', background: '#F7F6F2', outline: 'none', fontFamily: "'DM Sans', sans-serif", color: '#2C2C2A' }} />
+
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
           {kategorien.map(kat => (
             <div key={kat} onClick={() => setAktiveKategorie(kat)} style={{
@@ -528,10 +450,10 @@ function App() {
               background: aktiveKategorie === kat ? '#185FA5' : '#F7F6F2',
               color: aktiveKategorie === kat ? 'white' : '#888780',
               border: `1px solid ${aktiveKategorie === kat ? '#185FA5' : '#E8E6E0'}`,
-              transition: 'all 0.15s',
             }}>{kat}</div>
           ))}
         </div>
+
         <div>
           <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.06em' }}>{gefilterteMoebel.length} MÖBEL GEFUNDEN</p>
           {gefilterteMoebel.length === 0
@@ -541,18 +463,16 @@ function App() {
                   <div key={item.name} onClick={() => addFurniture(item)}
                     style={{ padding: '10px 6px', border: '1px solid #E8E6E0', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', background: '#FAFAF8', fontSize: '11px', color: '#444441', transition: 'all 0.15s' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = '#185FA5'; e.currentTarget.style.background = '#EEF4FC' }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E6E0'; e.currentTarget.style.background = '#FAFAF8' }}
-                  >
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E6E0'; e.currentTarget.style.background = '#FAFAF8' }}>
                     <div style={{ width: '28px', height: '28px', background: item.color, border: `1.5px solid ${item.border}`, borderRadius: '6px', margin: '0 auto 6px' }}></div>
                     <div style={{ fontWeight: '500' }}>{item.name}</div>
-                    <div style={{ marginTop: '4px', fontSize: '10px', padding: '2px 6px', borderRadius: '10px', background: kategorieFarben[item.kategorie]?.bg, color: kategorieFarben[item.kategorie]?.color, display: 'inline-block' }}>
-                      {item.kategorie}
-                    </div>
+                    <div style={{ marginTop: '4px', fontSize: '10px', padding: '2px 6px', borderRadius: '10px', background: kategorieFarben[item.kategorie]?.bg, color: kategorieFarben[item.kategorie]?.color, display: 'inline-block' }}>{item.kategorie}</div>
                   </div>
                 ))}
               </div>
           }
         </div>
+
         <div>
           <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '8px', letterSpacing: '0.06em' }}>IM RAUM ({furniture.length})</p>
           {furniture.length === 0
@@ -560,31 +480,28 @@ function App() {
             : furniture.map(item => (
               <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', background: '#FAFAF8', borderRadius: '8px', marginBottom: '4px', border: '1px solid #E8E6E0', fontSize: '12px', color: '#444441', transition: 'background 0.15s' }}
                 onMouseEnter={e => e.currentTarget.style.background = '#F0F0EC'}
-                onMouseLeave={e => e.currentTarget.style.background = '#FAFAF8'}
-              >
+                onMouseLeave={e => e.currentTarget.style.background = '#FAFAF8'}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div style={{ width: '10px', height: '10px', background: item.color, border: `1px solid ${item.border}`, borderRadius: '3px', flexShrink: 0 }}></div>
                   {item.name}
                 </div>
-                <span onClick={() => removeFurniture(item.id)} style={{ cursor: 'pointer', color: '#D3D1C7', fontSize: '11px', transition: 'color 0.15s' }}
+                <span onClick={() => removeFurniture(item.id)} style={{ cursor: 'pointer', color: '#D3D1C7', fontSize: '11px' }}
                   onMouseEnter={e => e.target.style.color = '#E24B4A'}
-                  onMouseLeave={e => e.target.style.color = '#D3D1C7'}
-                >✕</span>
+                  onMouseLeave={e => e.target.style.color = '#D3D1C7'}>✕</span>
               </div>
             ))
           }
         </div>
       </div>
+
       {/* Mobile Overlay */}
       <div className={`drawer-overlay ${aktiverTab ? 'open' : ''}`} onClick={() => setAktiverTab(null)} />
 
       {/* Mobile Drawer */}
       <div className={`drawer ${aktiverTab ? 'open' : ''}`}>
-        <div style={{ padding: '12px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ padding: '12px 16px 0' }}>
           <div style={{ width: '40px', height: '4px', background: '#E8E6E0', borderRadius: '2px', margin: '0 auto 16px' }}></div>
         </div>
-
-        {/* Räume Tab */}
         {aktiverTab === 'raeume' && (
           <div style={{ padding: '0 16px 24px' }}>
             <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '12px', letterSpacing: '0.08em' }}>MEINE RÄUME</p>
@@ -601,18 +518,13 @@ function App() {
             </div>
           </div>
         )}
-
-        {/* Möbel Tab */}
         {aktiverTab === 'moebel' && (
           <div style={{ padding: '0 16px 24px' }}>
             <input type="text" placeholder="Möbel suchen..." value={suche} onChange={e => setSuche(e.target.value)}
-              style={{ width: '100%', padding: '10px 12px', fontSize: '13px', border: '1px solid #E8E6E0', borderRadius: '10px', background: '#F7F6F2', outline: 'none', fontFamily: "'DM Sans', sans-serif", marginBottom: '12px' }}
-            />
+              style={{ width: '100%', padding: '10px 12px', fontSize: '13px', border: '1px solid #E8E6E0', borderRadius: '10px', background: '#F7F6F2', outline: 'none', fontFamily: "'DM Sans', sans-serif", marginBottom: '12px' }} />
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '12px' }}>
               {kategorien.map(kat => (
-                <div key={kat} onClick={() => setAktiveKategorie(kat)} style={{ padding: '5px 12px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', background: aktiveKategorie === kat ? '#185FA5' : '#F7F6F2', color: aktiveKategorie === kat ? 'white' : '#888780', border: `1px solid ${aktiveKategorie === kat ? '#185FA5' : '#E8E6E0'}` }}>
-                  {kat}
-                </div>
+                <div key={kat} onClick={() => setAktiveKategorie(kat)} style={{ padding: '5px 12px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', background: aktiveKategorie === kat ? '#185FA5' : '#F7F6F2', color: aktiveKategorie === kat ? 'white' : '#888780', border: `1px solid ${aktiveKategorie === kat ? '#185FA5' : '#E8E6E0'}` }}>{kat}</div>
               ))}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
@@ -626,25 +538,18 @@ function App() {
             </div>
           </div>
         )}
-
-        {/* Einstellungen Tab */}
         {aktiverTab === 'einstellungen' && (
           <div style={{ padding: '0 16px 24px' }}>
             <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.08em' }}>RAUMGRÖSSE</p>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
               <span style={{ fontSize: '13px', color: '#888780' }}>Breite</span>
-              <input type="number" min="1" max="20" value={activeRoom?.breite || 6}
-                onChange={e => updateRoom(activeRoomId, { breite: Number(e.target.value) })}
-                style={{ width: '60px', padding: '8px', border: '1px solid #E8E6E0', borderRadius: '8px', fontSize: '13px', textAlign: 'center', fontFamily: "'DM Sans', sans-serif" }}
-              />
+              <input type="number" min="1" max="20" value={activeRoom?.breite || 6} onChange={e => updateRoom(activeRoomId, { breite: Number(e.target.value) })}
+                style={{ width: '60px', padding: '8px', border: '1px solid #E8E6E0', borderRadius: '8px', fontSize: '13px', textAlign: 'center', fontFamily: "'DM Sans', sans-serif" }} />
               <span style={{ fontSize: '13px', color: '#888780' }}>m × Tiefe</span>
-              <input type="number" min="1" max="20" value={activeRoom?.tiefe || 5}
-                onChange={e => updateRoom(activeRoomId, { tiefe: Number(e.target.value) })}
-                style={{ width: '60px', padding: '8px', border: '1px solid #E8E6E0', borderRadius: '8px', fontSize: '13px', textAlign: 'center', fontFamily: "'DM Sans', sans-serif" }}
-              />
+              <input type="number" min="1" max="20" value={activeRoom?.tiefe || 5} onChange={e => updateRoom(activeRoomId, { tiefe: Number(e.target.value) })}
+                style={{ width: '60px', padding: '8px', border: '1px solid #E8E6E0', borderRadius: '8px', fontSize: '13px', textAlign: 'center', fontFamily: "'DM Sans', sans-serif" }} />
               <span style={{ fontSize: '12px', background: '#EAF3DE', color: '#3B6D11', padding: '4px 8px', borderRadius: '8px' }}>{(activeRoom?.breite || 6) * (activeRoom?.tiefe || 5)} m²</span>
             </div>
-
             <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.08em' }}>BODENBELAG</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '20px' }}>
               {bodenBelaege.map(boden => (
@@ -655,7 +560,6 @@ function App() {
                 </div>
               ))}
             </div>
-
             <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.08em' }}>WANDFARBE</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
               {wandFarben.map(wand => (

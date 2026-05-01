@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 
-export default function RoomView3D({ room, furniture }) {
+export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarbe }) {
   const mountRef = useRef(null)
 
   useEffect(() => {
@@ -130,13 +130,22 @@ export default function RoomView3D({ room, furniture }) {
     scene.add(decke)
 
     // Sockelleisten
-    const sockelMat = new THREE.MeshLambertMaterial({ color: '#E0DDD8' })
-    const s1 = new THREE.Mesh(new THREE.BoxGeometry(raumBreite, 0.08, 0.04), sockelMat)
-    s1.position.set(0, 0.04, -raumTiefe / 2 + 0.02)
-    scene.add(s1)
-    const s2 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, raumTiefe), sockelMat)
-    s2.position.set(-raumBreite / 2 + 0.02, 0.04, 0)
-    scene.add(s2)
+    if (fussleiste) {
+      const sockelMat = new THREE.MeshLambertMaterial({ color: fussleisteFarbe || '#E0DDD8' })
+      // Alle 4 Wände
+      const s1 = new THREE.Mesh(new THREE.BoxGeometry(raumBreite, 0.08, 0.04), sockelMat)
+      s1.position.set(0, 0.04, -raumTiefe / 2 + 0.02)
+      scene.add(s1)
+      const s2 = new THREE.Mesh(new THREE.BoxGeometry(raumBreite, 0.08, 0.04), sockelMat)
+      s2.position.set(0, 0.04, raumTiefe / 2 - 0.02)
+      scene.add(s2)
+      const s3 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, raumTiefe), sockelMat)
+      s3.position.set(-raumBreite / 2 + 0.02, 0.04, 0)
+      scene.add(s3)
+      const s4 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, raumTiefe), sockelMat)
+      s4.position.set(raumBreite / 2 - 0.02, 0.04, 0)
+      scene.add(s4)
+    }
 
     // === MÖBEL & WAND-ELEMENTE ===
     furniture.forEach(item => {
@@ -145,8 +154,9 @@ export default function RoomView3D({ room, furniture }) {
 
       // Position korrekt berechnen
       const scaleFactor = 1 / 60
-      const x = (item.left * scaleFactor) - (raumBreite / 2) + (moebelBreite / 2)
-      const z = (item.top  * scaleFactor) - (raumTiefe  / 2) + (moebelTiefe  / 2)
+      const fussOffset = (fussleiste ? -0.08 : 0)
+      const x = (item.left / 60) - raumBreite / 2 + moebelBreite / 2 + fussOffset
+      const z = (item.top  / 60) - raumTiefe  / 2 + moebelTiefe  / 2 + fussOffset
       const rotation = -(item.rotation || 0) * Math.PI / 180
 
       if (item.istWandElement) {
