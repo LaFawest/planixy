@@ -108,6 +108,7 @@ function App() {
   const [suche, setSuche] = useState('')
   const [aktiverTab, setAktiverTab] = useState(null)
   const [ansicht, setAnsicht] = useState('2d')
+  const [selectedId, setSelectedId] = useState(null)
   const [fussleiste, setFussleiste] = useState(true)
   const [fussleisteFarbe, setFussleisteFarbe] = useState('#E0DDD8')
 
@@ -159,6 +160,8 @@ function App() {
       top: 20 + Math.random() * 100,
       left: 20 + Math.random() * 100,
       rotation: 0,
+      origWidth: item.width,
+      origHeight: item.height,
     }])
   }
 
@@ -172,18 +175,47 @@ function App() {
 
   const removeFurniture = (id) => updateFurniture(furniture.filter(f => f.id !== id))
 
-  const rotateFurniture = (id) => {
+  const rotateFurniture = (id, winkel) => {
     updateFurniture(furniture.map(f => {
       if (f.id !== id) return f
-      const neueRotation = ((f.rotation || 0) + 90) % 360
-      const neueBreite = f.height
-      const neueHoehe  = f.width
-      const mitteX = f.left + f.width  / 2
-      const mitteY = f.top  + f.height / 2
-      let newLeft = Math.max(grenzStart, Math.min(grenzStart + grenzB - neueBreite, mitteX - neueBreite / 2))
-      let newTop  = Math.max(grenzStart, Math.min(grenzStart + grenzT - neueHoehe,  mitteY - neueHoehe  / 2))
-      return { ...f, rotation: neueRotation, left: newLeft, top: newTop, width: neueBreite, height: neueHoehe }
+      const origW = f.origWidth  || f.width
+      const origH = f.origHeight || f.height
+
+      // Mittelpunkt aus aktueller visueller Position berechnen
+      const aktuelleRad = (f.rotation || 0) * Math.PI / 180
+      const aktuelleCos = Math.abs(Math.cos(aktuelleRad))
+      const aktuelleSin = Math.abs(Math.sin(aktuelleRad))
+      const aktuelleBoundW = origW * aktuelleCos + origH * aktuelleSin
+      const aktuelleBoundH = origW * aktuelleSin + origH * aktuelleCos
+
+      const mitteX = f.left + aktuelleBoundW / 2
+      const mitteY = f.top  + aktuelleBoundH / 2
+
+      // Neue Bounding Box für neuen Winkel
+      const rad = winkel * Math.PI / 180
+      const cos = Math.abs(Math.cos(rad))
+      const sin = Math.abs(Math.sin(rad))
+      const boundW = origW * cos + origH * sin
+      const boundH = origW * sin + origH * cos
+
+      let newLeft = Math.max(grenzStart, Math.min(grenzStart + grenzB - boundW, mitteX - boundW / 2))
+      let newTop  = Math.max(grenzStart, Math.min(grenzStart + grenzT - boundH, mitteY - boundH / 2))
+
+      return { ...f, rotation: winkel, left: newLeft, top: newTop, origWidth: origW, origHeight: origH }
     }))
+  }
+
+ 
+  const kollidiertMit = (id, left, top, width, height) => {
+    return furniture.some(f => {
+      if (f.id === id) return false
+      return (
+        left < f.left + f.width &&
+        left + width > f.left &&
+        top < f.top + f.height &&
+        top + height > f.top
+      )
+    })
   }
 
   const handleDrag = (e, id) => {
@@ -193,22 +225,104 @@ function App() {
     const startY = e.clientY || e.touches?.[0]?.clientY
     const startLeft = item.left
     const startTop  = item.top
+    let currentLeft = startLeft
+    let currentTop  = startTop
 
     const onMove = (mv) => {
       mv.preventDefault()
       const clientX = mv.clientX || mv.touches?.[0]?.clientX
       const clientY = mv.clientY || mv.touches?.[0]?.clientY
-      // Grenzen: 0 = Innenwand links/oben, innenB/innenT - Möbelgröße = Innenwand rechts/unten
-      let newLeft = Math.max(grenzStart, Math.min(grenzStart + grenzB - item.width,  startLeft + (clientX - startX)))
-      let newTop  = Math.max(grenzStart, Math.min(grenzStart + grenzT - item.height, startTop  + (clientY - startY)))
-      updateFurniture(furniture.map(f => f.id === id ? { ...f, left: newLeft, top: newTop } : f))
+      const iW = item.origWidth  || item.width
+      const iH = item.origHeight || item.height
+      const rad = (item.rotation || 0) * Math.PI / 180
+      const cos = Math.abs(Math.cos(rad))
+      const sin = Math.abs(Math.sin(rad))
+      const boundW = iW * cos + iH * sin
+      const boundH = iW * sin + iH * cos
+      currentLeft = Math.max(grenzStart, Math.min(grenzStart + grenzB - boundW, startLeft + (clientX - startX)))
+      currentTop  = Math.max(grenzStart, Math.min(grenzStart + grenzT - boundH, startTop  + (clientY - startY)))
+      // Frei bewegen ohne Kollision
+      updateFurniture(furniture.map(f => f.id === id ? { ...f, left: currentLeft, top: currentTop } : f))
     }
+
     const onUp = () => {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
       window.removeEventListener('touchmove', onMove)
       window.removeEventListener('touchend', onUp)
+
+      // Beim Loslassen — Kollision prüfen und an nächste freie Kante snappen
+      const anderesMoebel = furniture.filter(f => f.id !== id)
+      
+      const iW = item.origWidth  || item.width
+      const iH = item.origHeight || item.height
+      const rad = (item.rotation || 0) * Math.PI / 180
+      const cos = Math.abs(Math.cos(rad))
+      const sin = Math.abs(Math.sin(rad))
+      const boundW = iW * cos + iH * sin
+      const boundH = iW * sin + iH * cos
+
+      const kollidiert = (l, t) => anderesMoebel.some(f => {
+        const fW = f.origWidth  || f.width
+        const fH = f.origHeight || f.height
+        const fRad = (f.rotation || 0) * Math.PI / 180
+        const fCos = Math.abs(Math.cos(fRad))
+        const fSin = Math.abs(Math.sin(fRad))
+        const fBoundW = fW * fCos + fH * fSin
+        const fBoundH = fW * fSin + fH * fCos
+        return (
+          l < f.left + fBoundW &&
+          l + boundW > f.left &&
+          t < f.top + fBoundH &&
+          t + boundH > f.top
+        )
+      })
+
+      if (!kollidiert(currentLeft, currentTop)) {
+        // Keine Kollision — Position beibehalten
+        return
+      }
+
+      // Snap zu nächster freier Kante
+      let bestePosition = { left: startLeft, top: startTop }
+      let besteDistanz = Infinity
+
+      anderesMoebel.forEach(f => {
+        // Mögliche Snap-Positionen an allen 4 Kanten
+        const fW = f.origWidth  || f.width
+        const fH = f.origHeight || f.height
+        const fRad = (f.rotation || 0) * Math.PI / 180
+        const fCos = Math.abs(Math.cos(fRad))
+        const fSin = Math.abs(Math.sin(fRad))
+        const fBoundW = fW * fCos + fH * fSin
+        const fBoundH = fW * fSin + fH * fCos
+        const kandidaten = [
+          { left: f.left + fBoundW, top: currentTop },
+          { left: f.left - boundW,  top: currentTop },
+          { left: currentLeft, top: f.top + fBoundH },
+          { left: currentLeft, top: f.top - boundH  },
+        ]
+
+        kandidaten.forEach(pos => {
+          // Grenzen einhalten
+          const l = Math.max(grenzStart, Math.min(grenzStart + grenzB - item.width,  pos.left))
+          const t = Math.max(grenzStart, Math.min(grenzStart + grenzT - item.height, pos.top))
+
+          // Prüfen ob diese Position frei ist
+          if (!kollidiert(l, t)) {
+            // Distanz zur aktuellen Position berechnen
+            const distanz = Math.abs(l - currentLeft) + Math.abs(t - currentTop)
+            if (distanz < besteDistanz) {
+              besteDistanz = distanz
+              bestePosition = { left: l, top: t }
+            }
+          }
+        })
+      })
+
+      updateFurniture(furniture.map(f => f.id === id ? { ...f, left: bestePosition.left, top: bestePosition.top } : f))
     }
+
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
     window.addEventListener('touchmove', onMove, { passive: false })
@@ -293,7 +407,7 @@ function App() {
         </div>
 
         {/* Canvas */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F5F4F0', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#F5F4F0', position: 'relative' }}>
           <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', fontSize: '11px', color: '#B4B2A9', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid #E8E6E0', zIndex: 10, whiteSpace: 'nowrap' }}>
             {ansicht === '2d' ? 'Doppelklick auf Raumnamen · Blau = Drehen · Rot = Löschen' : 'Maus ziehen = Kamera drehen · Scrollrad = Zoom'}
           </div>
@@ -306,6 +420,9 @@ function App() {
               outline: '2px solid #B5D4F4',
               boxSizing: 'border-box',
             }}>
+              {/* Deselect Layer */}
+              <div onClick={() => setSelectedId(null)} style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+                
               {fussleiste && (
                 <>
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '8px', background: fussleisteFarbe, zIndex: 2 }}></div>
@@ -315,26 +432,47 @@ function App() {
                 </>
               )}
               {furniture.map(item => (
-                <div key={item.id} style={{ position: 'absolute', left: item.left, top: item.top, width: item.width, height: item.height }}>
-                  <div style={{ width: '100%', height: '100%' }}>
-                    <div onMouseDown={(e) => handleDrag(e, item.id)} onTouchStart={(e) => handleDrag(e, item.id)} style={{
+                <div key={item.id} style={{
+                  position: 'absolute',
+                  zIndex: 1,
+                  left: item.left + (() => {
+                    const origW = item.origWidth || item.width
+                    const origH = item.origHeight || item.height
+                    const rad = (item.rotation || 0) * Math.PI / 180
+                    return (origW * Math.abs(Math.cos(rad)) + origH * Math.abs(Math.sin(rad))) / 2
+                  })(),
+                  top: item.top + (() => {
+                    const origW = item.origWidth || item.width
+                    const origH = item.origHeight || item.height
+                    const rad = (item.rotation || 0) * Math.PI / 180
+                    return (origW * Math.abs(Math.sin(rad)) + origH * Math.abs(Math.cos(rad))) / 2
+                  })(),
+                  width: item.origWidth || item.width,
+                  height: item.origHeight || item.height,
+                  transform: `translate(-50%, -50%) rotate(${item.rotation || 0}deg)`,
+                }}>
+                  <div onMouseDown={(e) => { handleDrag(e, item.id); setSelectedId(item.id) }}
+                    onTouchStart={(e) => { handleDrag(e, item.id); setSelectedId(item.id) }}
+                    onClick={(e) => { e.stopPropagation(); setSelectedId(item.id) }}
+                    style={{
                       width: '100%', height: '100%', background: item.color,
                       border: `${item.istWandElement ? '3px' : '1.5px'} solid ${item.border}`,
                       borderRadius: item.istWandElement ? '3px' : '5px',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: '10px', fontWeight: '500', cursor: 'grab', userSelect: 'none',
                       color: item.border, position: 'relative', transition: 'box-shadow 0.15s',
+                      boxShadow: selectedId === item.id ? `0 0 0 2px #185FA5` : 'none',
                     }}
-                      onMouseEnter={e => e.currentTarget.style.boxShadow = `0 0 0 2px ${item.border}`}
-                      onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
-                    >
-                      {item.name}
-                      <span onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }} onClick={(e) => { e.stopPropagation(); removeFurniture(item.id) }}
-                        style={{ position: 'absolute', top: '-8px', right: '-8px', width: '16px', height: '16px', borderRadius: '50%', background: '#E24B4A', color: 'white', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>✕</span>
-                      <span onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }} onClick={(e) => { e.stopPropagation(); rotateFurniture(item.id) }}
-                        style={{ position: 'absolute', top: '-8px', left: '-8px', width: '16px', height: '16px', borderRadius: '50%', background: '#185FA5', color: 'white', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>↻</span>
-                    </div>
+                    onMouseEnter={e => e.currentTarget.style.boxShadow = `0 0 0 2px ${item.border}`}
+                    onMouseLeave={e => e.currentTarget.style.boxShadow = selectedId === item.id ? '0 0 0 2px #185FA5' : 'none'}
+                  >
+                    {item.name}
+                    <span onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
+                      onClick={(e) => { e.stopPropagation(); removeFurniture(item.id); setSelectedId(null) }}
+                      style={{ position: 'absolute', top: '-8px', right: '-8px', width: '16px', height: '16px', borderRadius: '50%', background: '#E24B4A', color: 'white', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>✕</span>
                   </div>
+
+                 
                 </div>
               ))}
             </div>
@@ -344,6 +482,38 @@ function App() {
             </div>
           )}
         </div>
+        {/* Rotations-Panel unter Canvas */}
+        {selectedId !== null && ansicht === '2d' && (() => {
+          const selectedItem = furniture.find(f => f.id === selectedId)
+          if (!selectedItem) return null
+          return (
+            <div onClick={e => e.stopPropagation()} style={{
+              background: 'white', borderTop: '1px solid #E8E6E0',
+              padding: '10px 24px', display: 'flex', alignItems: 'center',
+              gap: '12px', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <span style={{ fontSize: '12px', color: '#888780', fontWeight: '500' }}>{selectedItem.name}</span>
+              <span style={{ fontSize: '12px', color: '#B4B2A9' }}>↻</span>
+              <input type="range" min="0" max="359"
+                value={selectedItem.rotation || 0}
+                onChange={e => rotateFurniture(selectedItem.id, Number(e.target.value))}
+                style={{ width: '160px', cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: '13px', color: '#185FA5', fontWeight: '500', minWidth: '40px' }}>{selectedItem.rotation || 0}°</span>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                {[0, 90, 180, 270].map(w => (
+                  <div key={w} onClick={() => rotateFurniture(selectedItem.id, w)} style={{
+                    padding: '4px 10px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer',
+                    background: (selectedItem.rotation || 0) === w ? '#185FA5' : '#F7F6F2',
+                    color: (selectedItem.rotation || 0) === w ? 'white' : '#888780',
+                    border: '1px solid #E8E6E0',
+                  }}>{w}°</div>
+                ))}
+              </div>
+              <span onClick={() => setSelectedId(null)} style={{ cursor: 'pointer', color: '#B4B2A9', fontSize: '16px', marginLeft: '8px' }}>✕</span>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Panel rechts */}
