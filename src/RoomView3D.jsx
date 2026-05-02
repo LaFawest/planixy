@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 
-export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarbe }) {
+export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarbe, raumHoehe }) {
   const mountRef = useRef(null)
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarb
 
     const raumBreite = (room?.breite || 6)
     const raumTiefe  = (room?.tiefe  || 5)
-    const wandHoehe  = 3
+    const wandHoehe = raumHoehe || 2.5
 
     // === BELEUCHTUNG ===
     const ambientLight = new THREE.AmbientLight(0xfff5e6, 0.4)
@@ -123,7 +123,7 @@ export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarb
 
     // Decke
     const deckeGeo = new THREE.PlaneGeometry(raumBreite, raumTiefe)
-    const deckeMat = new THREE.MeshLambertMaterial({ color: '#F0EDE8', side: THREE.DoubleSide })
+    const deckeMat = new THREE.MeshLambertMaterial({ color: '#F0EDE8', side: THREE.DoubleSide, transparent: true, opacity: 1 })
     const decke = new THREE.Mesh(deckeGeo, deckeMat)
     decke.rotation.x = Math.PI / 2
     decke.position.y = wandHoehe
@@ -226,6 +226,11 @@ export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarb
       camera.position.y = spherical.radius * Math.cos(spherical.phi)
       camera.position.z = spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta)
       camera.lookAt(0, 0, 0)
+
+      // Decke ausblenden wenn Kamera von oben schaut (phi < 30°)
+      const phiGrad = spherical.phi * 180 / Math.PI
+      decke.material.opacity = phiGrad < 30 ? Math.max(0, phiGrad / 30) : 1
+      decke.material.transparent = phiGrad < 30
 
       // Wände dynamisch ein/ausblenden je nach Kameraposition
       const camX = camera.position.x

@@ -110,6 +110,7 @@ function App() {
   const [ansicht, setAnsicht] = useState('2d')
   const [selectedId, setSelectedId] = useState(null)
   const [fussleiste, setFussleiste] = useState(true)
+  const [raumHoehe, setRaumHoehe] = useState(2.5)
   const [fussleisteFarbe, setFussleisteFarbe] = useState('#E0DDD8')
 
   useEffect(() => {
@@ -397,6 +398,12 @@ function App() {
               style={{ width: '52px', padding: '5px 8px', border: '1px solid #E8E6E0', borderRadius: '8px', fontSize: '12px', fontFamily: "'DM Sans', sans-serif", textAlign: 'center', outline: 'none', background: '#F7F6F2' }} />
             <span>m</span>
             <span style={{ background: '#EAF3DE', color: '#3B6D11', fontSize: '11px', padding: '4px 10px', borderRadius: '20px', fontWeight: '500' }}>{(activeRoom?.breite || 6) * (activeRoom?.tiefe || 5)} m²</span>
+            <span style={{ color: '#E8E6E0' }}>|</span>
+            <span style={{ color: '#888780' }}>Höhe</span>
+            <input type="number" min="1.9" max="5" step="0.1" value={raumHoehe}
+              onChange={e => setRaumHoehe(Number(e.target.value))}
+              style={{ width: '52px', padding: '5px 8px', border: '1px solid #E8E6E0', borderRadius: '8px', fontSize: '12px', fontFamily: "'DM Sans', sans-serif", textAlign: 'center', outline: 'none', background: '#F7F6F2' }} />
+            <span style={{ color: '#888780' }}>m</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ fontSize: '12px', color: '#B4B2A9' }}>{furniture.length} Objekte</div>
@@ -478,7 +485,7 @@ function App() {
             </div>
           ) : (
             <div style={{ position: 'absolute', inset: 0 }}>
-              <RoomView3D room={activeRoom} furniture={furniture} fussleiste={fussleiste} fussleisteFarbe={fussleisteFarbe} />
+              <RoomView3D room={activeRoom} furniture={furniture} fussleiste={fussleiste} fussleisteFarbe={fussleisteFarbe} raumHoehe={raumHoehe} />
             </div>
           )}
         </div>
