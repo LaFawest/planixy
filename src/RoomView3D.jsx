@@ -196,23 +196,190 @@ export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarb
           scene.add(knauf)
         }
       } else {
-        // Normale Möbel
-        const moebelHoehe = getMoebelHoehe(item.name)
-        const geo = new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe)
+        const moebelBreite = item.width  / 60
+        const moebelTiefe  = item.height / 60
+        const moebelHoehe  = getMoebelHoehe(item.name)
+        const x = (item.left * scaleFactor) - (raumBreite / 2) + (moebelBreite / 2) + fussOffset
+        const z = (item.top  * scaleFactor) - (raumTiefe  / 2) + (moebelTiefe  / 2) + fussOffset
+        const rotation = -(item.rotation || 0) * Math.PI / 180
+        const gruppe = new THREE.Group()
+        gruppe.position.set(x, 0, z)
+        gruppe.rotation.y = rotation
+
         const mat = new THREE.MeshLambertMaterial({ color: item.color })
-        const mesh = new THREE.Mesh(geo, mat)
-        mesh.position.set(x, moebelHoehe / 2, z)
-        mesh.rotation.y = rotation
-        mesh.castShadow = true
-        mesh.receiveShadow = true
+        const borderMat = new THREE.MeshLambertMaterial({ color: item.border })
 
-        const edges = new THREE.EdgesGeometry(geo)
-        const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: item.border }))
-        line.position.copy(mesh.position)
-        line.rotation.copy(mesh.rotation)
+        const name = item.name.toLowerCase()
 
-        scene.add(mesh)
-        scene.add(line)
+        if (name.includes('sofa') || name.includes('sessel')) {
+          // Sitzfläche
+          const sitz = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, 0.2, moebelTiefe * 0.7), mat)
+          sitz.position.set(0, 0.2, moebelTiefe * 0.1)
+          sitz.castShadow = true
+          gruppe.add(sitz)
+          // Rückenlehne
+          const lehne = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, 0.5, moebelTiefe * 0.15), mat)
+          lehne.position.set(0, 0.55, -moebelTiefe * 0.4)
+          lehne.castShadow = true
+          gruppe.add(lehne)
+          // Armlehnen
+          const armL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.3, moebelTiefe * 0.7), mat)
+          armL.position.set(-moebelBreite / 2 + 0.05, 0.35, moebelTiefe * 0.1)
+          gruppe.add(armL)
+          const armR = armL.clone()
+          armR.position.x = moebelBreite / 2 - 0.05
+          gruppe.add(armR)
+          // Beine
+          const beinGeo = new THREE.BoxGeometry(0.06, 0.15, 0.06)
+          const beinMat = new THREE.MeshLambertMaterial({ color: '#8B6914' })
+          const positionen = [
+            [-moebelBreite/2+0.08, 0.075, moebelTiefe*0.35],
+            [ moebelBreite/2-0.08, 0.075, moebelTiefe*0.35],
+            [-moebelBreite/2+0.08, 0.075, -moebelTiefe*0.35],
+            [ moebelBreite/2-0.08, 0.075, -moebelTiefe*0.35],
+          ]
+          positionen.forEach(p => {
+            const bein = new THREE.Mesh(beinGeo, beinMat)
+            bein.position.set(...p)
+            gruppe.add(bein)
+          })
+
+        } else if (name.includes('bett') || name.includes('einzelbett') || name.includes('doppelbett')) {
+          // Matratze
+          const matratze = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite - 0.1, 0.25, moebelTiefe * 0.8), mat)
+          matratze.position.set(0, 0.3, moebelTiefe * 0.05)
+          matratze.castShadow = true
+          gruppe.add(matratze)
+          // Bettrahmen
+          const rahmen = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, 0.15, moebelTiefe), borderMat)
+          rahmen.position.set(0, 0.075, 0)
+          rahmen.castShadow = true
+          gruppe.add(rahmen)
+          // Kopfteil
+          const kopf = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, 0.6, 0.1), borderMat)
+          kopf.position.set(0, 0.45, -moebelTiefe / 2 + 0.05)
+          kopf.castShadow = true
+          gruppe.add(kopf)
+          // Kissen
+          const kissenMat = new THREE.MeshLambertMaterial({ color: '#FFFFFF' })
+          const kissenBreite = name.includes('doppel') ? moebelBreite / 2 - 0.1 : moebelBreite - 0.2
+          const kissen1 = new THREE.Mesh(new THREE.BoxGeometry(kissenBreite, 0.1, 0.3), kissenMat)
+          kissen1.position.set(name.includes('doppel') ? -moebelBreite/4 : 0, 0.48, -moebelTiefe * 0.3)
+          gruppe.add(kissen1)
+          if (name.includes('doppel')) {
+            const kissen2 = kissen1.clone()
+            kissen2.position.x = moebelBreite / 4
+            gruppe.add(kissen2)
+          }
+
+        } else if (name.includes('tisch') || name.includes('schreibtisch') || name.includes('esstisch')) {
+          // Tischplatte
+          const platte = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, 0.06, moebelTiefe), mat)
+          platte.position.set(0, moebelHoehe - 0.03, 0)
+          platte.castShadow = true
+          gruppe.add(platte)
+          // Beine
+          const beinGeo = new THREE.BoxGeometry(0.06, moebelHoehe - 0.06, 0.06)
+          const beinMat = new THREE.MeshLambertMaterial({ color: item.border })
+          const beinPos = [
+            [-moebelBreite/2+0.06, (moebelHoehe-0.06)/2,  moebelTiefe/2-0.06],
+            [ moebelBreite/2-0.06, (moebelHoehe-0.06)/2,  moebelTiefe/2-0.06],
+            [-moebelBreite/2+0.06, (moebelHoehe-0.06)/2, -moebelTiefe/2+0.06],
+            [ moebelBreite/2-0.06, (moebelHoehe-0.06)/2, -moebelTiefe/2+0.06],
+          ]
+          beinPos.forEach(p => {
+            const bein = new THREE.Mesh(beinGeo, beinMat)
+            bein.position.set(...p)
+            gruppe.add(bein)
+          })
+
+        } else if (name.includes('stuhl') || name.includes('hocker') || name.includes('sessel')) {
+          // Sitzfläche
+          const sitz = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, 0.08, moebelTiefe), mat)
+          sitz.position.set(0, 0.45, 0)
+          sitz.castShadow = true
+          gruppe.add(sitz)
+          // Rückenlehne
+          if (!name.includes('hocker')) {
+            const lehne = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, 0.4, 0.06), mat)
+            lehne.position.set(0, 0.7, -moebelTiefe/2 + 0.03)
+            lehne.castShadow = true
+            gruppe.add(lehne)
+          }
+          // Beine
+          const beinGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.45, 8)
+          const beinMat = new THREE.MeshLambertMaterial({ color: item.border })
+          const beinPos = [
+            [-moebelBreite/2+0.05, 0.225,  moebelTiefe/2-0.05],
+            [ moebelBreite/2-0.05, 0.225,  moebelTiefe/2-0.05],
+            [-moebelBreite/2+0.05, 0.225, -moebelTiefe/2+0.05],
+            [ moebelBreite/2-0.05, 0.225, -moebelTiefe/2+0.05],
+          ]
+          beinPos.forEach(p => {
+            const bein = new THREE.Mesh(beinGeo, beinMat)
+            bein.position.set(...p)
+            gruppe.add(bein)
+          })
+
+        } else if (name.includes('schrank') || name.includes('regal') || name.includes('sideboard') || name.includes('kommode') || name.includes('vitrine')) {
+          // Korpus
+          const korpus = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe), mat)
+          korpus.position.set(0, moebelHoehe / 2, 0)
+          korpus.castShadow = true
+          gruppe.add(korpus)
+          // Türen/Schubladen Linien
+          const linienMat = new THREE.LineBasicMaterial({ color: item.border })
+          const anzahlTueren = Math.round(moebelBreite / 0.5)
+          for (let i = 1; i < anzahlTueren; i++) {
+            const x = -moebelBreite/2 + (moebelBreite/anzahlTueren) * i
+            const points = [
+              new THREE.Vector3(x, 0.05, moebelTiefe/2 + 0.01),
+              new THREE.Vector3(x, moebelHoehe - 0.05, moebelTiefe/2 + 0.01),
+            ]
+            const geo = new THREE.BufferGeometry().setFromPoints(points)
+            gruppe.add(new THREE.Line(geo, linienMat))
+          }
+          // Griffe
+          const griffMat = new THREE.MeshLambertMaterial({ color: '#C0A060' })
+          for (let i = 0; i < anzahlTueren; i++) {
+            const gx = -moebelBreite/2 + (moebelBreite/anzahlTueren) * i + (moebelBreite/anzahlTueren/2)
+            const griff = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.12, 8), griffMat)
+            griff.rotation.z = Math.PI / 2
+            griff.position.set(gx, moebelHoehe * 0.5, moebelTiefe/2 + 0.03)
+            gruppe.add(griff)
+          }
+
+        } else if (name.includes('tv') && !name.includes('board')) {
+          // TV Bildschirm
+          const screen = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelHoehe * 8, 0.08), new THREE.MeshLambertMaterial({ color: '#111111' }))
+          screen.position.set(0, moebelHoehe * 4, 0)
+          screen.castShadow = true
+          gruppe.add(screen)
+          // Bildschirm Rand
+          const rand = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite + 0.04, moebelHoehe * 8 + 0.04, 0.04), new THREE.MeshLambertMaterial({ color: '#222222' }))
+          rand.position.set(0, moebelHoehe * 4, -0.02)
+          gruppe.add(rand)
+          // Standfuß
+          const fuss = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.15), new THREE.MeshLambertMaterial({ color: '#333333' }))
+          fuss.position.set(0, 0.075, 0)
+          gruppe.add(fuss)
+
+        } else {
+          // Standard Box für alle anderen
+          const geo = new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe)
+          const mesh = new THREE.Mesh(geo, mat)
+          mesh.position.set(0, moebelHoehe / 2, 0)
+          mesh.castShadow = true
+          mesh.receiveShadow = true
+          const edges = new THREE.EdgesGeometry(geo)
+          const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: item.border }))
+          line.position.copy(mesh.position)
+          gruppe.add(mesh)
+          gruppe.add(line)
+        }
+
+       gruppe.castShadow = true
+        scene.add(gruppe)
       }
     })
 
