@@ -24,6 +24,7 @@ export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarb
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 1.2
+    renderer.outputColorSpace = THREE.SRGBColorSpace
     mount.appendChild(renderer.domElement)
 
     const raumBreite = (room?.breite || 6)
@@ -31,7 +32,7 @@ export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarb
     const wandHoehe = raumHoehe || 2.5
 
     // === BELEUCHTUNG ===
-    const ambientLight = new THREE.AmbientLight(0xfff5e6, 0.4)
+    const ambientLight = new THREE.AmbientLight(0xfff5e6, 0.6)
     scene.add(ambientLight)
 
     const sunLight = new THREE.DirectionalLight(0xfff5e6, 1.2)
@@ -70,7 +71,7 @@ export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarb
     // === BODEN ===
     const bodenFarbe = getBodenFarbe(room?.boden)
     const bodenGeo = new THREE.PlaneGeometry(raumBreite, raumTiefe)
-    const bodenMat = new THREE.MeshLambertMaterial({ color: bodenFarbe })
+    const bodenMat = new THREE.MeshStandardMaterial({ color: bodenFarbe, roughness: 0.8, metalness: 0.0 })
     const boden = new THREE.Mesh(bodenGeo, bodenMat)
     boden.rotation.x = -Math.PI / 2
     boden.receiveShadow = true
@@ -88,7 +89,7 @@ export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarb
 
     // === WÄNDE (alle 4, Transparenz wird dynamisch gesetzt) ===
     const wandFarbe = room?.wandfarbe || '#FFFFFF'
-    const wandMat = new THREE.MeshLambertMaterial({ color: wandFarbe, transparent: true, opacity: 1 })
+    const wandMat = new THREE.MeshStandardMaterial({ color: wandFarbe, roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1 })
 
     // Wand hinten (Z-)
     const wandHintenGeo = new THREE.PlaneGeometry(raumBreite, wandHoehe)
@@ -123,7 +124,7 @@ export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarb
 
     // Decke
     const deckeGeo = new THREE.PlaneGeometry(raumBreite, raumTiefe)
-    const deckeMat = new THREE.MeshLambertMaterial({ color: '#F0EDE8', side: THREE.DoubleSide, transparent: true, opacity: 1 })
+    const deckeMat = new THREE.MeshStandardMaterial({ color: '#F0EDE8', roughness: 0.95, metalness: 0.0, side: THREE.DoubleSide, transparent: true, opacity: 1 })
     const decke = new THREE.Mesh(deckeGeo, deckeMat)
     decke.rotation.x = Math.PI / 2
     decke.position.y = wandHoehe
@@ -206,8 +207,16 @@ export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarb
         gruppe.position.set(x, 0, z)
         gruppe.rotation.y = rotation
 
-        const mat = new THREE.MeshLambertMaterial({ color: item.color })
-        const borderMat = new THREE.MeshLambertMaterial({ color: item.border })
+        const mat = new THREE.MeshStandardMaterial({ 
+          color: item.color,
+          roughness: 0.7,
+          metalness: 0.0,
+        })
+        const borderMat = new THREE.MeshStandardMaterial({ 
+          color: item.border,
+          roughness: 0.5,
+          metalness: 0.1,
+        })
 
         const name = item.name.toLowerCase()
 
@@ -231,7 +240,7 @@ export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarb
           gruppe.add(armR)
           // Beine
           const beinGeo = new THREE.BoxGeometry(0.06, 0.15, 0.06)
-          const beinMat = new THREE.MeshLambertMaterial({ color: '#8B6914' })
+          const beinMat = new THREE.MeshStandardMaterial({ color: '#8B6914', roughness: 0.8, metalness: 0.0 })
           const positionen = [
             [-moebelBreite/2+0.08, 0.075, moebelTiefe*0.35],
             [ moebelBreite/2-0.08, 0.075, moebelTiefe*0.35],
@@ -340,7 +349,7 @@ export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarb
             gruppe.add(new THREE.Line(geo, linienMat))
           }
           // Griffe
-          const griffMat = new THREE.MeshLambertMaterial({ color: '#C0A060' })
+          const griffMat = new THREE.MeshStandardMaterial({ color: '#C0A060', roughness: 0.2, metalness: 0.8 })
           for (let i = 0; i < anzahlTueren; i++) {
             const gx = -moebelBreite/2 + (moebelBreite/anzahlTueren) * i + (moebelBreite/anzahlTueren/2)
             const griff = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.12, 8), griffMat)
