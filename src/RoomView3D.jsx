@@ -149,62 +149,147 @@ export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarb
     }
 
     // === MÖBEL & WAND-ELEMENTE ===
+    const wandDicke = 8
+    const innenBpx = raumBreite * 60 - wandDicke * 2
+    const innenTpx = raumTiefe  * 60 - wandDicke * 2
+
+    // Elektrogeräte stehen auf dem höchsten Möbelstück, dessen 2D-Fläche sie überlappen
+    const traegerHoehe = (item, cxPx, cyPx) => {
+      let hoehe = 0
+      furniture.forEach(f => {
+        if (f.id === item.id || f.kategorie === 'Elektrogeräte' || f.istWandElement) return
+        const frad = ((f.rotation || 0) * Math.PI) / 180
+        const fbw = f.width * Math.abs(Math.cos(frad)) + f.height * Math.abs(Math.sin(frad))
+        const fbh = f.width * Math.abs(Math.sin(frad)) + f.height * Math.abs(Math.cos(frad))
+        if (cxPx >= f.left && cxPx <= f.left + fbw && cyPx >= f.top && cyPx <= f.top + fbh) {
+          hoehe = Math.max(hoehe, getMoebelHoehe(f.name))
+        }
+      })
+      return hoehe
+    }
+
     furniture.forEach(item => {
-      const moebelBreite = item.width  / 60
-      const moebelTiefe  = item.height / 60
-
-      // Position korrekt berechnen
-      const scaleFactor = 1 / 60
-      const fussOffset = (fussleiste ? -0.08 : 0)
-      const x = (item.left / 60) - raumBreite / 2 + moebelBreite / 2 + fussOffset
-      const z = (item.top  / 60) - raumTiefe  / 2 + moebelTiefe  / 2 + fussOffset
-      const rotation = -(item.rotation || 0) * Math.PI / 180
-
       if (item.istWandElement) {
-        // Fenster & Türen
-        const elBreite = item.width  / 60
-        const elHoehe  = item.typ === 'fenster' ? 1.2 : 2.1
-        const elTiefe  = 0.08
+        const elBreite = item.width / 60
+        const gruppe = new THREE.Group()
+        
+        // Position basierend auf Wand
+        const wand = item.wand || 'nord'
+        let px = 0
+        let pz = 0
+        let ry = 0
+
+        if (wand === 'nord') {
+          pz = -raumTiefe / 2
+          px = (item.left / 60) - raumBreite / 2 + elBreite / 2
+          ry = 0
+        } else if (wand === 'sued') {
+          pz = raumTiefe / 2
+          px = (item.left / 60) - raumBreite / 2 + elBreite / 2
+          ry = Math.PI
+        } else if (wand === 'west') {
+          px = -raumBreite / 2
+          pz = (item.top / 60) - raumTiefe / 2 + elBreite / 2
+          ry = Math.PI / 2
+        } else if (wand === 'ost') {
+          px = raumBreite / 2
+          pz = (item.top / 60) - raumTiefe / 2 + elBreite / 2
+          ry = -Math.PI / 2
+        }
+
+        gruppe.position.set(px, 0, pz)
+        gruppe.rotation.y = ry
 
         if (item.typ === 'fenster') {
-          // Fensterrahmen
-          const rahmenMat = new THREE.MeshLambertMaterial({ color: '#FFFFFF' })
-          const rahmen = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, elTiefe), rahmenMat)
-          rahmen.position.set(x, 1.2, z)
-          rahmen.rotation.y = rotation
+          const elHoehe = 1.2
+          const yPos = wandHoehe * 0.55
+
+          const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, metalness: 0.1 })
+          const rahmen = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.1), rahmenMat)
+          rahmen.position.set(0, yPos, 0)
           rahmen.castShadow = true
-          scene.add(rahmen)
+          gruppe.add(rahmen)
 
-          // Glasscheibe
-          const glasMat = new THREE.MeshLambertMaterial({ color: '#C8E8FF', transparent: true, opacity: 0.4 })
-          const glas = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.1, elHoehe - 0.1, 0.02), glasMat)
-          glas.position.set(x, 1.2, z)
-          glas.rotation.y = rotation
-          scene.add(glas)
+          const glasMat = new THREE.MeshStandardMaterial({ 
+            color: '#A8D8F0', transparent: true, opacity: 0.35,
+            roughness: 0.0, metalness: 0.1,
+          })
+          const glas = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.08, elHoehe - 0.08, 0.02), glasMat)
+          glas.position.set(0, yPos, 0)
+          gruppe.add(glas)
+
+          const strebeMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6 })
+          const strebeH = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.06, 0.04, 0.06), strebeMat)
+          strebeH.position.set(0, yPos, 0.02)
+          gruppe.add(strebeH)
+
+          const strebeV = new THREE.Mesh(new THREE.BoxGeometry(0.04, elHoehe - 0.06, 0.06), strebeMat)
+          strebeV.position.set(0, yPos, 0.02)
+          gruppe.add(strebeV)
+
+          const bankMat = new THREE.MeshStandardMaterial({ color: '#E8E4DC', roughness: 0.4 })
+          const bank = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.1, 0.05, 0.15), bankMat)
+          bank.position.set(0, yPos - elHoehe/2 - 0.025, 0.08)
+          gruppe.add(bank)
+
         } else {
-          // Tür
-          const tuerMat = new THREE.MeshLambertMaterial({ color: '#D4B896' })
-          const tuer = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, elTiefe), tuerMat)
-          tuer.position.set(x, elHoehe / 2, z)
-          tuer.rotation.y = rotation
+          const elHoehe = 2.1
+          const tuerMat = new THREE.MeshStandardMaterial({ color: '#C8A97A', roughness: 0.7, metalness: 0.0 })
+          
+          const tuer = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.06), tuerMat)
+          tuer.position.set(0, elHoehe / 2, 0.03)
           tuer.castShadow = true
-          scene.add(tuer)
+          gruppe.add(tuer)
 
-          // Türknauf
-          const knaufMat = new THREE.MeshLambertMaterial({ color: '#BA7517' })
-          const knauf = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), knaufMat)
-          knauf.position.set(x + 0.3, 1.0, z + 0.05)
-          scene.add(knauf)
+          const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6 })
+          const rahmenL = new THREE.Mesh(new THREE.BoxGeometry(0.08, elHoehe + 0.1, 0.15), rahmenMat)
+          rahmenL.position.set(-elBreite/2 - 0.04, elHoehe/2, 0)
+          gruppe.add(rahmenL)
+
+          const rahmenR = rahmenL.clone()
+          rahmenR.position.x = elBreite/2 + 0.04
+          gruppe.add(rahmenR)
+
+          const rahmenO = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.16, 0.08, 0.15), rahmenMat)
+          rahmenO.position.set(0, elHoehe + 0.04, 0)
+          gruppe.add(rahmenO)
+
+          const fuellungMat = new THREE.MeshStandardMaterial({ color: '#B8956A', roughness: 0.8 })
+          const fuellung1 = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.2, elHoehe * 0.4, 0.02), fuellungMat)
+          fuellung1.position.set(0, elHoehe * 0.65, 0.06)
+          gruppe.add(fuellung1)
+          const fuellung2 = fuellung1.clone()
+          fuellung2.position.y = elHoehe * 0.25
+          gruppe.add(fuellung2)
+
+          const knaufMat = new THREE.MeshStandardMaterial({ color: '#C8A050', roughness: 0.1, metalness: 0.9 })
+          const knauf = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), knaufMat)
+          knauf.position.set(elBreite/2 - 0.12, elHoehe * 0.5, 0.08)
+          gruppe.add(knauf)
+
+          const schluesselMat = new THREE.MeshStandardMaterial({ color: '#888780', metalness: 0.8, roughness: 0.2 })
+          const schluessel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.02, 8), schluesselMat)
+          schluessel.position.set(elBreite/2 - 0.12, elHoehe * 0.5 - 0.08, 0.09)
+          gruppe.add(schluessel)
         }
+        scene.add(gruppe)
       } else {
         const moebelBreite = item.width  / 60
         const moebelTiefe  = item.height / 60
         const moebelHoehe  = getMoebelHoehe(item.name)
-        const x = (item.left * scaleFactor) - (raumBreite / 2) + (moebelBreite / 2) + fussOffset
-        const z = (item.top  * scaleFactor) - (raumTiefe  / 2) + (moebelTiefe  / 2) + fussOffset
+
+        const rad = ((item.rotation || 0) * Math.PI) / 180
+        const boundWpx = item.width * Math.abs(Math.cos(rad)) + item.height * Math.abs(Math.sin(rad))
+        const boundHpx = item.width * Math.abs(Math.sin(rad)) + item.height * Math.abs(Math.cos(rad))
+        const centerXpx = item.left + boundWpx / 2
+        const centerZpx = item.top  + boundHpx / 2
+
+        const x = -raumBreite / 2 + (centerXpx / innenBpx) * raumBreite
+        const z = -raumTiefe  / 2 + (centerZpx / innenTpx) * raumTiefe
+        const y = item.kategorie === 'Elektrogeräte' ? traegerHoehe(item, centerXpx, centerZpx) : 0
         const rotation = -(item.rotation || 0) * Math.PI / 180
         const gruppe = new THREE.Group()
-        gruppe.position.set(x, 0, z)
+        gruppe.position.set(x, y, z)
         gruppe.rotation.y = rotation
 
         const mat = new THREE.MeshStandardMaterial({ 
@@ -373,6 +458,116 @@ export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarb
           fuss.position.set(0, 0.075, 0)
           gruppe.add(fuss)
 
+        } else if (item.kategorie === 'Elektrogeräte') {
+          const minSeite = Math.min(moebelBreite, moebelTiefe)
+          const dunkelMat = new THREE.MeshStandardMaterial({ color: '#2C2C2A', roughness: 0.5, metalness: 0.2 })
+
+          if (name.includes('lautsprecher')) {
+            const koerper = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe), mat)
+            koerper.position.set(0, moebelHoehe / 2, 0)
+            koerper.castShadow = true
+            gruppe.add(koerper)
+            const woofer = new THREE.Mesh(new THREE.CylinderGeometry(minSeite * 0.32, minSeite * 0.32, 0.02, 20), dunkelMat)
+            woofer.rotation.x = Math.PI / 2
+            woofer.position.set(0, moebelHoehe * 0.35, moebelTiefe / 2 + 0.01)
+            gruppe.add(woofer)
+            const tweeter = new THREE.Mesh(new THREE.CylinderGeometry(minSeite * 0.16, minSeite * 0.16, 0.02, 20), dunkelMat)
+            tweeter.rotation.x = Math.PI / 2
+            tweeter.position.set(0, moebelHoehe * 0.75, moebelTiefe / 2 + 0.01)
+            gruppe.add(tweeter)
+
+          } else if (name.includes('konsole')) {
+            const koerper = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe), mat)
+            koerper.position.set(0, moebelHoehe / 2, 0)
+            koerper.castShadow = true
+            gruppe.add(koerper)
+            const led = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.01, 12),
+              new THREE.MeshStandardMaterial({ color: '#5FD0F0', emissive: '#2090C0', emissiveIntensity: 0.6 }))
+            led.position.set(moebelBreite / 2 - 0.04, moebelHoehe + 0.005, moebelTiefe / 2 - 0.04)
+            gruppe.add(led)
+
+          } else if (name.includes('laptop')) {
+            const basis = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, 0.015, moebelTiefe), mat)
+            basis.position.set(0, 0.015, 0)
+            basis.castShadow = true
+            gruppe.add(basis)
+            const bildschirm = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelTiefe * 0.85, 0.015), borderMat)
+            bildschirm.position.set(0, moebelTiefe * 0.4, -moebelTiefe / 2 + 0.02)
+            bildschirm.rotation.x = -Math.PI / 2.6
+            gruppe.add(bildschirm)
+
+          } else if (name.includes('router')) {
+            const koerper = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe), mat)
+            koerper.position.set(0, moebelHoehe / 2, 0)
+            gruppe.add(koerper)
+            const antenneGeo = new THREE.CylinderGeometry(0.006, 0.006, 0.12, 8)
+            const a1 = new THREE.Mesh(antenneGeo, dunkelMat)
+            a1.position.set(-moebelBreite / 4, moebelHoehe + 0.06, 0)
+            a1.rotation.z = 0.2
+            gruppe.add(a1)
+            const a2 = a1.clone()
+            a2.position.x = moebelBreite / 4
+            a2.rotation.z = -0.2
+            gruppe.add(a2)
+
+          } else if (name.includes('toaster')) {
+            const koerper = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe), mat)
+            koerper.position.set(0, moebelHoehe / 2, 0)
+            koerper.castShadow = true
+            gruppe.add(koerper)
+            const schlitz1 = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.55, 0.01, moebelTiefe * 0.15), dunkelMat)
+            schlitz1.position.set(0, moebelHoehe + 0.005, -moebelTiefe * 0.15)
+            gruppe.add(schlitz1)
+            const schlitz2 = schlitz1.clone()
+            schlitz2.position.z = moebelTiefe * 0.15
+            gruppe.add(schlitz2)
+
+          } else if (name.includes('wasserkocher')) {
+            const radius = minSeite / 2
+            const koerper = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.85, radius, moebelHoehe, 20), mat)
+            koerper.position.set(0, moebelHoehe / 2, 0)
+            koerper.castShadow = true
+            gruppe.add(koerper)
+            const henkel = new THREE.Mesh(new THREE.TorusGeometry(radius * 0.55, 0.015, 8, 16, Math.PI), borderMat)
+            henkel.position.set(0, moebelHoehe * 0.7, -radius * 0.7)
+            henkel.rotation.y = Math.PI / 2
+            gruppe.add(henkel)
+            const tuelle = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.1, 8), mat)
+            tuelle.position.set(0, moebelHoehe * 0.75, radius * 0.85)
+            tuelle.rotation.x = Math.PI / 2.5
+            gruppe.add(tuelle)
+
+          } else if (name.includes('kaffeemaschine')) {
+            const oben = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelHoehe * 0.6, moebelTiefe), mat)
+            oben.position.set(0, moebelHoehe * 0.7, 0)
+            oben.castShadow = true
+            gruppe.add(oben)
+            const kanne = new THREE.Mesh(new THREE.CylinderGeometry(minSeite * 0.32, minSeite * 0.28, moebelHoehe * 0.4, 16),
+              new THREE.MeshStandardMaterial({ color: '#333333', roughness: 0.2, metalness: 0.3, transparent: true, opacity: 0.75 }))
+            kanne.position.set(0, moebelHoehe * 0.2, moebelTiefe * 0.1)
+            gruppe.add(kanne)
+
+          } else if (name.includes('ventilator')) {
+            const basis = new THREE.Mesh(new THREE.CylinderGeometry(minSeite * 0.4, minSeite * 0.45, 0.02, 20), dunkelMat)
+            basis.position.set(0, 0.01, 0)
+            gruppe.add(basis)
+            const stange = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, moebelHoehe - 0.1, 8), dunkelMat)
+            stange.position.set(0, (moebelHoehe - 0.1) / 2 + 0.02, 0)
+            gruppe.add(stange)
+            const kopf = new THREE.Mesh(new THREE.CylinderGeometry(minSeite * 0.45, minSeite * 0.45, 0.05, 20), mat)
+            kopf.rotation.x = Math.PI / 2
+            kopf.position.set(0, moebelHoehe - 0.05, 0)
+            kopf.castShadow = true
+            gruppe.add(kopf)
+
+          } else {
+            const geo = new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe)
+            const mesh = new THREE.Mesh(geo, mat)
+            mesh.position.set(0, moebelHoehe / 2, 0)
+            mesh.castShadow = true
+            gruppe.add(mesh)
+          }
+
         } else {
           // Standard Box für alle anderen
           const geo = new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe)
@@ -459,32 +654,32 @@ export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarb
     }
     const onTouchEnd = () => { isDragging = false; lastTouch = null }
 
-    mount.addEventListener('mousedown', onMouseDown)
-    mount.addEventListener('touchstart', onTouchStart)
-    mount.addEventListener('touchmove', onTouchMove)
-    mount.addEventListener('touchend', onTouchEnd)
-    window.addEventListener('mouseup', onMouseUp)
-    window.addEventListener('mousemove', onMouseMove)
-    mount.addEventListener('wheel', onWheel)
+mount.addEventListener('mousedown', onMouseDown)
+mount.addEventListener('touchstart', onTouchStart)
+mount.addEventListener('touchmove', onTouchMove)
+mount.addEventListener('touchend', onTouchEnd)
+window.addEventListener('mouseup', onMouseUp)
+window.addEventListener('mousemove', onMouseMove)
+mount.addEventListener('wheel', onWheel)
 
-    const animate = () => {
-      requestAnimationFrame(animate)
-      renderer.render(scene, camera)
-    }
-    animate()
+const animate = () => {
+  requestAnimationFrame(animate)
+  renderer.render(scene, camera)
+}
+animate()
 
-    return () => {
-      mount.removeEventListener('mousedown', onMouseDown)
-      mount.removeEventListener('touchstart', onTouchStart)
-      mount.removeEventListener('touchmove', onTouchMove)
-      mount.removeEventListener('touchend', onTouchEnd)
-      window.removeEventListener('mouseup', onMouseUp)
-      window.removeEventListener('mousemove', onMouseMove)
-      mount.removeEventListener('wheel', onWheel)
-      mount.removeChild(renderer.domElement)
-      renderer.dispose()
-    }
-  }, [room, furniture])
+return () => {
+  mount.removeEventListener('mousedown', onMouseDown)
+  mount.removeEventListener('touchstart', onTouchStart)
+  mount.removeEventListener('touchmove', onTouchMove)
+  mount.removeEventListener('touchend', onTouchEnd)
+  window.removeEventListener('mouseup', onMouseUp)
+  window.removeEventListener('mousemove', onMouseMove)
+  mount.removeEventListener('wheel', onWheel)
+  mount.removeChild(renderer.domElement)
+  renderer.dispose()
+}
+  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe])
 
   return (
     <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: 'grab' }} />
@@ -513,6 +708,10 @@ function getMoebelHoehe(name) {
     'WC': 0.8, 'Badewanne': 0.6, 'Dusche': 2.0,
     'Waschmaschine': 0.85, 'Pflanze': 1.2, 'Großpflanze': 1.8,
     'Lampe': 1.5, 'Stehlampe': 1.7, 'TV': 0.1,
+    'Lautsprecher': 0.4, 'Spielekonsole': 0.08, 'Laptop': 0.02,
+    'Router': 0.04, 'Toaster': 0.2, 'Wasserkocher': 0.25,
+    'Kaffeemaschine': 0.35, 'Ventilator': 0.9,
+    'Teppich klein': 0.02, 'Teppich groß': 0.02, 'Bild': 0.03,
   }
   return hoehen[name] || 0.75
 }
