@@ -1,4 +1,5 @@
 import { UIProvider } from './context/UIContext'
+import { ProjectsProvider } from './context/ProjectsContext'
 import { RoomsProvider } from './context/RoomsContext'
 import { DesignProvider } from './context/DesignContext'
 import { FurnitureProvider } from './context/FurnitureContext'
@@ -14,17 +15,19 @@ import PanelRechts from './components/PanelRechts'
 export default function App() {
   return (
     <UIProvider>
-      <RoomsProvider>
-        <DesignProvider>
-          <FurnitureProvider>
-            <TrennwandProvider>
-              <KatalogProvider>
-                <AppContent />
-              </KatalogProvider>
-            </TrennwandProvider>
-          </FurnitureProvider>
-        </DesignProvider>
-      </RoomsProvider>
+      <ProjectsProvider>
+        <RoomsProvider>
+          <DesignProvider>
+            <FurnitureProvider>
+              <TrennwandProvider>
+                <KatalogProvider>
+                  <AppContent />
+                </KatalogProvider>
+              </TrennwandProvider>
+            </FurnitureProvider>
+          </DesignProvider>
+        </RoomsProvider>
+      </ProjectsProvider>
     </UIProvider>
   )
 }

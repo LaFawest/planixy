@@ -1,11 +1,12 @@
 import { createContext, useContext, useCallback, useMemo, useState } from 'react'
-import { loadRooms, maxId } from './roomsStorage'
+import { loadProjekte, alleRaeume } from './projekteStorage'
+import { maxId } from './roomsStorage'
 import { useRooms } from './RoomsContext'
 import { useRaumGeometrie } from './useRaumGeometrie'
 
 const FurnitureContext = createContext(null)
 
-let nextId = maxId(loadRooms().flatMap(r => (r.furniture || []).map(f => f.id))) + 1
+let nextId = maxId(alleRaeume(loadProjekte()).flatMap(r => (r.furniture || []).map(f => f.id))) + 1
 
 export function FurnitureProvider({ children }) {
   const { activeRoom, activeRoomId, updateRoom } = useRooms()

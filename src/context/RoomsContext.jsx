@@ -1,40 +1,49 @@
 import { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react'
-import { loadRooms, saveRooms, maxId } from './roomsStorage'
+import { loadProjekte, alleRaeume } from './projekteStorage'
+import { maxId } from './roomsStorage'
 import { useUI } from './UIContext'
+import { useProjekte } from './ProjectsContext'
 import { DEFAULT_RAUM_DESIGN } from '../constants'
 
 const RoomsContext = createContext(null)
 
-let nextRoomId = maxId(loadRooms().map(r => r.id)) + 1
+let nextRoomId = maxId(alleRaeume(loadProjekte()).map(r => r.id)) + 1
 
 export function RoomsProvider({ children }) {
   const { setRaumPanelOffen } = useUI()
-  const [rooms, setRooms] = useState(loadRooms)
-  const [activeRoomId, setActiveRoomId] = useState(() => loadRooms()[0]?.id ?? 1)
+  const { activeProject, activeProjectId, updateProjekt } = useProjekte()
+  const [activeRoomId, setActiveRoomId] = useState(() => activeProject?.raeume?.[0]?.id ?? 1)
 
+  // Beim Wechsel des Projekts (noch keine UI dafür) auf dessen ersten Raum springen,
+  // aber NICHT bei jeder Raum-Änderung innerhalb desselben Projekts neu auswählen.
   useEffect(() => {
-    saveRooms(rooms)
-  }, [rooms])
+    setActiveRoomId(activeProject?.raeume?.[0]?.id ?? 1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- bewusst nur an activeProjectId gekoppelt, nicht an activeProject.raeume
+  }, [activeProjectId])
 
+  const rooms = useMemo(() => activeProject?.raeume || [], [activeProject])
   const activeRoom = rooms.find(r => r.id === activeRoomId) || rooms[0]
 
   const updateRoom = useCallback((id, changes) => {
-    setRooms(prev => prev.map(r => r.id === id ? { ...r, ...changes } : r))
-  }, [])
+    const neueRaeume = (activeProject?.raeume || []).map(r => r.id === id ? { ...r, ...changes } : r)
+    updateProjekt(activeProjectId, { raeume: neueRaeume })
+  }, [updateProjekt, activeProjectId, activeProject])
 
   const addRoom = useCallback(() => {
     const newRoom = { id: nextRoomId++, name: `Raum ${nextRoomId - 1}`, breite: 5, tiefe: 4, furniture: [], ...DEFAULT_RAUM_DESIGN }
-    setRooms(prev => [...prev, newRoom])
+    const neueRaeume = [...(activeProject?.raeume || []), newRoom]
+    updateProjekt(activeProjectId, { raeume: neueRaeume })
     setActiveRoomId(newRoom.id)
     setRaumPanelOffen(true)
-  }, [setRaumPanelOffen])
+  }, [updateProjekt, activeProjectId, activeProject, setRaumPanelOffen])
 
   const deleteRoom = useCallback((id) => {
-    if (rooms.length === 1) return
-    const remaining = rooms.filter(r => r.id !== id)
-    setRooms(remaining)
+    const raeume = activeProject?.raeume || []
+    if (raeume.length === 1) return
+    const remaining = raeume.filter(r => r.id !== id)
+    updateProjekt(activeProjectId, { raeume: remaining })
     if (activeRoomId === id) setActiveRoomId(remaining[0].id)
-  }, [rooms, activeRoomId])
+  }, [updateProjekt, activeProjectId, activeProject, activeRoomId])
 
   const waehleRaum = useCallback((id) => {
     if (activeRoomId === id) {

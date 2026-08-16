@@ -1,12 +1,13 @@
 import { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { loadRooms, maxId } from './roomsStorage'
+import { loadProjekte, alleRaeume } from './projekteStorage'
+import { maxId } from './roomsStorage'
 import { useRooms } from './RoomsContext'
 import { useFurniture } from './FurnitureContext'
 import { useRaumGeometrie } from './useRaumGeometrie'
 
 const TrennwandContext = createContext(null)
 
-let nextWandId = maxId(loadRooms().flatMap(r => (r.trennwaende || []).map(w => w.id))) + 1
+let nextWandId = maxId(alleRaeume(loadProjekte()).flatMap(r => (r.trennwaende || []).map(w => w.id))) + 1
 
 const snapPunkt = (x1, y1, x2, y2) => {
   const dx = x2 - x1, dy = y2 - y1
