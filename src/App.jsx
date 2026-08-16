@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import RoomView3D from './RoomView3D'
 
 const furnitureLibrary = [
-  { name: 'Sofa',           kategorie: 'Wohnen',     width: 100, height: 52,  color: '#B5D4F4', border: '#378ADD' },
+  { name: 'Sofa 2-Sitzer',  kategorie: 'Wohnen',     width: 100, height: 52,  color: '#B5D4F4', border: '#378ADD' },
+  { name: 'Sofa 3-Sitzer',  kategorie: 'Wohnen',     width: 140, height: 55,  color: '#B5D4F4', border: '#378ADD' },
+  { name: 'Ecksofa',        kategorie: 'Wohnen',     width: 160, height: 100, color: '#B5D4F4', border: '#378ADD' },
   { name: 'Sessel',         kategorie: 'Wohnen',     width: 50,  height: 50,  color: '#B5D4F4', border: '#378ADD' },
   { name: 'Couchtisch',     kategorie: 'Wohnen',     width: 64,  height: 40,  color: '#C0DD97', border: '#639922' },
   { name: 'TV',             kategorie: 'Elektrogeräte', width: 80,  height: 24,  color: '#D3D1C7', border: '#444441' },
@@ -12,19 +14,27 @@ const furnitureLibrary = [
   { name: 'Vitrine',        kategorie: 'Wohnen',     width: 50,  height: 30,  color: '#D3D1C7', border: '#888780' },
   { name: 'Sideboard',      kategorie: 'Wohnen',     width: 90,  height: 30,  color: '#D3D1C7', border: '#5F5E5A' },
   { name: 'Bücherregal',    kategorie: 'Wohnen',     width: 60,  height: 24,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Sofa 1-Sitzer',  kategorie: 'Wohnen',     width: 60,  height: 52,  color: '#B5D4F4', border: '#378ADD' },
+  { name: 'Barhocker',      kategorie: 'Wohnen',     width: 28,  height: 28,  color: '#E1D4F4', border: '#7F77DD' },
+  { name: 'Sitzbank',       kategorie: 'Wohnen',     width: 90,  height: 35,  color: '#D3D1C7', border: '#888780' },
   { name: 'Einzelbett',     kategorie: 'Schlafen',   width: 70,  height: 110, color: '#F5C4B3', border: '#D85A30' },
   { name: 'Doppelbett',     kategorie: 'Schlafen',   width: 110, height: 120, color: '#F5C4B3', border: '#D85A30' },
+  { name: 'Boxspringbett',  kategorie: 'Schlafen',   width: 120, height: 130, color: '#D3D1C7', border: '#5F5E5A' },
   { name: 'Kleiderschrank', kategorie: 'Schlafen',   width: 90,  height: 50,  color: '#F5C4B3', border: '#D85A30' },
   { name: 'Nachttisch',     kategorie: 'Schlafen',   width: 36,  height: 36,  color: '#FAC775', border: '#BA7517' },
   { name: 'Kommode',        kategorie: 'Schlafen',   width: 60,  height: 36,  color: '#D3D1C7', border: '#888780' },
   { name: 'Spiegel',        kategorie: 'Schlafen',   width: 30,  height: 60,  color: '#B5D4F4', border: '#378ADD' },
   { name: 'Hocker',         kategorie: 'Schlafen',   width: 36,  height: 36,  color: '#E1D4F4', border: '#7F77DD' },
+  { name: 'Schminktisch',   kategorie: 'Schlafen',   width: 70,  height: 40,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Bettbank',       kategorie: 'Schlafen',   width: 90,  height: 35,  color: '#F5C4B3', border: '#D85A30' },
   { name: 'Schreibtisch',   kategorie: 'Büro',       width: 80,  height: 44,  color: '#D3D1C7', border: '#888780' },
   { name: 'Bürostuhl',      kategorie: 'Büro',       width: 36,  height: 36,  color: '#E1D4F4', border: '#7F77DD' },
   { name: 'Regal',          kategorie: 'Büro',       width: 60,  height: 24,  color: '#D3D1C7', border: '#5F5E5A' },
   { name: 'Aktenschrank',   kategorie: 'Büro',       width: 50,  height: 36,  color: '#D3D1C7', border: '#444441' },
   { name: 'Drucker',        kategorie: 'Büro',       width: 40,  height: 30,  color: '#D3D1C7', border: '#888780' },
   { name: 'Monitor',        kategorie: 'Büro',       width: 40,  height: 16,  color: '#444441', border: '#2C2C2A' },
+  { name: 'Rollcontainer',  kategorie: 'Büro',       width: 40,  height: 45,  color: '#D3D1C7', border: '#5F5E5A' },
+  { name: 'Konferenztisch', kategorie: 'Büro',       width: 160, height: 90,  color: '#D3D1C7', border: '#888780' },
   { name: 'Herd',           kategorie: 'Küche',      width: 60,  height: 60,  color: '#D3D1C7', border: '#444441' },
   { name: 'Kühlschrank',    kategorie: 'Küche',      width: 40,  height: 55,  color: '#B5D4F4', border: '#378ADD' },
   { name: 'Spüle',          kategorie: 'Küche',      width: 60,  height: 44,  color: '#B5D4F4', border: '#185FA5' },
@@ -33,6 +43,8 @@ const furnitureLibrary = [
   { name: 'Unterschrank',   kategorie: 'Küche',      width: 60,  height: 36,  color: '#D3D1C7', border: '#888780' },
   { name: 'Oberschrank',    kategorie: 'Küche',      width: 60,  height: 24,  color: '#D3D1C7', border: '#5F5E5A' },
   { name: 'Mikrowelle',     kategorie: 'Küche',      width: 36,  height: 28,  color: '#D3D1C7', border: '#444441' },
+  { name: 'Backofen',       kategorie: 'Küche',      width: 60,  height: 60,  color: '#D3D1C7', border: '#444441' },
+  { name: 'Dunstabzugshaube', kategorie: 'Küche',    width: 60,  height: 30,  color: '#D3D1C7', border: '#5F5E5A' },
   { name: 'Badewanne',      kategorie: 'Badezimmer', width: 80,  height: 40,  color: '#B5D4F4', border: '#378ADD' },
   { name: 'Dusche',         kategorie: 'Badezimmer', width: 60,  height: 60,  color: '#B5D4F4', border: '#185FA5' },
   { name: 'WC',             kategorie: 'Badezimmer', width: 36,  height: 48,  color: '#f0f0f0', border: '#B4B2A9' },
@@ -40,6 +52,8 @@ const furnitureLibrary = [
   { name: 'Badschrank',     kategorie: 'Badezimmer', width: 50,  height: 30,  color: '#D3D1C7', border: '#888780' },
   { name: 'Handtuchhalter', kategorie: 'Badezimmer', width: 30,  height: 10,  color: '#D3D1C7', border: '#5F5E5A' },
   { name: 'Waschmaschine',  kategorie: 'Badezimmer', width: 44,  height: 44,  color: '#D3D1C7', border: '#888780' },
+  { name: 'Duschkabine Eck', kategorie: 'Badezimmer', width: 90, height: 90,  color: '#B5D4F4', border: '#185FA5' },
+  { name: 'Bidet',          kategorie: 'Badezimmer', width: 36,  height: 48,  color: '#f0f0f0', border: '#B4B2A9' },
   { name: 'Pflanze',        kategorie: 'Deko',       width: 30,  height: 30,  color: '#C0DD97', border: '#3B6D11' },
   { name: 'Großpflanze',    kategorie: 'Deko',       width: 44,  height: 44,  color: '#C0DD97', border: '#3B6D11' },
   { name: 'Lampe',          kategorie: 'Deko',       width: 32,  height: 32,  color: '#FAC775', border: '#BA7517' },
@@ -48,6 +62,19 @@ const furnitureLibrary = [
   { name: 'Teppich groß',   kategorie: 'Deko',       width: 140, height: 100, color: '#F4C0D1', border: '#993556' },
   { name: 'Bild',           kategorie: 'Deko',       width: 40,  height: 30,  color: '#E1D4F4', border: '#7F77DD' },
   { name: 'Kamin',          kategorie: 'Deko',       width: 80,  height: 36,  color: '#F5C4B3', border: '#993C1D' },
+  { name: 'Vase',           kategorie: 'Deko',       width: 18,  height: 18,  color: '#E1D4F4', border: '#7F77DD' },
+  { name: 'Kerzenständer',  kategorie: 'Deko',       width: 14,  height: 14,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Wanduhr',        kategorie: 'Deko',       width: 30,  height: 6,   color: '#D3D1C7', border: '#5F5E5A' },
+  { name: 'Kissen',         kategorie: 'Deko',       width: 35,  height: 35,  color: '#F4C0D1', border: '#993556' },
+  { name: 'Globus',         kategorie: 'Deko',       width: 28,  height: 28,  color: '#B5D4F4', border: '#185FA5' },
+  { name: 'Skulptur',       kategorie: 'Deko',       width: 25,  height: 25,  color: '#D3D1C7', border: '#5F5E5A' },
+  { name: 'Kaktus',         kategorie: 'Deko',       width: 22,  height: 22,  color: '#C0DD97', border: '#3B6D11' },
+  { name: 'Lichterkette',   kategorie: 'Deko',       width: 40,  height: 10,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Deckenlampe',    kategorie: 'Deko',       width: 35,  height: 35,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Pendelleuchte',  kategorie: 'Deko',       width: 25,  height: 25,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Wandleuchte',    kategorie: 'Deko',       width: 20,  height: 10,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Kronleuchter',   kategorie: 'Deko',       width: 45,  height: 45,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Tischlampe',     kategorie: 'Deko',       width: 18,  height: 18,  color: '#FAC775', border: '#BA7517' },
   { name: 'Lautsprecher',   kategorie: 'Elektrogeräte', width: 20, height: 20, color: '#E8E6E0', border: '#444441' },
   { name: 'Spielekonsole',  kategorie: 'Elektrogeräte', width: 34, height: 24, color: '#E8E6E0', border: '#444441' },
   { name: 'Laptop',         kategorie: 'Elektrogeräte', width: 34, height: 24, color: '#E8E6E0', border: '#444441' },
@@ -93,8 +120,25 @@ function moebelIconTyp(name) {
   if (n.includes('insel'))                              return 'tisch'
   if (n.includes('schrank'))                            return 'schrank'
   if (n.includes('regal'))                               return 'regal'
+  if (n.includes('kronleuchter'))                       return 'kronleuchter'
+  if (n.includes('deckenlampe') || n.includes('pendelleuchte')) return 'deckenlampe'
+  if (n.includes('tischlampe') || n.includes('wandleuchte') || n.includes('leuchte')) return 'lampe'
+  if (n.includes('dunstabzug'))                         return 'dunstabzug'
+  if (n.includes('ofen'))                               return 'herd'
+  if (n.includes('bidet'))                              return 'wc'
+  if (n.includes('container'))                          return 'schrank'
+  if (n.includes('bank'))                               return 'bank'
+  if (n.includes('vase'))                               return 'vase'
+  if (n.includes('kerze'))                              return 'kerze'
+  if (n.includes('wanduhr'))                            return 'wanduhr'
+  if (n.includes('kissen'))                             return 'kissen'
+  if (n.includes('globus'))                             return 'globus'
+  if (n.includes('skulptur'))                           return 'skulptur'
+  if (n.includes('kaktus'))                             return 'kaktus'
+  if (n.includes('lichterkette'))                       return 'girlande'
   if (n.includes('tisch'))                               return 'tisch'
   if (n.includes('stuhl') || n.includes('hocker'))       return 'stuhl'
+  if (n.includes('ecksofa'))                            return 'ecksofa'
   if (n.includes('sofa') || n.includes('sessel'))        return 'sofa'
   if (n.includes('bett'))                                return 'bett'
   if (n === 'tv' || n.includes('fernseh') || n.includes('monitor')) return 'bildschirm'
@@ -119,16 +163,18 @@ function moebelIconTyp(name) {
   return 'standard'
 }
 
-function MoebelIcon({ item }) {
-  const f = item.color
-  const s = item.border
-  const typ = moebelIconTyp(item.name)
-  const shapes = {
+function moebelShapes(f, s) {
+  return {
     sofa: <>
       <rect x="2" y="9" width="24" height="6" rx="2" fill={f} stroke={s} strokeWidth="1.3" />
       <rect x="2" y="13" width="24" height="9" rx="2" fill={f} stroke={s} strokeWidth="1.3" />
       <rect x="1" y="9" width="4" height="13" rx="1.5" fill={f} stroke={s} strokeWidth="1.3" />
       <rect x="23" y="9" width="4" height="13" rx="1.5" fill={f} stroke={s} strokeWidth="1.3" />
+    </>,
+    ecksofa: <>
+      <path d="M2,2 L14,2 L14,14 L26,14 L26,26 L2,26 Z" fill={f} stroke={s} strokeWidth="1.3" strokeLinejoin="round" />
+      <rect x="2" y="2" width="3.5" height="24" fill={s} opacity="0.3" />
+      <rect x="2" y="22.5" width="24" height="3.5" fill={s} opacity="0.3" />
     </>,
     bett: <>
       <rect x="3" y="4" width="22" height="4" rx="1" fill={f} stroke={s} strokeWidth="1.3" />
@@ -280,8 +326,79 @@ function MoebelIcon({ item }) {
       <rect x="3" y="6" width="2.5" height="16" rx="1" fill={s} />
       <rect x="22.5" y="6" width="2.5" height="16" rx="1" fill={s} />
     </>,
+    bank: <>
+      <rect x="2" y="10" width="24" height="8" rx="2" fill={f} stroke={s} strokeWidth="1.3" />
+      <rect x="3" y="18" width="2.2" height="6" fill={s} />
+      <rect x="22.8" y="18" width="2.2" height="6" fill={s} />
+    </>,
+    dunstabzug: <>
+      <path d="M4,4 L24,4 L20,20 L8,20 Z" fill={f} stroke={s} strokeWidth="1.3" strokeLinejoin="round" />
+      <rect x="11" y="20" width="6" height="4" fill={s} />
+    </>,
+    vase: <>
+      <path d="M10,4 L18,4 L17,10 L20,15 A6,7 0 0 1 8,15 L11,10 Z" fill={f} stroke={s} strokeWidth="1.3" strokeLinejoin="round" />
+    </>,
+    kerze: <>
+      <rect x="12" y="6" width="4" height="14" fill={f} stroke={s} strokeWidth="1" />
+      <path d="M14,1.5 A2,3 0 0 1 14,7.5 A2,3 0 0 1 14,1.5 Z" fill="#FAC775" stroke={s} strokeWidth="0.8" />
+      <ellipse cx="14" cy="22" rx="7" ry="2.5" fill={f} stroke={s} strokeWidth="1.2" />
+    </>,
+    wanduhr: <>
+      <circle cx="14" cy="14" r="10" fill={f} stroke={s} strokeWidth="1.5" />
+      <line x1="14" y1="14" x2="14" y2="8" stroke={s} strokeWidth="1.3" />
+      <line x1="14" y1="14" x2="18" y2="15" stroke={s} strokeWidth="1.3" />
+    </>,
+    kissen: <>
+      <rect x="4" y="4" width="20" height="20" rx="6" fill={f} stroke={s} strokeWidth="1.3" />
+      <path d="M9,9 L19,19 M19,9 L9,19" stroke={s} strokeWidth="0.8" opacity="0.4" />
+    </>,
+    globus: <>
+      <circle cx="14" cy="13" r="9" fill={f} stroke={s} strokeWidth="1.3" />
+      <ellipse cx="14" cy="13" rx="9" ry="3.5" fill="none" stroke={s} strokeWidth="0.8" opacity="0.6" />
+      <line x1="14" y1="4" x2="14" y2="22" stroke={s} strokeWidth="0.8" opacity="0.6" />
+      <line x1="7" y1="22" x2="21" y2="22" stroke={s} strokeWidth="1.3" />
+    </>,
+    skulptur: <>
+      <circle cx="14" cy="4.5" r="2.5" fill={f} stroke={s} strokeWidth="1.2" />
+      <path d="M9,9 Q14,7 19,9 L18,20 A4,3 0 0 1 10,20 Z" fill={f} stroke={s} strokeWidth="1.3" />
+      <rect x="8" y="21" width="12" height="4" rx="1" fill={s} opacity="0.5" />
+    </>,
+    kaktus: <>
+      <path d="M12,25 L12,10 A2,2 0 0 1 16,10 L16,25 Z" fill={f} stroke={s} strokeWidth="1.3" />
+      <path d="M12,15 Q6,15 6,10" fill="none" stroke={s} strokeWidth="1.3" />
+      <path d="M16,18 Q22,18 22,13" fill="none" stroke={s} strokeWidth="1.3" />
+      <ellipse cx="14" cy="26" rx="8" ry="2" fill={s} opacity="0.4" />
+    </>,
+    girlande: <>
+      <path d="M2,6 Q14,20 26,6" fill="none" stroke={s} strokeWidth="1.3" />
+      <circle cx="7" cy="11" r="1.6" fill={f} stroke={s} strokeWidth="0.8" />
+      <circle cx="14" cy="16" r="1.6" fill={f} stroke={s} strokeWidth="0.8" />
+      <circle cx="21" cy="11" r="1.6" fill={f} stroke={s} strokeWidth="0.8" />
+    </>,
+    deckenlampe: <>
+      <circle cx="14" cy="14" r="9" fill={f} stroke={s} strokeWidth="1.3" />
+      <circle cx="14" cy="14" r="3.5" fill="none" stroke={s} strokeWidth="1" opacity="0.6" />
+    </>,
+    kronleuchter: <>
+      <circle cx="14" cy="14" r="4" fill={f} stroke={s} strokeWidth="1.3" />
+      <circle cx="14" cy="5" r="1.6" fill={f} stroke={s} strokeWidth="1" />
+      <circle cx="6" cy="10" r="1.6" fill={f} stroke={s} strokeWidth="1" />
+      <circle cx="22" cy="10" r="1.6" fill={f} stroke={s} strokeWidth="1" />
+      <circle cx="8" cy="21" r="1.6" fill={f} stroke={s} strokeWidth="1" />
+      <circle cx="20" cy="21" r="1.6" fill={f} stroke={s} strokeWidth="1" />
+      <line x1="14" y1="14" x2="14" y2="5" stroke={s} strokeWidth="0.8" />
+      <line x1="14" y1="14" x2="6" y2="10" stroke={s} strokeWidth="0.8" />
+      <line x1="14" y1="14" x2="22" y2="10" stroke={s} strokeWidth="0.8" />
+      <line x1="14" y1="14" x2="8" y2="21" stroke={s} strokeWidth="0.8" />
+      <line x1="14" y1="14" x2="20" y2="21" stroke={s} strokeWidth="0.8" />
+    </>,
     standard: <rect x="4" y="4" width="20" height="20" rx="4" fill={f} stroke={s} strokeWidth="1.5" />,
   }
+}
+
+function MoebelIcon({ item }) {
+  const typ = moebelIconTyp(item.name)
+  const shapes = moebelShapes(item.color, item.border)
   return (
     <svg viewBox="0 0 28 28" width="28" height="28">
       {shapes[typ] || shapes.standard}
@@ -327,6 +444,11 @@ const bodenBelaege = [
   { name: 'Fliesen',  klasse: 'boden-fliesen',  icon: '🔲' },
   { name: 'Teppich',  klasse: 'boden-teppich',  icon: '🟪' },
   { name: 'Beton',    klasse: 'boden-beton',     icon: '🩶' },
+  { name: 'Fischgrät', klasse: 'boden-fischgraet', icon: '🟫' },
+  { name: 'Schachbrett', klasse: 'boden-schachbrett', icon: '⬛' },
+  { name: 'Marmor',   klasse: 'boden-marmor',    icon: '⚪' },
+  { name: 'Kork',     klasse: 'boden-kork',      icon: '🌰' },
+  { name: 'Schiefer', klasse: 'boden-schiefer',  icon: '🌑' },
 ]
 const wandFarben = [
   { name: 'Weiß',       farbe: '#FFFFFF' }, { name: 'Cremeweiß',  farbe: '#F5F0E8' },
@@ -338,7 +460,17 @@ const wandFarben = [
   { name: 'Hellblau',   farbe: '#B8D4E8' }, { name: 'Stahlblau',  farbe: '#4A7FA5' },
   { name: 'Dunkelblau', farbe: '#1A3A5C' }, { name: 'Lavendel',   farbe: '#C4B8D4' },
   { name: 'Aubergine',  farbe: '#5C3D5C' }, { name: 'Gelb',       farbe: '#F5E6A0' },
+  { name: 'Koralle',    farbe: '#E8927C' }, { name: 'Olivgrün',   farbe: '#7C8B5A' },
+  { name: 'Taupe',      farbe: '#B8A99A' }, { name: 'Puderrosa',  farbe: '#F0D4D4' },
+  { name: 'Petrol',     farbe: '#1F6B6B' }, { name: 'Bordeaux',   farbe: '#6B1F2A' },
+  { name: 'Karamell',   farbe: '#C68B4F' }, { name: 'Graphit',    farbe: '#3A3A38' },
+  { name: 'Türkis',     farbe: '#4FB8B0' }, { name: 'Zartgrün',   farbe: '#D4E8C4' },
 ]
+const wandSeiten = [
+  { seite: 'nord', name: 'Nord' }, { seite: 'ost', name: 'Ost' },
+  { seite: 'sued', name: 'Süd' },  { seite: 'west', name: 'West' },
+]
+const wandFarbeFuer = (room, seite) => room?.wandfarben?.[seite] || room?.wandfarbe || '#FFFFFF'
 
 const initialRooms = [
   { id: 1, name: 'Wohnzimmer',   breite: 6, tiefe: 5, furniture: [] },
@@ -355,6 +487,7 @@ const maxId = (werte) => werte.reduce((max, w) => typeof w === 'number' && w > m
 
 let nextRoomId = maxId(loadRooms().map(r => r.id)) + 1
 let nextId = maxId(loadRooms().flatMap(r => (r.furniture || []).map(f => f.id))) + 1
+let nextWandId = maxId(loadRooms().flatMap(r => (r.trennwaende || []).map(w => w.id))) + 1
 
 function App() {
   const [rooms, setRooms] = useState(loadRooms)
@@ -368,6 +501,12 @@ function App() {
   const [fussleiste, setFussleiste] = useState(true)
   const [raumHoehe, setRaumHoehe] = useState(2.5)
   const [fussleisteFarbe, setFussleisteFarbe] = useState('#E0DDD8')
+  const [aktiveWand, setAktiveWand] = useState('alle')
+  const [zeichneWand, setZeichneWand] = useState(false)
+  const [wandEntwurf, setWandEntwurf] = useState(null)
+  const [wandVorschau, setWandVorschau] = useState(null)
+  const [selectedWandId, setSelectedWandId] = useState(null)
+  const canvasInnerRef = useRef(null)
 
   useEffect(() => {
     localStorage.setItem('planixy-rooms', JSON.stringify(rooms))
@@ -388,7 +527,125 @@ function App() {
   const updateRoom = (id, changes) => setRooms(prev => prev.map(r => r.id === id ? { ...r, ...changes } : r))
   const setBoden = (boden) => updateRoom(activeRoomId, { boden })
   const setWandfarbe = (wandfarbe) => updateRoom(activeRoomId, { wandfarbe })
+  const setWandfarbeFuer = (farbe) => {
+    if (aktiveWand === 'alle') {
+      updateRoom(activeRoomId, { wandfarbe: farbe, wandfarben: null })
+    } else {
+      updateRoom(activeRoomId, { wandfarben: { ...(activeRoom?.wandfarben || {}), [aktiveWand]: farbe } })
+    }
+  }
+  const aktuelleWandfarbe = aktiveWand === 'alle'
+    ? (activeRoom?.wandfarbe || '#FFFFFF')
+    : (activeRoom?.wandfarben?.[aktiveWand] || activeRoom?.wandfarbe || '#FFFFFF')
   const updateFurniture = (newFurniture) => updateRoom(activeRoomId, { furniture: newFurniture })
+
+  const trennwaende = activeRoom?.trennwaende || []
+  const updateTrennwaende = (arr) => updateRoom(activeRoomId, { trennwaende: arr })
+  const removeTrennwand = (id) => { updateTrennwaende(trennwaende.filter(w => w.id !== id)); setSelectedWandId(null) }
+  const setTrennwandFarbe = (id, farbe) => updateTrennwaende(trennwaende.map(w => w.id === id ? { ...w, farbe } : w))
+  const setTrennwandDicke = (id, dicke) => updateTrennwaende(trennwaende.map(w => w.id === id ? { ...w, dicke } : w))
+
+  const snapPunkt = (x1, y1, x2, y2) => {
+    const dx = x2 - x1, dy = y2 - y1
+    const dist = Math.hypot(dx, dy)
+    if (dist < 1) return { x2, y2 }
+    const winkel = Math.atan2(dy, dx)
+    const stufe = Math.PI / 4
+    const genormt = Math.round(winkel / stufe) * stufe
+    if (Math.abs(winkel - genormt) < (6 * Math.PI / 180)) {
+      return { x2: x1 + Math.cos(genormt) * dist, y2: y1 + Math.sin(genormt) * dist }
+    }
+    return { x2, y2 }
+  }
+
+  const bestaetigeWand = () => {
+    if (!wandVorschau) return
+    updateTrennwaende([...(activeRoom?.trennwaende || []), { id: nextWandId++, ...wandVorschau, farbe: '#B4B2A9', dicke: 10 }])
+    setWandVorschau(null)
+  }
+  const verwerfeWand = () => setWandVorschau(null)
+
+  const startWandZeichnen = (e) => {
+    if (!zeichneWand || wandVorschau) return
+    e.preventDefault()
+    const rect = canvasInnerRef.current.getBoundingClientRect()
+    const x1 = Math.max(0, Math.min(innenB, e.clientX - rect.left))
+    const y1 = Math.max(0, Math.min(innenT, e.clientY - rect.top))
+    let aktuell = { x1, y1, x2: x1, y2: y1 }
+    setWandEntwurf(aktuell)
+
+    const onMove = (mv) => {
+      const rawX = Math.max(0, Math.min(innenB, mv.clientX - rect.left))
+      const rawY = Math.max(0, Math.min(innenT, mv.clientY - rect.top))
+      const snapped = snapPunkt(x1, y1, rawX, rawY)
+      const x2 = Math.max(0, Math.min(innenB, snapped.x2))
+      const y2 = Math.max(0, Math.min(innenT, snapped.y2))
+      aktuell = { x1, y1, x2, y2 }
+      setWandEntwurf(aktuell)
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      const laenge = Math.hypot(aktuell.x2 - aktuell.x1, aktuell.y2 - aktuell.y1)
+      setWandEntwurf(null)
+      if (laenge > 15) {
+        setWandVorschau(aktuell)
+      }
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  const handleWandDrag = (e, id, modus) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const wand = trennwaende.find(w => w.id === id)
+    if (!wand) return
+    setSelectedWandId(id)
+    setSelectedId(null)
+    const orig = { ...wand }
+    const startX = e.clientX, startY = e.clientY
+    const clampX = v => Math.max(0, Math.min(innenB, v))
+    const clampY = v => Math.max(0, Math.min(innenT, v))
+
+    const onMove = (mv) => {
+      const dx = mv.clientX - startX, dy = mv.clientY - startY
+      let updated
+      if (modus === 'start') {
+        updated = { ...orig, x1: clampX(orig.x1 + dx), y1: clampY(orig.y1 + dy) }
+      } else if (modus === 'end') {
+        updated = { ...orig, x2: clampX(orig.x2 + dx), y2: clampY(orig.y2 + dy) }
+      } else {
+        // Ganze Wand verschieben: dx/dy so begrenzen, dass beide Endpunkte innerhalb der Raumgrenze bleiben,
+        // ohne die Wand zu verzerren (statt jeden Punkt einzeln zu klemmen)
+        const minDx = -Math.min(orig.x1, orig.x2)
+        const maxDx = innenB - Math.max(orig.x1, orig.x2)
+        const minDy = -Math.min(orig.y1, orig.y2)
+        const maxDy = innenT - Math.max(orig.y1, orig.y2)
+        const clampedDx = Math.max(minDx, Math.min(maxDx, dx))
+        const clampedDy = Math.max(minDy, Math.min(maxDy, dy))
+        updated = { ...orig, x1: orig.x1 + clampedDx, y1: orig.y1 + clampedDy, x2: orig.x2 + clampedDx, y2: orig.y2 + clampedDy }
+      }
+      updateTrennwaende(trennwaende.map(w => w.id === id ? updated : w))
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  useEffect(() => {
+    if (!zeichneWand) return
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      if (wandVorschau) setWandVorschau(null)
+      else setZeichneWand(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [zeichneWand, wandVorschau])
 
   const addRoom = () => {
     const newRoom = { id: nextRoomId++, name: `Raum ${nextRoomId - 1}`, breite: 5, tiefe: 4, furniture: [] }
@@ -713,20 +970,83 @@ function App() {
         {/* Canvas */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#F5F4F0', position: 'relative' }}>
           <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', fontSize: '11px', color: '#B4B2A9', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid #E8E6E0', zIndex: 10, whiteSpace: 'nowrap' }}>
-            {ansicht === '2d' ? 'Doppelklick auf Raumnamen · Blau = Drehen · Rot = Löschen' : 'Maus ziehen = Kamera drehen · Scrollrad = Zoom'}
+            {ansicht === '2d' ? (wandVorschau ? 'Oben bestätigen oder verwerfen' : zeichneWand ? 'Wand ziehen · Winkel schnappt bei 45° · Esc zum Beenden' : 'Doppelklick auf Raumnamen · Blau = Drehen · Rot = Löschen') : 'Maus ziehen = Kamera drehen · Scrollrad = Zoom'}
           </div>
+          {ansicht === '2d' && (
+            <div onClick={() => { setZeichneWand(z => !z); setSelectedWandId(null); setSelectedId(null); setWandVorschau(null) }}
+              style={{
+                position: 'absolute', top: '16px', left: '16px', zIndex: 10, cursor: 'pointer',
+                padding: '8px 16px', borderRadius: '20px', fontSize: '12px', fontWeight: '500',
+                background: zeichneWand ? '#185FA5' : 'white', color: zeichneWand ? 'white' : '#444441',
+                border: `1px solid ${zeichneWand ? '#185FA5' : '#E8E6E0'}`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              }}>
+              {zeichneWand ? '✕ Zeichnen beenden' : '+ Trennwand zeichnen'}
+            </div>
+          )}
+          {ansicht === '2d' && wandVorschau && (
+            <div style={{
+              position: 'absolute', top: '16px', left: '50%', transform: 'translateX(-50%)', zIndex: 10,
+              display: 'flex', alignItems: 'center', gap: '10px',
+              padding: '8px 12px', borderRadius: '20px', background: 'white',
+              border: '1px solid #E8E6E0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+            }}>
+              <span style={{ fontSize: '12px', color: '#444441', fontWeight: '500' }}>Trennwand bauen?</span>
+              <div onClick={bestaetigeWand} style={{ cursor: 'pointer', padding: '5px 14px', borderRadius: '14px', fontSize: '12px', fontWeight: '500', background: '#185FA5', color: 'white' }}>Bauen</div>
+              <div onClick={verwerfeWand} style={{ cursor: 'pointer', padding: '5px 14px', borderRadius: '14px', fontSize: '12px', fontWeight: '500', background: '#F7F6F2', color: '#888780', border: '1px solid #E8E6E0' }}>Verwerfen</div>
+            </div>
+          )}
           {ansicht === '2d' ? (
-            <div id="canvas" className={`canvas-wrap ${activeRoom?.boden || 'boden-standard'}`} style={{
+            <div id="canvas" style={{
               width: `${canvasB}px`, height: `${canvasT}px`,
-              border: `${wandDicke}px solid ${activeRoom?.wandfarbe || '#FFFFFF'}`,
-              borderRadius: '6px', position: 'relative',
+              borderRadius: '6px', position: 'relative', overflow: 'hidden',
               boxShadow: '0 4px 24px rgba(24,95,165,0.08)',
               outline: '2px solid #B5D4F4',
               boxSizing: 'border-box',
             }}>
+              {/* Wände einzeln einfärbbar */}
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: `${wandDicke}px`, background: wandFarbeFuer(activeRoom, 'nord'), zIndex: 3 }}></div>
+              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${wandDicke}px`, background: wandFarbeFuer(activeRoom, 'sued'), zIndex: 3 }}></div>
+              <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${wandDicke}px`, background: wandFarbeFuer(activeRoom, 'west'), zIndex: 3 }}></div>
+              <div style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: `${wandDicke}px`, background: wandFarbeFuer(activeRoom, 'ost'), zIndex: 3 }}></div>
+
+              <div ref={canvasInnerRef} className={`canvas-wrap ${activeRoom?.boden || 'boden-standard'}`} style={{ position: 'absolute', inset: `${wandDicke}px` }}>
               {/* Deselect Layer */}
-              <div onClick={() => setSelectedId(null)} style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
-                
+              <div onClick={() => { setSelectedId(null); setSelectedWandId(null) }}
+                onMouseDown={startWandZeichnen}
+                style={{ position: 'absolute', inset: 0, zIndex: 0, cursor: zeichneWand ? 'crosshair' : 'default' }} />
+
+              {/* Trennwände */}
+              <svg width={innenB} height={innenT} style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: zeichneWand ? 'none' : 'auto' }}>
+                {trennwaende.map(wand => (
+                  <g key={wand.id}>
+                    {selectedWandId === wand.id && (
+                      <line x1={wand.x1} y1={wand.y1} x2={wand.x2} y2={wand.y2} stroke="#185FA5" strokeWidth={(wand.dicke || 10) + 6} strokeLinecap="square" opacity={0.25} pointerEvents="none" />
+                    )}
+                    <line x1={wand.x1} y1={wand.y1} x2={wand.x2} y2={wand.y2} stroke={wand.farbe} strokeWidth={wand.dicke || 10} strokeLinecap="square"
+                      style={{ cursor: 'grab', pointerEvents: 'stroke' }}
+                      onMouseDown={(e) => handleWandDrag(e, wand.id, 'body')} />
+                    {selectedWandId === wand.id && (
+                      <>
+                        <circle cx={wand.x1} cy={wand.y1} r={7} fill="white" stroke="#185FA5" strokeWidth={2} style={{ cursor: 'move' }} onMouseDown={(e) => handleWandDrag(e, wand.id, 'start')} />
+                        <circle cx={wand.x2} cy={wand.y2} r={7} fill="white" stroke="#185FA5" strokeWidth={2} style={{ cursor: 'move' }} onMouseDown={(e) => handleWandDrag(e, wand.id, 'end')} />
+                      </>
+                    )}
+                  </g>
+                ))}
+                {wandEntwurf && (
+                  <line x1={wandEntwurf.x1} y1={wandEntwurf.y1} x2={wandEntwurf.x2} y2={wandEntwurf.y2}
+                    stroke="#185FA5" strokeWidth={10} strokeLinecap="square" strokeDasharray="6 5" opacity={0.7} pointerEvents="none" />
+                )}
+                {wandVorschau && (
+                  <>
+                    <line x1={wandVorschau.x1} y1={wandVorschau.y1} x2={wandVorschau.x2} y2={wandVorschau.y2}
+                      stroke="#185FA5" strokeWidth={16} strokeLinecap="square" opacity={0.25} pointerEvents="none" />
+                    <line x1={wandVorschau.x1} y1={wandVorschau.y1} x2={wandVorschau.x2} y2={wandVorschau.y2}
+                      stroke="#B4B2A9" strokeWidth={10} strokeLinecap="square" strokeDasharray="4 4" pointerEvents="none" />
+                  </>
+                )}
+              </svg>
+
               {fussleiste && (
                 <>
                   <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '8px', background: fussleisteFarbe, zIndex: 2 }}></div>
@@ -735,32 +1055,45 @@ function App() {
                   <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '8px', background: fussleisteFarbe, zIndex: 2 }}></div>
                 </>
               )}
-              {furniture.map(item => (
+              {furniture.map(item => {
+                const W = item.origWidth || item.width
+                const H = item.origHeight || item.height
+                const isEcksofa = item.name.toLowerCase().includes('ecksofa')
+                const zeigeIcon = !item.istWandElement && !isEcksofa
+                const typ = moebelIconTyp(item.name)
+                const shapes = zeigeIcon ? moebelShapes(item.color, item.border) : null
+
+                const pad = 2
+                const armDepth = Math.max(0, (Math.min(W, H) - pad * 2) / 2)
+                const x0 = pad, y0 = pad, x1 = W - pad, y1 = H - pad
+                const strip = armDepth * (3.5 / 12)
+                const lShapePath = `M${x0},${y0} L${x0 + armDepth},${y0} L${x0 + armDepth},${y1 - armDepth} L${x1},${y1 - armDepth} L${x1},${y1} L${x0},${y1} Z`
+                const labelLeft = (x0 + armDepth + x1) / 2
+                const labelTop = y1 - armDepth / 2
+
+                return (
                 <div key={item.id} style={{
                   position: 'absolute',
                   zIndex: 1,
                   left: item.left + (() => {
-                    const origW = item.origWidth || item.width
-                    const origH = item.origHeight || item.height
                     const rad = (item.rotation || 0) * Math.PI / 180
-                    return (origW * Math.abs(Math.cos(rad)) + origH * Math.abs(Math.sin(rad))) / 2
+                    return (W * Math.abs(Math.cos(rad)) + H * Math.abs(Math.sin(rad))) / 2
                   })(),
                   top: item.top + (() => {
-                    const origW = item.origWidth || item.width
-                    const origH = item.origHeight || item.height
                     const rad = (item.rotation || 0) * Math.PI / 180
-                    return (origW * Math.abs(Math.sin(rad)) + origH * Math.abs(Math.cos(rad))) / 2
+                    return (W * Math.abs(Math.sin(rad)) + H * Math.abs(Math.cos(rad))) / 2
                   })(),
-                  width: item.origWidth || item.width,
-                  height: item.origHeight || item.height,
+                  width: W,
+                  height: H,
                   transform: `translate(-50%, -50%) rotate(${item.rotation || 0}deg)`,
                 }}>
                   <div onMouseDown={(e) => { handleDrag(e, item.id); setSelectedId(item.id) }}
                     onTouchStart={(e) => { handleDrag(e, item.id); setSelectedId(item.id) }}
                     onClick={(e) => { e.stopPropagation(); setSelectedId(item.id) }}
                     style={{
-                      width: '100%', height: '100%', background: item.color,
-                      border: `${item.istWandElement ? '3px' : '1.5px'} solid ${item.border}`,
+                      width: '100%', height: '100%',
+                      background: (isEcksofa || zeigeIcon) ? 'transparent' : item.color,
+                      border: (isEcksofa || zeigeIcon) ? 'none' : `${item.istWandElement ? '3px' : '1.5px'} solid ${item.border}`,
                       borderRadius: item.istWandElement ? '3px' : '5px',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: '10px', fontWeight: '500', cursor: 'grab', userSelect: 'none',
@@ -770,15 +1103,37 @@ function App() {
                     onMouseEnter={e => e.currentTarget.style.boxShadow = `0 0 0 2px ${item.border}`}
                     onMouseLeave={e => e.currentTarget.style.boxShadow = selectedId === item.id ? '0 0 0 2px #185FA5' : 'none'}
                   >
-                    {item.name}
+                    {isEcksofa ? (
+                      <>
+                        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none"
+                          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+                          <path d={lShapePath} fill={item.color} stroke={item.border} strokeWidth="1.3" strokeLinejoin="round" />
+                          <rect x={x0} y={y0} width={strip} height={y1 - y0} fill={item.border} opacity="0.3" />
+                          <rect x={x0} y={y1 - strip} width={x1 - x0} height={strip} fill={item.border} opacity="0.3" />
+                        </svg>
+                        <span style={{
+                          position: 'absolute', left: labelLeft, top: labelTop, transform: 'translate(-50%, -50%)',
+                          whiteSpace: 'nowrap', pointerEvents: 'none',
+                        }}>{item.name}</span>
+                      </>
+                    ) : zeigeIcon ? (
+                      <>
+                        <svg viewBox="0 0 28 28" preserveAspectRatio="none"
+                          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+                          {shapes[typ] || shapes.standard}
+                        </svg>
+                        <span style={{ position: 'relative', whiteSpace: 'nowrap', pointerEvents: 'none' }}>{item.name}</span>
+                      </>
+                    ) : item.name}
                     <span onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
                       onClick={(e) => { e.stopPropagation(); removeFurniture(item.id); setSelectedId(null) }}
                       style={{ position: 'absolute', top: '-8px', right: '-8px', width: '16px', height: '16px', borderRadius: '50%', background: '#E24B4A', color: 'white', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>✕</span>
                   </div>
 
-                 
+
                 </div>
-              ))}
+              )})}
+              </div>
             </div>
           ) : (
             <div style={{ position: 'absolute', inset: 0 }}>
@@ -815,6 +1170,39 @@ function App() {
                 ))}
               </div>
               <span onClick={() => setSelectedId(null)} style={{ cursor: 'pointer', color: '#B4B2A9', fontSize: '16px', marginLeft: '8px' }}>✕</span>
+            </div>
+          )
+        })()}
+
+        {/* Trennwand-Panel unter Canvas */}
+        {selectedWandId !== null && ansicht === '2d' && (() => {
+          const selectedWand = trennwaende.find(w => w.id === selectedWandId)
+          if (!selectedWand) return null
+          return (
+            <div onClick={e => e.stopPropagation()} style={{
+              background: 'white', borderTop: '1px solid #E8E6E0',
+              padding: '10px 24px', display: 'flex', alignItems: 'center',
+              gap: '12px', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <span style={{ fontSize: '12px', color: '#888780', fontWeight: '500' }}>Trennwand</span>
+              <div style={{ display: 'flex', gap: '5px' }}>
+                {wandFarben.slice(0, 12).map(f => (
+                  <div key={f.name} onClick={() => setTrennwandFarbe(selectedWand.id, f.farbe)} title={f.name}
+                    style={{
+                      width: '20px', height: '20px', borderRadius: '50%', cursor: 'pointer', background: f.farbe,
+                      border: `${selectedWand.farbe === f.farbe ? '2px' : '1px'} solid ${selectedWand.farbe === f.farbe ? '#185FA5' : '#E8E6E0'}`,
+                    }} />
+                ))}
+              </div>
+              <span style={{ fontSize: '12px', color: '#B4B2A9' }}>Dicke</span>
+              <input type="range" min="4" max="30" step="2"
+                value={selectedWand.dicke || 10}
+                onChange={e => setTrennwandDicke(selectedWand.id, Number(e.target.value))}
+                style={{ width: '120px', cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: '13px', color: '#185FA5', fontWeight: '500', minWidth: '32px' }}>{Math.round((selectedWand.dicke || 10) / 0.6)} cm</span>
+              <div onClick={() => removeTrennwand(selectedWand.id)} style={{ cursor: 'pointer', color: '#E24B4A', fontSize: '12px', fontWeight: '500', padding: '4px 10px', borderRadius: '8px', border: '1px solid #F4C0C0' }}>Löschen</div>
+              <span onClick={() => setSelectedWandId(null)} style={{ cursor: 'pointer', color: '#B4B2A9', fontSize: '16px', marginLeft: '8px' }}>✕</span>
             </div>
           )
         })()}
@@ -909,15 +1297,25 @@ function App() {
 
             <div>
               <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.06em' }}>WANDFARBE</p>
+              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                {[{ seite: 'alle', name: 'Alle' }, ...wandSeiten].map(w => (
+                  <div key={w.seite} onClick={() => setAktiveWand(w.seite)} style={{
+                    padding: '4px 10px', borderRadius: '20px', fontSize: '11px', cursor: 'pointer',
+                    background: aktiveWand === w.seite ? '#185FA5' : '#F7F6F2',
+                    color: aktiveWand === w.seite ? 'white' : '#888780',
+                    border: `1px solid ${aktiveWand === w.seite ? '#185FA5' : '#E8E6E0'}`,
+                  }}>{w.name}</div>
+                ))}
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                 {wandFarben.map(wand => (
-                  <div key={wand.name} onClick={() => setWandfarbe(wand.farbe)} style={{
+                  <div key={wand.name} onClick={() => setWandfarbeFuer(wand.farbe)} style={{
                     padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s',
-                    border: `${(activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '2px' : '1px'} solid ${(activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '#185FA5' : '#E8E6E0'}`,
-                    background: (activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '#EEF4FC' : '#FAFAF8',
+                    border: `${aktuelleWandfarbe === wand.farbe ? '2px' : '1px'} solid ${aktuelleWandfarbe === wand.farbe ? '#185FA5' : '#E8E6E0'}`,
+                    background: aktuelleWandfarbe === wand.farbe ? '#EEF4FC' : '#FAFAF8',
                   }}>
                     <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: wand.farbe, margin: '0 auto 4px', border: '1px solid #E8E6E0' }}></div>
-                    <div style={{ fontSize: '10px', color: (activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '#185FA5' : '#444441', fontWeight: (activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '500' : '400' }}>{wand.name}</div>
+                    <div style={{ fontSize: '10px', color: aktuelleWandfarbe === wand.farbe ? '#185FA5' : '#444441', fontWeight: aktuelleWandfarbe === wand.farbe ? '500' : '400' }}>{wand.name}</div>
                   </div>
                 ))}
               </div>
@@ -1013,10 +1411,20 @@ function App() {
               ))}
             </div>
             <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.08em' }}>WANDFARBE</p>
+            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '10px' }}>
+              {[{ seite: 'alle', name: 'Alle' }, ...wandSeiten].map(w => (
+                <div key={w.seite} onClick={() => setAktiveWand(w.seite)} style={{
+                  padding: '4px 10px', borderRadius: '20px', fontSize: '11px', cursor: 'pointer',
+                  background: aktiveWand === w.seite ? '#185FA5' : '#F7F6F2',
+                  color: aktiveWand === w.seite ? 'white' : '#888780',
+                  border: `1px solid ${aktiveWand === w.seite ? '#185FA5' : '#E8E6E0'}`,
+                }}>{w.name}</div>
+              ))}
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
               {wandFarben.map(wand => (
-                <div key={wand.name} onClick={() => setWandfarbe(wand.farbe)}
-                  style={{ padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', border: `${(activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '2px' : '1px'} solid ${(activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '#185FA5' : '#E8E6E0'}`, background: (activeRoom?.wandfarbe || '#FFFFFF') === wand.farbe ? '#EEF4FC' : '#FAFAF8' }}>
+                <div key={wand.name} onClick={() => setWandfarbeFuer(wand.farbe)}
+                  style={{ padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', border: `${aktuelleWandfarbe === wand.farbe ? '2px' : '1px'} solid ${aktuelleWandfarbe === wand.farbe ? '#185FA5' : '#E8E6E0'}`, background: aktuelleWandfarbe === wand.farbe ? '#EEF4FC' : '#FAFAF8' }}>
                   <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: wand.farbe, margin: '0 auto 4px', border: '1px solid #E8E6E0' }}></div>
                   <div style={{ fontSize: '9px', color: '#444441' }}>{wand.name}</div>
                 </div>
