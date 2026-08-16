@@ -2,16 +2,23 @@ import RoomView3D from '../RoomView3D'
 import { moebelIconTyp, moebelShapes } from '../moebelIcons'
 import RotationsPanel from './RotationsPanel'
 import TrennwandPanel from './TrennwandPanel'
+import { useUI } from '../context/UIContext'
+import { useRooms } from '../context/RoomsContext'
+import { useDesign } from '../context/DesignContext'
+import { useFurniture } from '../context/FurnitureContext'
+import { useTrennwand } from '../context/TrennwandContext'
 
 const wandFarbeFuer = (room, seite) => room?.wandfarben?.[seite] || room?.wandfarbe || '#FFFFFF'
 
-export default function Canvas2D({
-  ansicht, activeRoom, canvasB, canvasT, innenB, innenT, wandDicke, canvasInnerRef,
-  zeichneWand, setZeichneWand, wandVorschau, setWandVorschau, bestaetigeWand, verwerfeWand, startWandZeichnen,
-  setSelectedId, setSelectedWandId, trennwaende, selectedWandId, handleWandDrag, wandEntwurf,
-  fussleiste, fussleisteFarbe, furniture, selectedId, handleDrag, removeFurniture, rotateFurniture,
-  raumHoehe, setTrennwandFarbe, setTrennwandDicke, removeTrennwand,
-}) {
+export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke }) {
+  const { ansicht } = useUI()
+  const { activeRoom } = useRooms()
+  const { fussleiste, fussleisteFarbe } = useDesign()
+  const { furniture, selectedId, setSelectedId, handleDrag, removeFurniture } = useFurniture()
+  const {
+    zeichneWand, setZeichneWand, wandVorschau, setWandVorschau, bestaetigeWand, verwerfeWand, startWandZeichnen,
+    setSelectedWandId, trennwaende, selectedWandId, handleWandDrag, wandEntwurf, canvasInnerRef,
+  } = useTrennwand()
   return (
     <>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#F5F4F0', position: 'relative' }}>
@@ -183,17 +190,14 @@ export default function Canvas2D({
           </div>
         ) : (
           <div style={{ position: 'absolute', inset: 0 }}>
-            <RoomView3D room={activeRoom} furniture={furniture} fussleiste={fussleiste} fussleisteFarbe={fussleisteFarbe} raumHoehe={raumHoehe} />
+            <RoomView3D />
           </div>
         )}
       </div>
 
-      <RotationsPanel ansicht={ansicht} selectedId={selectedId} furniture={furniture} setSelectedId={setSelectedId} rotateFurniture={rotateFurniture} />
+      <RotationsPanel />
 
-      <TrennwandPanel
-        ansicht={ansicht} selectedWandId={selectedWandId} trennwaende={trennwaende} setSelectedWandId={setSelectedWandId}
-        setTrennwandFarbe={setTrennwandFarbe} setTrennwandDicke={setTrennwandDicke} removeTrennwand={removeTrennwand}
-      />
+      <TrennwandPanel />
     </>
   )
 }

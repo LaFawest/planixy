@@ -1,8 +1,10 @@
 import { wandFarben } from '../constants'
+import { useUI } from '../context/UIContext'
+import { useTrennwand } from '../context/TrennwandContext'
 
-export default function TrennwandPanel({
-  ansicht, selectedWandId, trennwaende, setSelectedWandId, setTrennwandFarbe, setTrennwandDicke, removeTrennwand,
-}) {
+export default function TrennwandPanel() {
+  const { ansicht } = useUI()
+  const { selectedWandId, trennwaende, setSelectedWandId, setTrennwandFarbe, setTrennwandDicke, removeTrennwand } = useTrennwand()
   if (selectedWandId === null || ansicht !== '2d') return null
   const selectedWand = trennwaende.find(w => w.id === selectedWandId)
   if (!selectedWand) return null

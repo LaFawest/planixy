@@ -1,8 +1,10 @@
 import { bodenBelaege, wandSeiten, wandFarben } from '../constants'
+import { useRooms } from '../context/RoomsContext'
+import { useDesign } from '../context/DesignContext'
 
-export default function EinstellungenTab({
-  activeRoom, activeRoomId, updateRoom, setBoden, aktiveWand, setAktiveWand, aktuelleWandfarbe, setWandfarbeFuer,
-}) {
+export default function EinstellungenTab() {
+  const { activeRoom, activeRoomId, updateRoom } = useRooms()
+  const { setBoden, aktiveWand, setAktiveWand, aktuelleWandfarbe, setWandfarbeFuer } = useDesign()
   return (
     <div style={{ padding: '0 16px 24px' }}>
       <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.08em' }}>RAUMGRÖSSE</p>

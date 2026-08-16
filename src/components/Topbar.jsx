@@ -1,4 +1,11 @@
-export default function Topbar({ activeRoom, ansicht, setAnsicht, furniture }) {
+import { useUI } from '../context/UIContext'
+import { useRooms } from '../context/RoomsContext'
+import { useFurniture } from '../context/FurnitureContext'
+
+export default function Topbar() {
+  const { ansicht, setAnsicht } = useUI()
+  const { activeRoom } = useRooms()
+  const { furniture } = useFurniture()
   return (
     <div style={{ padding: '14px 28px', borderBottom: '1px solid #E8E6E0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, gap: '12px', background: 'white', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
       <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', fontWeight: '500', color: '#2C2C2A', minWidth: '80px' }}>{activeRoom?.name}</h3>

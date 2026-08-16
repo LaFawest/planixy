@@ -1,9 +1,11 @@
 import { kategorien } from '../constants'
 import { KatalogKarte } from './KatalogKarte'
+import { useUI } from '../context/UIContext'
+import { useKatalog } from '../context/KatalogContext'
 
-export default function MoebelTab({
-  suche, setSuche, aktiveKategorie, setAktiveKategorie, gefilterteMoebel, katalogItemHinzufuegen, setAktiverTab,
-}) {
+export default function MoebelTab() {
+  const { setAktiverTab } = useUI()
+  const { suche, setSuche, aktiveKategorie, setAktiveKategorie, gefilterteMoebel, katalogItemHinzufuegen } = useKatalog()
   return (
     <div style={{ padding: '0 16px 24px' }}>
       <input type="text" placeholder="Möbel suchen..." value={suche} onChange={e => setSuche(e.target.value)}

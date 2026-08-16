@@ -1,10 +1,15 @@
 import { bodenBelaege, wandSeiten, wandFarben } from '../constants'
+import { useUI } from '../context/UIContext'
+import { useRooms } from '../context/RoomsContext'
+import { useDesign } from '../context/DesignContext'
 
-export default function RaumEinstellungen({
-  activeRoom, activeRoomId, setRaumPanelOffen, updateRoom, raumHoehe, setRaumHoehe,
-  fussleiste, setFussleiste, fussleisteFarbe, setFussleisteFarbe, setBoden,
-  aktiveWand, setAktiveWand, aktuelleWandfarbe, setWandfarbeFuer,
-}) {
+export default function RaumEinstellungen() {
+  const { setRaumPanelOffen } = useUI()
+  const { activeRoom, activeRoomId, updateRoom } = useRooms()
+  const {
+    raumHoehe, setRaumHoehe, fussleiste, setFussleiste, fussleisteFarbe, setFussleisteFarbe, setBoden,
+    aktiveWand, setAktiveWand, aktuelleWandfarbe, setWandfarbeFuer,
+  } = useDesign()
   return (
     <>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

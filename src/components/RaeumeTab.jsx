@@ -1,4 +1,9 @@
-export default function RaeumeTab({ rooms, activeRoomId, setActiveRoomId, deleteRoom, addRoom, setAktiverTab }) {
+import { useUI } from '../context/UIContext'
+import { useRooms } from '../context/RoomsContext'
+
+export default function RaeumeTab() {
+  const { setAktiverTab } = useUI()
+  const { rooms, activeRoomId, setActiveRoomId, deleteRoom, addRoom } = useRooms()
   return (
     <div style={{ padding: '0 16px 24px' }}>
       <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '12px', letterSpacing: '0.08em' }}>MEINE RÄUME</p>

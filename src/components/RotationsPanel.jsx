@@ -1,4 +1,9 @@
-export default function RotationsPanel({ ansicht, selectedId, furniture, setSelectedId, rotateFurniture }) {
+import { useUI } from '../context/UIContext'
+import { useFurniture } from '../context/FurnitureContext'
+
+export default function RotationsPanel() {
+  const { ansicht } = useUI()
+  const { selectedId, furniture, setSelectedId, rotateFurniture } = useFurniture()
   if (selectedId === null || ansicht !== '2d') return null
   const selectedItem = furniture.find(f => f.id === selectedId)
   if (!selectedItem) return null

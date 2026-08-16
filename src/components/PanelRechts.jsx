@@ -1,19 +1,16 @@
 import RaumEinstellungen from './RaumEinstellungen'
+import { useUI } from '../context/UIContext'
+import { useRooms } from '../context/RoomsContext'
+import { useFurniture } from '../context/FurnitureContext'
 
-export default function PanelRechts({
-  raumPanelOffen, activeRoom, activeRoomId, setRaumPanelOffen, updateRoom, raumHoehe, setRaumHoehe,
-  fussleiste, setFussleiste, fussleisteFarbe, setFussleisteFarbe, setBoden,
-  aktiveWand, setAktiveWand, aktuelleWandfarbe, setWandfarbeFuer,
-  furniture, removeFurniture,
-}) {
+export default function PanelRechts() {
+  const { raumPanelOffen } = useUI()
+  const { activeRoom } = useRooms()
+  const { furniture, removeFurniture } = useFurniture()
   return (
     <div className="panel-rechts" style={{ width: '220px', background: 'white', borderLeft: '1px solid #E8E6E0', padding: '16px', flexShrink: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', boxShadow: '-2px 0 8px rgba(0,0,0,0.04)' }}>
       {raumPanelOffen && activeRoom ? (
-        <RaumEinstellungen
-          activeRoom={activeRoom} activeRoomId={activeRoomId} setRaumPanelOffen={setRaumPanelOffen} updateRoom={updateRoom} raumHoehe={raumHoehe} setRaumHoehe={setRaumHoehe}
-          fussleiste={fussleiste} setFussleiste={setFussleiste} fussleisteFarbe={fussleisteFarbe} setFussleisteFarbe={setFussleisteFarbe} setBoden={setBoden}
-          aktiveWand={aktiveWand} setAktiveWand={setAktiveWand} aktuelleWandfarbe={aktuelleWandfarbe} setWandfarbeFuer={setWandfarbeFuer}
-        />
+        <RaumEinstellungen />
       ) : (
         <p style={{ fontSize: '12px', color: '#B4B2A9', lineHeight: 1.5 }}>Klicke links auf einen Raum, um Name, Größe, Fußleiste, Bodenbelag und Wandfarbe einzustellen.</p>
       )}

@@ -1,13 +1,10 @@
 import RaeumeTab from './RaeumeTab'
 import MoebelTab from './MoebelTab'
 import EinstellungenTab from './EinstellungenTab'
+import { useUI } from '../context/UIContext'
 
-export default function MobileNav({
-  aktiverTab, setAktiverTab,
-  rooms, activeRoomId, setActiveRoomId, deleteRoom, addRoom,
-  suche, setSuche, aktiveKategorie, setAktiveKategorie, gefilterteMoebel, katalogItemHinzufuegen,
-  activeRoom, updateRoom, setBoden, aktiveWand, setAktiveWand, aktuelleWandfarbe, setWandfarbeFuer,
-}) {
+export default function MobileNav() {
+  const { aktiverTab, setAktiverTab } = useUI()
   return (
     <>
       {/* Mobile Overlay */}
@@ -18,15 +15,9 @@ export default function MobileNav({
         <div style={{ padding: '12px 16px 0' }}>
           <div style={{ width: '40px', height: '4px', background: '#E8E6E0', borderRadius: '2px', margin: '0 auto 16px' }}></div>
         </div>
-        {aktiverTab === 'raeume' && (
-          <RaeumeTab rooms={rooms} activeRoomId={activeRoomId} setActiveRoomId={setActiveRoomId} deleteRoom={deleteRoom} addRoom={addRoom} setAktiverTab={setAktiverTab} />
-        )}
-        {aktiverTab === 'moebel' && (
-          <MoebelTab suche={suche} setSuche={setSuche} aktiveKategorie={aktiveKategorie} setAktiveKategorie={setAktiveKategorie} gefilterteMoebel={gefilterteMoebel} katalogItemHinzufuegen={katalogItemHinzufuegen} setAktiverTab={setAktiverTab} />
-        )}
-        {aktiverTab === 'einstellungen' && (
-          <EinstellungenTab activeRoom={activeRoom} activeRoomId={activeRoomId} updateRoom={updateRoom} setBoden={setBoden} aktiveWand={aktiveWand} setAktiveWand={setAktiveWand} aktuelleWandfarbe={aktuelleWandfarbe} setWandfarbeFuer={setWandfarbeFuer} />
-        )}
+        {aktiverTab === 'raeume' && <RaeumeTab />}
+        {aktiverTab === 'moebel' && <MoebelTab />}
+        {aktiverTab === 'einstellungen' && <EinstellungenTab />}
       </div>
 
       {/* Mobile Tab Bar */}

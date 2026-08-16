@@ -4,8 +4,14 @@ import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgeb
 import { baueTrennwaende } from './scene/trennwaende'
 import { baueWandElement } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
+import { useRooms } from './context/RoomsContext'
+import { useFurniture } from './context/FurnitureContext'
+import { useDesign } from './context/DesignContext'
 
-export default function RoomView3D({ room, furniture, fussleiste, fussleisteFarbe, raumHoehe }) {
+export default function RoomView3D() {
+  const { activeRoom: room } = useRooms()
+  const { furniture } = useFurniture()
+  const { fussleiste, fussleisteFarbe, raumHoehe } = useDesign()
   const mountRef = useRef(null)
 
   useEffect(() => {

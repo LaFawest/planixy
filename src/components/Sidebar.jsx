@@ -1,10 +1,13 @@
 import { kategorien } from '../constants'
 import { KatalogKarte } from './KatalogKarte'
+import { useUI } from '../context/UIContext'
+import { useRooms } from '../context/RoomsContext'
+import { useKatalog } from '../context/KatalogContext'
 
-export default function Sidebar({
-  rooms, activeRoomId, raumPanelOffen, waehleRaum, deleteRoom, addRoom,
-  suche, setSuche, aktiveKategorie, setAktiveKategorie, gefilterteMoebel, katalogItemHinzufuegen,
-}) {
+export default function Sidebar() {
+  const { raumPanelOffen } = useUI()
+  const { rooms, activeRoomId, waehleRaum, deleteRoom, addRoom } = useRooms()
+  const { suche, setSuche, aktiveKategorie, setAktiveKategorie, gefilterteMoebel, katalogItemHinzufuegen } = useKatalog()
   return (
     <div className="sidebar" style={{ width: '260px', background: 'white', borderRight: '1px solid #E8E6E0', padding: '24px 16px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', boxShadow: '2px 0 8px rgba(0,0,0,0.04)' }}>
       <div style={{ padding: '0 8px', marginBottom: '28px' }}>
