@@ -2,6 +2,58 @@ import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { getMoebelHoehe } from '../texturen'
 
+function baueBeine(gruppe, positionen, radius, hoehe, farbe, holzTextur, { segmente = 10, roughness = 0.55, castShadow = false } = {}) {
+  const [radiusOben, radiusUnten] = Array.isArray(radius) ? radius : [radius, radius]
+  const beinMat = new THREE.MeshStandardMaterial({ color: farbe, roughness, map: holzTextur })
+  const beinGeo = new THREE.CylinderGeometry(radiusOben, radiusUnten, hoehe, segmente)
+  positionen.forEach(([px, pz]) => {
+    const bein = new THREE.Mesh(beinGeo, beinMat)
+    bein.position.set(px, hoehe / 2, pz)
+    if (castShadow) bein.castShadow = true
+    gruppe.add(bein)
+  })
+}
+
+// Gemeinsamer Teil aller Leuchten: Glühmaterial, optional Kabel (Aufhängung) und optional PointLight (echte Lichtquelle)
+function baueGluehlampe(gruppe, borderMat, glowIntensity, kabel, licht) {
+  const glowMat = new THREE.MeshStandardMaterial({ color: '#FFF3D0', emissive: '#FFDA88', emissiveIntensity: glowIntensity })
+  if (kabel) {
+    const kabelMesh = new THREE.Mesh(new THREE.CylinderGeometry(kabel.radius, kabel.radius, kabel.laenge, 8), borderMat)
+    kabelMesh.position.set(0, -kabel.laenge / 2, 0)
+    gruppe.add(kabelMesh)
+  }
+  if (licht) {
+    const lichtMesh = new THREE.PointLight(0xfff0c8, licht.intensitaet, licht.reichweite)
+    lichtMesh.position.set(0, licht.y, 0)
+    gruppe.add(lichtMesh)
+  }
+  return glowMat
+}
+
+function baueGeraeteBox(gruppe, breite, hoehe, tiefe, material) {
+  const koerper = new THREE.Mesh(new THREE.BoxGeometry(breite, hoehe, tiefe), material)
+  koerper.position.set(0, hoehe / 2, 0)
+  koerper.castShadow = true
+  gruppe.add(koerper)
+  return koerper
+}
+
+// outlineFarbe steuert zugleich, ob eine Kanten-Outline gezeichnet wird (undefined = keine Outline)
+function baueStandardBox(gruppe, breite, hoehe, tiefe, material, outlineFarbe) {
+  const geo = new THREE.BoxGeometry(breite, hoehe, tiefe)
+  const mesh = new THREE.Mesh(geo, material)
+  mesh.position.set(0, hoehe / 2, 0)
+  mesh.castShadow = true
+  gruppe.add(mesh)
+  if (outlineFarbe) {
+    mesh.receiveShadow = true
+    const edges = new THREE.EdgesGeometry(geo)
+    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: outlineFarbe }))
+    line.position.copy(mesh.position)
+    gruppe.add(line)
+  }
+}
+
 // === MÖBEL (Aufbau der Einrichtungsgegenstände inkl. Elektrogeräte-Sonderfälle) ===
 export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur) {
   const wandDicke = 8
@@ -94,18 +146,12 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
 
     // Beinhöhe reicht exakt bis zur Sitzfläche (Boden der Sitzkissen bei sitzHoehe - 0.11)
     const eckBeinHoehe = sitzHoehe - 0.11
-    const beinMat = new THREE.MeshStandardMaterial({ color: '#5C4425', roughness: 0.55, map: holzTextur })
-    const beinGeo = new THREE.CylinderGeometry(0.02, 0.028, eckBeinHoehe, 10)
-    ;[
+    baueBeine(gruppe, [
       [-moebelBreite / 2 + 0.06, moebelTiefe / 2 - 0.06],
       [moebelBreite / 2 - 0.06, moebelTiefe / 2 - 0.06],
       [moebelBreite / 2 - 0.06, -moebelTiefe / 2 + 0.06],
       [-moebelBreite / 2 + 0.06, -moebelTiefe / 2 + 0.06],
-    ].forEach(([px, pz]) => {
-      const bein = new THREE.Mesh(beinGeo, beinMat)
-      bein.position.set(px, eckBeinHoehe / 2, pz)
-      gruppe.add(bein)
-    })
+    ], [0.02, 0.028], eckBeinHoehe, '#5C4425', holzTextur)
 
   } else if (name.includes('sofa') || name.includes('sessel')) {
     const sitzHoehe = 0.4
@@ -147,23 +193,16 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
 
     // Beinhöhe reicht exakt bis zur Unterkante des Sockels (sitzHoehe - 0.11 - 0.11)
     const sofaBeinHoehe = sitzHoehe - 0.22
-    const beinMat = new THREE.MeshStandardMaterial({ color: '#5C4425', roughness: 0.55, map: holzTextur })
-    const beinGeo = new THREE.CylinderGeometry(0.014, 0.024, sofaBeinHoehe, 10)
-    ;[
+    baueBeine(gruppe, [
       [-moebelBreite / 2 + 0.1, moebelTiefe / 2 - 0.1],
       [moebelBreite / 2 - 0.1, moebelTiefe / 2 - 0.1],
       [-moebelBreite / 2 + 0.1, -moebelTiefe / 2 + 0.1],
       [moebelBreite / 2 - 0.1, -moebelTiefe / 2 + 0.1],
-    ].forEach(([px, pz]) => {
-      const bein = new THREE.Mesh(beinGeo, beinMat)
-      bein.position.set(px, sofaBeinHoehe / 2, pz)
-      gruppe.add(bein)
-    })
+    ], [0.014, 0.024], sofaBeinHoehe, '#5C4425', holzTextur)
 
   } else if (name.includes('bett') && !name.includes('bank')) {
     const boxspring = name.includes('boxspring')
     const doppel = name.includes('doppel') || name.includes('boxspring') || moebelBreite > 1.4
-    const beinMat = new THREE.MeshStandardMaterial({ color: '#5C4425', roughness: 0.6, map: holzTextur })
     let kissenBasisY
 
     if (boxspring) {
@@ -201,11 +240,8 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       rahmen.position.set(0, 0.09, 0)
       rahmen.castShadow = true
       gruppe.add(rahmen)
-      ;[[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
-        const bein = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.09, 8), beinMat)
-        bein.position.set(sx * (moebelBreite / 2 - 0.08), 0.045, sz * (moebelTiefe / 2 - 0.08))
-        gruppe.add(bein)
-      })
+      const bettBeinPos = [[-1, -1], [1, -1], [-1, 1], [1, 1]].map(([sx, sz]) => [sx * (moebelBreite / 2 - 0.08), sz * (moebelTiefe / 2 - 0.08)])
+      baueBeine(gruppe, bettBeinPos, 0.02, 0.09, '#5C4425', holzTextur, { segmente: 8, roughness: 0.6 })
       const kopf = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, 0.55, 0.08), borderMat)
       kopf.position.set(0, 0.36, -moebelTiefe / 2 + 0.04)
       kopf.castShadow = true
@@ -241,20 +277,13 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
     kante.position.set(0, moebelHoehe - 0.005, 0)
     gruppe.add(kante)
 
-    const beinMat = new THREE.MeshStandardMaterial({ color: item.border, roughness: 0.55, map: holzTextur })
     const beinHoehe = moebelHoehe - 0.05
-    const beinPos = [
+    baueBeine(gruppe, [
       [-moebelBreite/2+0.08,  moebelTiefe/2-0.08],
       [ moebelBreite/2-0.08,  moebelTiefe/2-0.08],
       [-moebelBreite/2+0.08, -moebelTiefe/2+0.08],
       [ moebelBreite/2-0.08, -moebelTiefe/2+0.08],
-    ]
-    beinPos.forEach(([px, pz]) => {
-      const bein = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.032, beinHoehe, 12), beinMat)
-      bein.position.set(px, beinHoehe / 2, pz)
-      bein.castShadow = true
-      gruppe.add(bein)
-    })
+    ], [0.02, 0.032], beinHoehe, item.border, holzTextur, { segmente: 12, castShadow: true })
 
   } else if (name.includes('stuhl') || name.includes('hocker')) {
     const istHocker = name.includes('hocker')
@@ -277,18 +306,12 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       gruppe.add(lehnenRahmen)
     }
 
-    const beinMat = new THREE.MeshStandardMaterial({ color: item.border, roughness: 0.5, map: holzTextur })
-    const beinPos = [
+    baueBeine(gruppe, [
       [-moebelBreite/2+0.04,  moebelTiefe/2-0.04],
       [ moebelBreite/2-0.04,  moebelTiefe/2-0.04],
       [-moebelBreite/2+0.04, -moebelTiefe/2+0.04],
       [ moebelBreite/2-0.04, -moebelTiefe/2+0.04],
-    ]
-    beinPos.forEach(([px, pz]) => {
-      const bein = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.022, 0.45, 10), beinMat)
-      bein.position.set(px, 0.225, pz)
-      gruppe.add(bein)
-    })
+    ], [0.015, 0.022], 0.45, item.border, holzTextur, { roughness: 0.5 })
 
   } else if (name.includes('regal')) {
     const dicke = 0.025
@@ -372,10 +395,7 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
     const dunkelMat = new THREE.MeshStandardMaterial({ color: '#2C2C2A', roughness: 0.5, metalness: 0.2 })
 
     if (name.includes('lautsprecher')) {
-      const koerper = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe), mat)
-      koerper.position.set(0, moebelHoehe / 2, 0)
-      koerper.castShadow = true
-      gruppe.add(koerper)
+      baueGeraeteBox(gruppe, moebelBreite, moebelHoehe, moebelTiefe, mat)
       const woofer = new THREE.Mesh(new THREE.CylinderGeometry(minSeite * 0.32, minSeite * 0.32, 0.02, 20), dunkelMat)
       woofer.rotation.x = Math.PI / 2
       woofer.position.set(0, moebelHoehe * 0.35, moebelTiefe / 2 + 0.01)
@@ -386,10 +406,7 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       gruppe.add(tweeter)
 
     } else if (name.includes('konsole')) {
-      const koerper = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe), mat)
-      koerper.position.set(0, moebelHoehe / 2, 0)
-      koerper.castShadow = true
-      gruppe.add(koerper)
+      baueGeraeteBox(gruppe, moebelBreite, moebelHoehe, moebelTiefe, mat)
       const led = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.01, 12),
         new THREE.MeshStandardMaterial({ color: '#5FD0F0', emissive: '#2090C0', emissiveIntensity: 0.6 }))
       led.position.set(moebelBreite / 2 - 0.04, moebelHoehe + 0.005, moebelTiefe / 2 - 0.04)
@@ -406,9 +423,8 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       gruppe.add(bildschirm)
 
     } else if (name.includes('router')) {
-      const koerper = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe), mat)
-      koerper.position.set(0, moebelHoehe / 2, 0)
-      gruppe.add(koerper)
+      const koerper = baueGeraeteBox(gruppe, moebelBreite, moebelHoehe, moebelTiefe, mat)
+      koerper.castShadow = false // Router-Gehäuse wirft im Original keinen Schatten
       const antenneGeo = new THREE.CylinderGeometry(0.006, 0.006, 0.12, 8)
       const a1 = new THREE.Mesh(antenneGeo, dunkelMat)
       a1.position.set(-moebelBreite / 4, moebelHoehe + 0.06, 0)
@@ -420,10 +436,7 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       gruppe.add(a2)
 
     } else if (name.includes('toaster')) {
-      const koerper = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe), mat)
-      koerper.position.set(0, moebelHoehe / 2, 0)
-      koerper.castShadow = true
-      gruppe.add(koerper)
+      baueGeraeteBox(gruppe, moebelBreite, moebelHoehe, moebelTiefe, mat)
       const schlitz1 = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.55, 0.01, moebelTiefe * 0.15), dunkelMat)
       schlitz1.position.set(0, moebelHoehe + 0.005, -moebelTiefe * 0.15)
       gruppe.add(schlitz1)
@@ -447,10 +460,8 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       gruppe.add(tuelle)
 
     } else if (name.includes('kaffeemaschine')) {
-      const oben = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelHoehe * 0.6, moebelTiefe), mat)
-      oben.position.set(0, moebelHoehe * 0.7, 0)
-      oben.castShadow = true
-      gruppe.add(oben)
+      const oben = baueGeraeteBox(gruppe, moebelBreite, moebelHoehe * 0.6, moebelTiefe, mat)
+      oben.position.y = moebelHoehe * 0.7 // sitzt erhöht über der Kanne, nicht auf halber eigener Höhe
       const kanne = new THREE.Mesh(new THREE.CylinderGeometry(minSeite * 0.32, minSeite * 0.28, moebelHoehe * 0.4, 16),
         new THREE.MeshStandardMaterial({ color: '#333333', roughness: 0.2, metalness: 0.3, transparent: true, opacity: 0.75 }))
       kanne.position.set(0, moebelHoehe * 0.2, moebelTiefe * 0.1)
@@ -470,21 +481,15 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       gruppe.add(kopf)
 
     } else {
-      const geo = new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe)
-      const mesh = new THREE.Mesh(geo, mat)
-      mesh.position.set(0, moebelHoehe / 2, 0)
-      mesh.castShadow = true
-      gruppe.add(mesh)
+      baueStandardBox(gruppe, moebelBreite, moebelHoehe, moebelTiefe, mat)
     }
 
   } else if (name.includes('kronleuchter')) {
     const radius = Math.min(moebelBreite, moebelTiefe) / 2
     const kabelLaenge = 0.25
-    const glowMat = new THREE.MeshStandardMaterial({ color: '#FFF3D0', emissive: '#FFDA88', emissiveIntensity: 0.9 })
-
-    const kabel = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, kabelLaenge, 8), borderMat)
-    kabel.position.set(0, -kabelLaenge / 2, 0)
-    gruppe.add(kabel)
+    const glowMat = baueGluehlampe(gruppe, borderMat, 0.9,
+      { radius: 0.008, laenge: kabelLaenge },
+      { intensitaet: 0.9, reichweite: Math.max(raumBreite, raumTiefe) * 0.8, y: -kabelLaenge })
 
     const hub = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.22, 12, 10), borderMat)
     hub.position.set(0, -kabelLaenge, 0)
@@ -504,19 +509,13 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       gruppe.add(bulb)
     }
 
-    const licht = new THREE.PointLight(0xfff0c8, 0.9, Math.max(raumBreite, raumTiefe) * 0.8)
-    licht.position.set(0, -kabelLaenge, 0)
-    gruppe.add(licht)
-
   } else if (istDeckenleuchte) {
     // Deckenlampe / Pendelleuchte
     const radius = Math.min(moebelBreite, moebelTiefe) / 2
     const kabelLaenge = name.includes('pendelleuchte') ? 0.4 : 0.08
-    const glowMat = new THREE.MeshStandardMaterial({ color: '#FFF3D0', emissive: '#FFDA88', emissiveIntensity: 0.9 })
-
-    const kabel = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, kabelLaenge, 8), borderMat)
-    kabel.position.set(0, -kabelLaenge / 2, 0)
-    gruppe.add(kabel)
+    const glowMat = baueGluehlampe(gruppe, borderMat, 0.9,
+      { radius: 0.01, laenge: kabelLaenge },
+      { intensitaet: 0.7, reichweite: Math.max(raumBreite, raumTiefe) * 0.7, y: -kabelLaenge - radius * 0.3 })
 
     const schirm = new THREE.Mesh(new THREE.SphereGeometry(radius, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.6), mat)
     schirm.position.set(0, -kabelLaenge, 0)
@@ -527,14 +526,10 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
     bulb.position.set(0, -kabelLaenge - radius * 0.35, 0)
     gruppe.add(bulb)
 
-    const licht = new THREE.PointLight(0xfff0c8, 0.7, Math.max(raumBreite, raumTiefe) * 0.7)
-    licht.position.set(0, -kabelLaenge - radius * 0.3, 0)
-    gruppe.add(licht)
-
   } else if (name.includes('lampe') || name.includes('leuchte')) {
     // Steh-/Tisch-/Wandlampe: Fuß, Stange, Lampenschirm
     const radius = Math.min(moebelBreite, moebelTiefe) / 2
-    const glowMat = new THREE.MeshStandardMaterial({ color: '#FFF3D0', emissive: '#FFDA88', emissiveIntensity: 0.8 })
+    const glowMat = baueGluehlampe(gruppe, borderMat, 0.8, null, null)
 
     const basis = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.9, radius, 0.02, 20), borderMat)
     basis.position.set(0, 0.01, 0)
@@ -556,16 +551,7 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
 
   } else {
     // Standard Box für alle anderen
-    const geo = new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe)
-    const mesh = new THREE.Mesh(geo, mat)
-    mesh.position.set(0, moebelHoehe / 2, 0)
-    mesh.castShadow = true
-    mesh.receiveShadow = true
-    const edges = new THREE.EdgesGeometry(geo)
-    const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: item.border }))
-    line.position.copy(mesh.position)
-    gruppe.add(mesh)
-    gruppe.add(line)
+    baueStandardBox(gruppe, moebelBreite, moebelHoehe, moebelTiefe, mat, item.border)
   }
 
   gruppe.castShadow = true
