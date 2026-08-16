@@ -1,6 +1,7 @@
 import { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react'
-import { loadRooms, maxId } from './roomsStorage'
+import { loadRooms, saveRooms, maxId } from './roomsStorage'
 import { useUI } from './UIContext'
+import { DEFAULT_RAUM_DESIGN } from '../constants'
 
 const RoomsContext = createContext(null)
 
@@ -12,7 +13,7 @@ export function RoomsProvider({ children }) {
   const [activeRoomId, setActiveRoomId] = useState(() => loadRooms()[0]?.id ?? 1)
 
   useEffect(() => {
-    localStorage.setItem('planixy-rooms', JSON.stringify(rooms))
+    saveRooms(rooms)
   }, [rooms])
 
   const activeRoom = rooms.find(r => r.id === activeRoomId) || rooms[0]
@@ -22,7 +23,7 @@ export function RoomsProvider({ children }) {
   }, [])
 
   const addRoom = useCallback(() => {
-    const newRoom = { id: nextRoomId++, name: `Raum ${nextRoomId - 1}`, breite: 5, tiefe: 4, furniture: [] }
+    const newRoom = { id: nextRoomId++, name: `Raum ${nextRoomId - 1}`, breite: 5, tiefe: 4, furniture: [], ...DEFAULT_RAUM_DESIGN }
     setRooms(prev => [...prev, newRoom])
     setActiveRoomId(newRoom.id)
     setRaumPanelOffen(true)

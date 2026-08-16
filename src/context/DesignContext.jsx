@@ -1,14 +1,20 @@
 import { createContext, useContext, useCallback, useMemo, useState } from 'react'
 import { useRooms } from './RoomsContext'
+import { DEFAULT_RAUM_DESIGN } from '../constants'
 
 const DesignContext = createContext(null)
 
 export function DesignProvider({ children }) {
   const { activeRoom, activeRoomId, updateRoom } = useRooms()
-  const [fussleiste, setFussleiste] = useState(true)
-  const [raumHoehe, setRaumHoehe] = useState(2.5)
-  const [fussleisteFarbe, setFussleisteFarbe] = useState('#E0DDD8')
   const [aktiveWand, setAktiveWand] = useState('alle')
+
+  const fussleiste = activeRoom?.fussleiste ?? DEFAULT_RAUM_DESIGN.fussleiste
+  const fussleisteFarbe = activeRoom?.fussleisteFarbe ?? DEFAULT_RAUM_DESIGN.fussleisteFarbe
+  const raumHoehe = activeRoom?.raumHoehe ?? DEFAULT_RAUM_DESIGN.raumHoehe
+
+  const setFussleiste = useCallback((wert) => updateRoom(activeRoomId, { fussleiste: wert }), [updateRoom, activeRoomId])
+  const setFussleisteFarbe = useCallback((farbe) => updateRoom(activeRoomId, { fussleisteFarbe: farbe }), [updateRoom, activeRoomId])
+  const setRaumHoehe = useCallback((hoehe) => updateRoom(activeRoomId, { raumHoehe: hoehe }), [updateRoom, activeRoomId])
 
   const setBoden = useCallback((boden) => updateRoom(activeRoomId, { boden }), [updateRoom, activeRoomId])
 
@@ -30,7 +36,10 @@ export function DesignProvider({ children }) {
     fussleisteFarbe, setFussleisteFarbe,
     aktiveWand, setAktiveWand,
     setBoden, setWandfarbeFuer, aktuelleWandfarbe,
-  }), [fussleiste, raumHoehe, fussleisteFarbe, aktiveWand, setBoden, setWandfarbeFuer, aktuelleWandfarbe])
+  }), [
+    fussleiste, setFussleiste, raumHoehe, setRaumHoehe, fussleisteFarbe, setFussleisteFarbe,
+    aktiveWand, setBoden, setWandfarbeFuer, aktuelleWandfarbe,
+  ])
 
   return <DesignContext.Provider value={value}>{children}</DesignContext.Provider>
 }

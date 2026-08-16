@@ -146,8 +146,10 @@ export function berechneInnenmasse(raumBreite, raumTiefe) {
   return { innenBpx, innenTpx }
 }
 
+export const DEFAULT_RAUM_DESIGN = { fussleiste: true, fussleisteFarbe: '#E0DDD8', raumHoehe: 2.5 }
+
 export const initialRooms = [
-  { id: 1, name: 'Wohnzimmer',   breite: 6, tiefe: 5, furniture: [] },
-  { id: 2, name: 'Schlafzimmer', breite: 5, tiefe: 4, furniture: [] },
-  { id: 3, name: 'Küche',        breite: 4, tiefe: 3, furniture: [] },
+  { id: 1, name: 'Wohnzimmer',   breite: 6, tiefe: 5, furniture: [], ...DEFAULT_RAUM_DESIGN },
+  { id: 2, name: 'Schlafzimmer', breite: 5, tiefe: 4, furniture: [], ...DEFAULT_RAUM_DESIGN },
+  { id: 3, name: 'Küche',        breite: 4, tiefe: 3, furniture: [], ...DEFAULT_RAUM_DESIGN },
 ]
