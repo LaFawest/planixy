@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { getMoebelHoehe } from '../texturen'
+import { berechneInnenmasse } from '../constants'
 
 function baueBeine(gruppe, positionen, radius, hoehe, farbe, holzTextur, { segmente = 10, roughness = 0.55, castShadow = false } = {}) {
   const [radiusOben, radiusUnten] = Array.isArray(radius) ? radius : [radius, radius]
@@ -56,9 +57,7 @@ function baueStandardBox(gruppe, breite, hoehe, tiefe, material, outlineFarbe) {
 
 // === MÖBEL (Aufbau der Einrichtungsgegenstände inkl. Elektrogeräte-Sonderfälle) ===
 export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur) {
-  const wandDicke = 8
-  const innenBpx = raumBreite * 60 - wandDicke * 2
-  const innenTpx = raumTiefe  * 60 - wandDicke * 2
+  const { innenBpx, innenTpx } = berechneInnenmasse(raumBreite, raumTiefe)
 
   // Elektrogeräte stehen auf dem höchsten Möbelstück, dessen 2D-Fläche sie überlappen
   const traegerHoehe = (item, cxPx, cyPx) => {

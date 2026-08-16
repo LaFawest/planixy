@@ -1,10 +1,9 @@
 import * as THREE from 'three'
+import { berechneInnenmasse } from '../constants'
 
 // === TRENNWÄNDE (frei gezeichnete Innenwände) ===
 export function baueTrennwaende(scene, room, raumBreite, raumTiefe, wandHoehe) {
-  const wandDicke = 8
-  const innenBpx = raumBreite * 60 - wandDicke * 2
-  const innenTpx = raumTiefe  * 60 - wandDicke * 2
+  const { innenBpx, innenTpx } = berechneInnenmasse(raumBreite, raumTiefe)
 
   ;(room?.trennwaende || []).forEach(wand => {
     const x1 = -raumBreite / 2 + (wand.x1 / innenBpx) * raumBreite

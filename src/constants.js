@@ -137,6 +137,15 @@ export const wandSeiten = [
   { seite: 'sued', name: 'Süd' },  { seite: 'west', name: 'West' },
 ]
 
+// Dicke der Außenwände in Pixel (bei 60px/m) — Basis für die nutzbare Innenfläche eines Raums
+export const WAND_DICKE_PX = 8
+
+export function berechneInnenmasse(raumBreite, raumTiefe) {
+  const innenBpx = raumBreite * 60 - WAND_DICKE_PX * 2
+  const innenTpx = raumTiefe  * 60 - WAND_DICKE_PX * 2
+  return { innenBpx, innenTpx }
+}
+
 export const initialRooms = [
   { id: 1, name: 'Wohnzimmer',   breite: 6, tiefe: 5, furniture: [] },
   { id: 2, name: 'Schlafzimmer', breite: 5, tiefe: 4, furniture: [] },

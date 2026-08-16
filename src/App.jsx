@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { alleKatalogItems, initialRooms } from './constants'
+import { alleKatalogItems, initialRooms, WAND_DICKE_PX } from './constants'
 import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
 import MobileNav from './components/MobileNav'
@@ -44,7 +44,7 @@ function App() {
   const furniture = activeRoom?.furniture || []
   const canvasB = (activeRoom?.breite || 6) * 60
   const canvasT = (activeRoom?.tiefe  || 5) * 60
-  const wandDicke = 8
+  const wandDicke = WAND_DICKE_PX
   const innenB = canvasB - wandDicke * 2
   const innenT = canvasT - wandDicke * 2
   const fussleisteBreite = fussleiste ? 8 : 0
@@ -54,7 +54,6 @@ function App() {
 
   const updateRoom = (id, changes) => setRooms(prev => prev.map(r => r.id === id ? { ...r, ...changes } : r))
   const setBoden = (boden) => updateRoom(activeRoomId, { boden })
-  const setWandfarbe = (wandfarbe) => updateRoom(activeRoomId, { wandfarbe })
   const setWandfarbeFuer = (farbe) => {
     if (aktiveWand === 'alle') {
       updateRoom(activeRoomId, { wandfarbe: farbe, wandfarben: null })
