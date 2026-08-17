@@ -1,8 +1,9 @@
 import { initialRooms, DEFAULT_WIZARD_SCHRITT } from '../constants'
 import { migriereRaum } from './roomsStorage'
+import { rechteckPolygon } from '../raumPolygon'
 
 const STORAGE_KEY = 'planixy-rooms'
-const SCHEMA_VERSION = 3
+const SCHEMA_VERSION = 4
 const STANDARD_PROJEKT_NAME = 'Mein Zuhause'
 
 const neuesProjektObjekt = (id, raeume, name = STANDARD_PROJEKT_NAME) => {
@@ -31,13 +32,28 @@ const migriereV2ZuV3 = (v2Daten) => ({
   })),
 })
 
+// v3 -> v4: jeder Raum bekommt eine Eckpunktliste (Randpolygon), aus breite/tiefe
+// abgeleitet. breite/tiefe bleiben unverändert erhalten (weiterhin von allen bisherigen
+// Verbrauchern gelesen) — das Polygon ist vorerst nur zusätzliches Fundament, noch kein
+// Verbraucher liest es.
+const migriereV3ZuV4 = (v3Daten) => ({
+  schemaVersion: 4,
+  projekte: (v3Daten.projekte || []).map(projekt => ({
+    ...projekt,
+    raeume: (projekt.raeume || []).map(raum => ({
+      ...raum,
+      eckpunkte: raum.eckpunkte || rechteckPolygon(raum.breite || 6, raum.tiefe || 5),
+    })),
+  })),
+})
+
 export const loadProjekte = () => {
   const saved = localStorage.getItem(STORAGE_KEY)
   if (!saved) return [neuesProjektObjekt(1, initialRooms)]
 
   let daten = JSON.parse(saved)
 
-  // Migrationskette darf keine Version überspringen: v0 -> v1 -> v2 -> v3
+  // Migrationskette darf keine Version überspringen: v0 -> v1 -> v2 -> v3 -> v4
   if (Array.isArray(daten)) {
     daten = migriereV0ZuV1(daten)
   }
@@ -46,6 +62,9 @@ export const loadProjekte = () => {
   }
   if (daten.schemaVersion === 2) {
     daten = migriereV2ZuV3(daten)
+  }
+  if (daten.schemaVersion === 3) {
+    daten = migriereV3ZuV4(daten)
   }
   if (daten.schemaVersion === SCHEMA_VERSION) {
     return daten.projekte
