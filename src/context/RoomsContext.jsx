@@ -23,7 +23,17 @@ export function RoomsProvider({ children }) {
   const activeRoom = rooms.find(r => r.id === activeRoomId) || rooms[0]
 
   const updateRoom = useCallback((id, changes) => {
-    const neueRaeume = (activeProject?.raeume || []).map(r => r.id === id ? { ...r, ...changes } : r)
+    const neueRaeume = (activeProject?.raeume || []).map(r => {
+      if (r.id !== id) return r
+      const aktualisiert = { ...r, ...changes }
+      // breite/tiefe sind (noch) die Quelle der Wahrheit für die Raumform — eckpunkte muss
+      // bei jeder Änderung mitgezogen werden, damit beide nicht auseinanderlaufen, sobald
+      // ein Verbraucher eckpunkte liest.
+      if ('breite' in changes || 'tiefe' in changes) {
+        aktualisiert.eckpunkte = rechteckPolygon(aktualisiert.breite, aktualisiert.tiefe)
+      }
+      return aktualisiert
+    })
     updateProjekt(activeProjectId, { raeume: neueRaeume })
   }, [updateProjekt, activeProjectId, activeProject])
 
