@@ -148,8 +148,19 @@ export function berechneInnenmasse(raumBreite, raumTiefe) {
 
 export const DEFAULT_RAUM_DESIGN = { fussleiste: true, fussleisteFarbe: '#E0DDD8', raumHoehe: 2.5 }
 
+// Schrittleiste des Editor-Wizards. `bald: true` markiert einen Schritt als noch nicht
+// funktionsfähig — er bleibt trotzdem anklickbar (kein Zwang zur Reihenfolge).
+export const WIZARD_SCHRITTE = [
+  { nummer: 1, label: 'Raum' },
+  { nummer: 2, label: 'Farben & Boden' },
+  { nummer: 3, label: 'Fenster & Türen' },
+  { nummer: 4, label: 'Licht', bald: true },
+  { nummer: 5, label: 'Möbel & Deko' },
+]
+export const DEFAULT_WIZARD_SCHRITT = WIZARD_SCHRITTE[0].nummer
+
 export const initialRooms = [
-  { id: 1, name: 'Wohnzimmer',   breite: 6, tiefe: 5, furniture: [], ...DEFAULT_RAUM_DESIGN },
-  { id: 2, name: 'Schlafzimmer', breite: 5, tiefe: 4, furniture: [], ...DEFAULT_RAUM_DESIGN },
-  { id: 3, name: 'Küche',        breite: 4, tiefe: 3, furniture: [], ...DEFAULT_RAUM_DESIGN },
+  { id: 1, name: 'Wohnzimmer',   breite: 6, tiefe: 5, furniture: [], ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT },
+  { id: 2, name: 'Schlafzimmer', breite: 5, tiefe: 4, furniture: [], ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT },
+  { id: 3, name: 'Küche',        breite: 4, tiefe: 3, furniture: [], ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT },
 ]

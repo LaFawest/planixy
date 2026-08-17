@@ -3,6 +3,7 @@ import { UIProvider } from './context/UIContext'
 import { ProjekteListeProvider } from './context/ProjekteListeContext'
 import { ProjectsProvider } from './context/ProjectsContext'
 import { RoomsProvider } from './context/RoomsContext'
+import { WizardProvider } from './context/WizardContext'
 import { DesignProvider } from './context/DesignContext'
 import { FurnitureProvider } from './context/FurnitureContext'
 import { TrennwandProvider } from './context/TrennwandContext'
@@ -11,6 +12,7 @@ import { useRaumGeometrie } from './context/useRaumGeometrie'
 import Dashboard from './components/Dashboard'
 import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
+import SchrittLeiste from './components/SchrittLeiste'
 import MobileNav from './components/MobileNav'
 import Canvas2D from './components/Canvas2D'
 import PanelRechts from './components/PanelRechts'
@@ -33,15 +35,17 @@ function ProjektRoute() {
   return (
     <ProjectsProvider>
       <RoomsProvider>
-        <DesignProvider>
-          <FurnitureProvider>
-            <TrennwandProvider>
-              <KatalogProvider>
-                <AppContent />
-              </KatalogProvider>
-            </TrennwandProvider>
-          </FurnitureProvider>
-        </DesignProvider>
+        <WizardProvider>
+          <DesignProvider>
+            <FurnitureProvider>
+              <TrennwandProvider>
+                <KatalogProvider>
+                  <AppContent />
+                </KatalogProvider>
+              </TrennwandProvider>
+            </FurnitureProvider>
+          </DesignProvider>
+        </WizardProvider>
       </RoomsProvider>
     </ProjectsProvider>
   )
@@ -59,6 +63,7 @@ function AppContent() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         <Topbar />
+        <SchrittLeiste />
 
         <Canvas2D canvasB={canvasB} canvasT={canvasT} innenB={innenB} innenT={innenT} wandDicke={wandDicke} />
 

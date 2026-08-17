@@ -2,7 +2,7 @@ import { createContext, useContext, useCallback, useEffect, useMemo, useState } 
 import { useUI } from './UIContext'
 import { useProjekte } from './ProjectsContext'
 import { vergibRaumId } from './idZaehler'
-import { DEFAULT_RAUM_DESIGN } from '../constants'
+import { DEFAULT_RAUM_DESIGN, DEFAULT_WIZARD_SCHRITT } from '../constants'
 
 const RoomsContext = createContext(null)
 
@@ -28,7 +28,7 @@ export function RoomsProvider({ children }) {
 
   const addRoom = useCallback(() => {
     const raumId = vergibRaumId()
-    const newRoom = { id: raumId, name: `Raum ${raumId}`, breite: 5, tiefe: 4, furniture: [], ...DEFAULT_RAUM_DESIGN }
+    const newRoom = { id: raumId, name: `Raum ${raumId}`, breite: 5, tiefe: 4, furniture: [], ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT }
     const neueRaeume = [...(activeProject?.raeume || []), newRoom]
     updateProjekt(activeProjectId, { raeume: neueRaeume })
     setActiveRoomId(newRoom.id)
