@@ -1,13 +1,10 @@
 import { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { loadProjekte, alleRaeume } from './projekteStorage'
-import { maxId } from './roomsStorage'
 import { useRooms } from './RoomsContext'
 import { useFurniture } from './FurnitureContext'
 import { useRaumGeometrie } from './useRaumGeometrie'
+import { vergibWandId } from './idZaehler'
 
 const TrennwandContext = createContext(null)
-
-let nextWandId = maxId(alleRaeume(loadProjekte()).flatMap(r => (r.trennwaende || []).map(w => w.id))) + 1
 
 const snapPunkt = (x1, y1, x2, y2) => {
   const dx = x2 - x1, dy = y2 - y1
@@ -53,7 +50,7 @@ export function TrennwandProvider({ children }) {
 
   const bestaetigeWand = useCallback(() => {
     if (!wandVorschau) return
-    updateTrennwaende([...(activeRoom?.trennwaende || []), { id: nextWandId++, ...wandVorschau, farbe: '#B4B2A9', dicke: 10 }])
+    updateTrennwaende([...(activeRoom?.trennwaende || []), { id: vergibWandId(), ...wandVorschau, farbe: '#B4B2A9', dicke: 10 }])
     setWandVorschau(null)
   }, [wandVorschau, updateTrennwaende, activeRoom])
 

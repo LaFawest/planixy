@@ -1,12 +1,9 @@
 import { createContext, useContext, useCallback, useMemo, useState } from 'react'
-import { loadProjekte, alleRaeume } from './projekteStorage'
-import { maxId } from './roomsStorage'
 import { useRooms } from './RoomsContext'
 import { useRaumGeometrie } from './useRaumGeometrie'
+import { vergibMoebelId } from './idZaehler'
 
 const FurnitureContext = createContext(null)
-
-let nextId = maxId(alleRaeume(loadProjekte()).flatMap(r => (r.furniture || []).map(f => f.id))) + 1
 
 export function FurnitureProvider({ children }) {
   const { activeRoom, activeRoomId, updateRoom } = useRooms()
@@ -21,7 +18,7 @@ export function FurnitureProvider({ children }) {
 
   const addFurniture = useCallback((item) => {
     updateFurniture([...(activeRoom?.furniture || []), {
-      ...item, id: nextId++,
+      ...item, id: vergibMoebelId(),
       top: 20 + Math.random() * 100,
       left: 20 + Math.random() * 100,
       rotation: 0,
@@ -33,7 +30,7 @@ export function FurnitureProvider({ children }) {
   const addWandElement = useCallback((item) => {
     const left = Math.max(grenzStart, Math.min(grenzStart + grenzB - item.width, grenzStart + 20 + Math.random() * 100))
     updateFurniture([...(activeRoom?.furniture || []), {
-      ...item, id: nextId++,
+      ...item, id: vergibMoebelId(),
       top: grenzStart, left,
       rotation: 0, istWandElement: true, wand: 'nord',
     }])
