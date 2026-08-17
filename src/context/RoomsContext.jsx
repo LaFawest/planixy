@@ -1,13 +1,10 @@
 import { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react'
-import { loadProjekte, alleRaeume } from './projekteStorage'
-import { maxId } from './roomsStorage'
 import { useUI } from './UIContext'
 import { useProjekte } from './ProjectsContext'
+import { vergibRaumId } from './idZaehler'
 import { DEFAULT_RAUM_DESIGN } from '../constants'
 
 const RoomsContext = createContext(null)
-
-let nextRoomId = maxId(alleRaeume(loadProjekte()).map(r => r.id)) + 1
 
 export function RoomsProvider({ children }) {
   const { setRaumPanelOffen } = useUI()
@@ -30,7 +27,8 @@ export function RoomsProvider({ children }) {
   }, [updateProjekt, activeProjectId, activeProject])
 
   const addRoom = useCallback(() => {
-    const newRoom = { id: nextRoomId++, name: `Raum ${nextRoomId - 1}`, breite: 5, tiefe: 4, furniture: [], ...DEFAULT_RAUM_DESIGN }
+    const raumId = vergibRaumId()
+    const newRoom = { id: raumId, name: `Raum ${raumId}`, breite: 5, tiefe: 4, furniture: [], ...DEFAULT_RAUM_DESIGN }
     const neueRaeume = [...(activeProject?.raeume || []), newRoom]
     updateProjekt(activeProjectId, { raeume: neueRaeume })
     setActiveRoomId(newRoom.id)

@@ -1,6 +1,6 @@
-import { useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { UIProvider } from './context/UIContext'
+import { ProjekteListeProvider } from './context/ProjekteListeContext'
 import { ProjectsProvider } from './context/ProjectsContext'
 import { RoomsProvider } from './context/RoomsContext'
 import { DesignProvider } from './context/DesignContext'
@@ -8,7 +8,7 @@ import { FurnitureProvider } from './context/FurnitureContext'
 import { TrennwandProvider } from './context/TrennwandContext'
 import { KatalogProvider } from './context/KatalogContext'
 import { useRaumGeometrie } from './context/useRaumGeometrie'
-import { loadProjekte } from './context/projekteStorage'
+import Dashboard from './components/Dashboard'
 import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
 import MobileNav from './components/MobileNav'
@@ -18,19 +18,15 @@ import PanelRechts from './components/PanelRechts'
 export default function App() {
   return (
     <UIProvider>
-      <Routes>
-        <Route path="/" element={<ErstesProjektWeiterleitung />} />
-        <Route path="/projekt/:id" element={<ProjektRoute />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <ProjekteListeProvider>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/projekt/:id" element={<ProjektRoute />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </ProjekteListeProvider>
     </UIProvider>
   )
-}
-
-// Noch kein Dashboard — leitet vorerst immer auf das erste Projekt weiter.
-function ErstesProjektWeiterleitung() {
-  const [ersteProjektId] = useState(() => loadProjekte()[0]?.id)
-  return <Navigate to={`/projekt/${ersteProjektId}`} replace />
 }
 
 function ProjektRoute() {
