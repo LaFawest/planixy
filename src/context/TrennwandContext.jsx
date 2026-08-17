@@ -1,6 +1,7 @@
 import { createContext, useContext, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRooms } from './RoomsContext'
 import { useFurniture } from './FurnitureContext'
+import { useWizard } from './WizardContext'
 import { useRaumGeometrie } from './useRaumGeometrie'
 import { vergibWandId } from './idZaehler'
 
@@ -22,12 +23,28 @@ const snapPunkt = (x1, y1, x2, y2) => {
 export function TrennwandProvider({ children }) {
   const { activeRoom, activeRoomId, updateRoom } = useRooms()
   const { setSelectedId } = useFurniture()
+  const { schritt } = useWizard()
   const { innenB, innenT } = useRaumGeometrie()
   const [zeichneWand, setZeichneWand] = useState(false)
   const [wandEntwurf, setWandEntwurf] = useState(null)
   const [wandVorschau, setWandVorschau] = useState(null)
   const [selectedWandId, setSelectedWandId] = useState(null)
+  const [gesehenerSchritt, setGesehenerSchritt] = useState(schritt)
   const canvasInnerRef = useRef(null)
+
+  // Trennwände gehören zu Schritt 1 "Raum" — beim Verlassen den Zeichen-/Auswahlzustand
+  // zurücksetzen, egal wie der Schrittwechsel ausgelöst wurde (Leiste, Weiter/Zurück, Raumwechsel).
+  // Direkt im Render statt in einem Effect angepasst (React-Empfehlung für "State an eine
+  // Prop-Änderung anpassen"), damit es keinen zusätzlichen Render-Durchlauf braucht.
+  if (schritt !== gesehenerSchritt) {
+    setGesehenerSchritt(schritt)
+    if (schritt !== 1) {
+      setZeichneWand(false)
+      setWandEntwurf(null)
+      setWandVorschau(null)
+      setSelectedWandId(null)
+    }
+  }
 
   const trennwaende = useMemo(() => activeRoom?.trennwaende || [], [activeRoom])
 
@@ -60,14 +77,19 @@ export function TrennwandProvider({ children }) {
     if (!zeichneWand || wandVorschau) return
     e.preventDefault()
     const rect = canvasInnerRef.current.getBoundingClientRect()
-    const x1 = Math.max(0, Math.min(innenB, e.clientX - rect.left))
-    const y1 = Math.max(0, Math.min(innenT, e.clientY - rect.top))
+    const startClientX = e.clientX ?? e.touches?.[0]?.clientX
+    const startClientY = e.clientY ?? e.touches?.[0]?.clientY
+    const x1 = Math.max(0, Math.min(innenB, startClientX - rect.left))
+    const y1 = Math.max(0, Math.min(innenT, startClientY - rect.top))
     let aktuell = { x1, y1, x2: x1, y2: y1 }
     setWandEntwurf(aktuell)
 
     const onMove = (mv) => {
-      const rawX = Math.max(0, Math.min(innenB, mv.clientX - rect.left))
-      const rawY = Math.max(0, Math.min(innenT, mv.clientY - rect.top))
+      mv.preventDefault()
+      const clientX = mv.clientX ?? mv.touches?.[0]?.clientX
+      const clientY = mv.clientY ?? mv.touches?.[0]?.clientY
+      const rawX = Math.max(0, Math.min(innenB, clientX - rect.left))
+      const rawY = Math.max(0, Math.min(innenT, clientY - rect.top))
       const snapped = snapPunkt(x1, y1, rawX, rawY)
       const x2 = Math.max(0, Math.min(innenB, snapped.x2))
       const y2 = Math.max(0, Math.min(innenT, snapped.y2))
@@ -77,6 +99,8 @@ export function TrennwandProvider({ children }) {
     const onUp = () => {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onUp)
       const laenge = Math.hypot(aktuell.x2 - aktuell.x1, aktuell.y2 - aktuell.y1)
       setWandEntwurf(null)
       if (laenge > 15) {
@@ -85,6 +109,8 @@ export function TrennwandProvider({ children }) {
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onMove, { passive: false })
+    window.addEventListener('touchend', onUp)
   }, [zeichneWand, wandVorschau, innenB, innenT])
 
   const handleWandDrag = useCallback((e, id, modus) => {
@@ -96,12 +122,16 @@ export function TrennwandProvider({ children }) {
     setSelectedWandId(id)
     setSelectedId(null)
     const orig = { ...wand }
-    const startX = e.clientX, startY = e.clientY
+    const startX = e.clientX ?? e.touches?.[0]?.clientX
+    const startY = e.clientY ?? e.touches?.[0]?.clientY
     const clampX = v => Math.max(0, Math.min(innenB, v))
     const clampY = v => Math.max(0, Math.min(innenT, v))
 
     const onMove = (mv) => {
-      const dx = mv.clientX - startX, dy = mv.clientY - startY
+      mv.preventDefault()
+      const clientX = mv.clientX ?? mv.touches?.[0]?.clientX
+      const clientY = mv.clientY ?? mv.touches?.[0]?.clientY
+      const dx = clientX - startX, dy = clientY - startY
       let updated
       if (modus === 'start') {
         updated = { ...orig, x1: clampX(orig.x1 + dx), y1: clampY(orig.y1 + dy) }
@@ -123,9 +153,13 @@ export function TrennwandProvider({ children }) {
     const onUp = () => {
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onUp)
     }
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onMove, { passive: false })
+    window.addEventListener('touchend', onUp)
   }, [activeRoom, updateTrennwaende, setSelectedId, innenB, innenT])
 
   useEffect(() => {

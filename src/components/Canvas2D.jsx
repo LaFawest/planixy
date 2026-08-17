@@ -7,11 +7,13 @@ import { useRooms } from '../context/RoomsContext'
 import { useDesign } from '../context/DesignContext'
 import { useFurniture } from '../context/FurnitureContext'
 import { useTrennwand } from '../context/TrennwandContext'
+import { useWizard } from '../context/WizardContext'
 
 const wandFarbeFuer = (room, seite) => room?.wandfarben?.[seite] || room?.wandfarbe || '#FFFFFF'
 
 export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke }) {
   const { ansicht } = useUI()
+  const { schritt } = useWizard()
   const { activeRoom } = useRooms()
   const { fussleiste, fussleisteFarbe } = useDesign()
   const { furniture, selectedId, setSelectedId, handleDrag, removeFurniture } = useFurniture()
@@ -25,7 +27,7 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke }
         <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', fontSize: '11px', color: '#B4B2A9', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid #E8E6E0', zIndex: 10, whiteSpace: 'nowrap' }}>
           {ansicht === '2d' ? (wandVorschau ? 'Oben bestätigen oder verwerfen' : zeichneWand ? 'Wand ziehen · Winkel schnappt bei 45° · Esc zum Beenden' : 'Doppelklick auf Raumnamen · Blau = Drehen · Rot = Löschen') : 'Maus ziehen = Kamera drehen · Scrollrad = Zoom'}
         </div>
-        {ansicht === '2d' && (
+        {ansicht === '2d' && schritt === 1 && (
           <div onClick={() => { setZeichneWand(z => !z); setSelectedWandId(null); setSelectedId(null); setWandVorschau(null) }}
             style={{
               position: 'absolute', top: '16px', left: '16px', zIndex: 10, cursor: 'pointer',
@@ -66,22 +68,29 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke }
             {/* Deselect Layer */}
             <div onClick={() => { setSelectedId(null); setSelectedWandId(null) }}
               onMouseDown={startWandZeichnen}
-              style={{ position: 'absolute', inset: 0, zIndex: 0, cursor: zeichneWand ? 'crosshair' : 'default' }} />
+              onTouchStart={startWandZeichnen}
+              style={{ position: 'absolute', inset: 0, zIndex: 0, cursor: zeichneWand ? 'crosshair' : 'default', touchAction: zeichneWand ? 'none' : 'auto' }} />
 
-            {/* Trennwände */}
-            <svg width={innenB} height={innenT} style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: zeichneWand ? 'none' : 'auto' }}>
+            {/* Trennwände — nur in Schritt 1 "Raum" interaktiv, außerhalb bleiben sie sichtbar, aber unantastbar */}
+            <svg width={innenB} height={innenT} style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: (zeichneWand || schritt !== 1) ? 'none' : 'auto' }}>
               {trennwaende.map(wand => (
                 <g key={wand.id}>
                   {selectedWandId === wand.id && (
                     <line x1={wand.x1} y1={wand.y1} x2={wand.x2} y2={wand.y2} stroke="#185FA5" strokeWidth={(wand.dicke || 10) + 6} strokeLinecap="square" opacity={0.25} pointerEvents="none" />
                   )}
                   <line x1={wand.x1} y1={wand.y1} x2={wand.x2} y2={wand.y2} stroke={wand.farbe} strokeWidth={wand.dicke || 10} strokeLinecap="square"
-                    style={{ cursor: 'grab', pointerEvents: 'stroke' }}
-                    onMouseDown={(e) => handleWandDrag(e, wand.id, 'body')} />
+                    style={{ cursor: 'grab', pointerEvents: 'stroke', touchAction: 'none' }}
+                    onMouseDown={(e) => handleWandDrag(e, wand.id, 'body')}
+                    onTouchStart={(e) => handleWandDrag(e, wand.id, 'body')} />
                   {selectedWandId === wand.id && (
                     <>
-                      <circle cx={wand.x1} cy={wand.y1} r={7} fill="white" stroke="#185FA5" strokeWidth={2} style={{ cursor: 'move' }} onMouseDown={(e) => handleWandDrag(e, wand.id, 'start')} />
-                      <circle cx={wand.x2} cy={wand.y2} r={7} fill="white" stroke="#185FA5" strokeWidth={2} style={{ cursor: 'move' }} onMouseDown={(e) => handleWandDrag(e, wand.id, 'end')} />
+                      {/* Sichtbarer Griff bleibt klein; unsichtbarer Kreis darunter liefert eine 44×44px-Trefferfläche für Touch */}
+                      <circle cx={wand.x1} cy={wand.y1} r={22} fill="transparent" style={{ cursor: 'move', pointerEvents: 'all', touchAction: 'none' }}
+                        onMouseDown={(e) => handleWandDrag(e, wand.id, 'start')} onTouchStart={(e) => handleWandDrag(e, wand.id, 'start')} />
+                      <circle cx={wand.x1} cy={wand.y1} r={7} fill="white" stroke="#185FA5" strokeWidth={2} style={{ pointerEvents: 'none' }} />
+                      <circle cx={wand.x2} cy={wand.y2} r={22} fill="transparent" style={{ cursor: 'move', pointerEvents: 'all', touchAction: 'none' }}
+                        onMouseDown={(e) => handleWandDrag(e, wand.id, 'end')} onTouchStart={(e) => handleWandDrag(e, wand.id, 'end')} />
+                      <circle cx={wand.x2} cy={wand.y2} r={7} fill="white" stroke="#185FA5" strokeWidth={2} style={{ pointerEvents: 'none' }} />
                     </>
                   )}
                 </g>
