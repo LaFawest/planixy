@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { UIProvider } from './context/UIContext'
 import { ProjectsProvider } from './context/ProjectsContext'
 import { RoomsProvider } from './context/RoomsContext'
@@ -6,6 +8,7 @@ import { FurnitureProvider } from './context/FurnitureContext'
 import { TrennwandProvider } from './context/TrennwandContext'
 import { KatalogProvider } from './context/KatalogContext'
 import { useRaumGeometrie } from './context/useRaumGeometrie'
+import { loadProjekte } from './context/projekteStorage'
 import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
 import MobileNav from './components/MobileNav'
@@ -15,20 +18,36 @@ import PanelRechts from './components/PanelRechts'
 export default function App() {
   return (
     <UIProvider>
-      <ProjectsProvider>
-        <RoomsProvider>
-          <DesignProvider>
-            <FurnitureProvider>
-              <TrennwandProvider>
-                <KatalogProvider>
-                  <AppContent />
-                </KatalogProvider>
-              </TrennwandProvider>
-            </FurnitureProvider>
-          </DesignProvider>
-        </RoomsProvider>
-      </ProjectsProvider>
+      <Routes>
+        <Route path="/" element={<ErstesProjektWeiterleitung />} />
+        <Route path="/projekt/:id" element={<ProjektRoute />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </UIProvider>
+  )
+}
+
+// Noch kein Dashboard — leitet vorerst immer auf das erste Projekt weiter.
+function ErstesProjektWeiterleitung() {
+  const [ersteProjektId] = useState(() => loadProjekte()[0]?.id)
+  return <Navigate to={`/projekt/${ersteProjektId}`} replace />
+}
+
+function ProjektRoute() {
+  return (
+    <ProjectsProvider>
+      <RoomsProvider>
+        <DesignProvider>
+          <FurnitureProvider>
+            <TrennwandProvider>
+              <KatalogProvider>
+                <AppContent />
+              </KatalogProvider>
+            </TrennwandProvider>
+          </FurnitureProvider>
+        </DesignProvider>
+      </RoomsProvider>
+    </ProjectsProvider>
   )
 }
 
