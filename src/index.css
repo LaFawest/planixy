@@ -237,3 +237,16 @@ input[type=number]::-webkit-outer-spin-button { opacity: 1; }
     display: none !important;
   }
 }
+
+/* Schrittleiste: volle Pill-Leiste auf Desktop, kompakte Punkte-Leiste auf mobil */
+.schritt-leiste-mobil {
+  display: none;
+}
+@media (max-width: 680px) {
+  .schritt-leiste-desktop {
+    display: none !important;
+  }
+  .schritt-leiste-mobil {
+    display: block !important;
+  }
+}
