@@ -264,13 +264,15 @@ const onResize = () => {
 const resizeObserver = new ResizeObserver(onResize)
 resizeObserver.observe(mount)
 
+let frameId
 const animate = () => {
-  requestAnimationFrame(animate)
+  frameId = requestAnimationFrame(animate)
   renderer.render(scene, camera)
 }
 animate()
 
 return () => {
+  cancelAnimationFrame(frameId)
   mount.removeEventListener('mousedown', onMouseDown)
   mount.removeEventListener('touchstart', onTouchStart)
   mount.removeEventListener('touchmove', onTouchMove)
@@ -279,6 +281,21 @@ return () => {
   window.removeEventListener('mousemove', onMouseMove)
   mount.removeEventListener('wheel', onWheel)
   resizeObserver.disconnect()
+
+  // Die baue*-Helfer (Trennwände, Wandelemente, Möbel) legen ihre eigenen Geometrien/
+  // Materialien/Texturen direkt in `scene` ab, ohne Referenzen nach außen zu geben — bei
+  // jeder Änderung von room/furniture baut dieser Effekt die komplette Szene neu auf, daher
+  // hier eine vollständige Traversierung statt einzeln benannter Handles.
+  scene.environment?.dispose()
+  scene.traverse(obj => {
+    obj.geometry?.dispose()
+    const materials = Array.isArray(obj.material) ? obj.material : (obj.material ? [obj.material] : [])
+    materials.forEach(mat => {
+      Object.values(mat).forEach(wert => { if (wert?.isTexture) wert.dispose() })
+      mat.dispose()
+    })
+  })
+
   mount.removeChild(renderer.domElement)
   renderer.dispose()
 }
