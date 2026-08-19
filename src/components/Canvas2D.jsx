@@ -29,7 +29,7 @@ const wandStreifenStyle = (segment, wandDicke) => {
   return { left: `${left}px`, top: `${minY}px`, width: `${wandDicke}px`, height: `${maxY - minY}px` }
 }
 
-export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, wandSegmente }) {
+export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, wandSegmente, innenEckpunkte }) {
   const { ansicht } = useUI()
   const { schritt } = useWizard()
   const { activeRoom } = useRooms()
@@ -85,7 +85,17 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
               }}></div>
             ))}
 
-            <div ref={canvasInnerRef} className={`canvas-wrap ${activeRoom?.boden || 'boden-standard'}`} style={{ position: 'absolute', inset: `${wandDicke}px` }}>
+            <div ref={canvasInnerRef} className="canvas-wrap" style={{ position: 'absolute', inset: `${wandDicke}px` }}>
+            {/* Bodenmuster — eigene Ebene statt Hintergrund auf canvasInnerRef selbst, damit
+                clip-path nur das Muster auf die Raumkontur begrenzt und nicht Möbel, Trennwände
+                oder Wandelemente mit abschneidet. Ohne Pointer-Events und ganz hinten, damit sie
+                nichts Interaktives verdeckt. innenEckpunkte ist dieselbe Kontur, auf die auch
+                Trennwände gezeichnet werden — für Rechtecke deckungsgleich mit der bisherigen
+                Fläche, siehe Kommentar dort zur Rechteck-Einschränkung. */}
+            <div className={activeRoom?.boden || 'boden-standard'} style={{
+              position: 'absolute', inset: 0, zIndex: -1, pointerEvents: 'none',
+              clipPath: `polygon(${innenEckpunkte.map(p => `${p.x}px ${p.y}px`).join(', ')})`,
+            }} />
             {/* Deselect Layer */}
             <div onClick={() => { setSelectedId(null); setSelectedWandId(null) }}
               onMouseDown={startWandZeichnen}
