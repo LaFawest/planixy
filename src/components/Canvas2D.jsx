@@ -118,7 +118,7 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
               ))}
               {wandEntwurf && (
                 <line x1={wandEntwurf.x1} y1={wandEntwurf.y1} x2={wandEntwurf.x2} y2={wandEntwurf.y2}
-                  stroke="#185FA5" strokeWidth={10} strokeLinecap="square" strokeDasharray="6 5" opacity={0.7} pointerEvents="none" />
+                  stroke={wandEntwurf.gueltig ? '#185FA5' : '#E24B4A'} strokeWidth={10} strokeLinecap="square" strokeDasharray="6 5" opacity={0.7} pointerEvents="none" />
               )}
               {wandVorschau && (
                 <>

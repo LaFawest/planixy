@@ -8,6 +8,7 @@ import {
   wandSegmente as wandSegmenteAus,
   punktInPolygon as istPunktInPolygon,
   rechteckInPolygon as istRechteckInPolygon,
+  streckeInPolygon as istStreckeInPolygon,
 } from '../raumPolygon'
 
 export function useRaumGeometrie() {
@@ -35,20 +36,14 @@ export function useRaumGeometrie() {
   // stabilisiert, aus demselben Grund wie grenzeEckpunkte unten.
   const wandSegmente = useMemo(() => wandSegmenteAus(polygonPx), [polygonPx])
   const punktInPolygon = (punkt) => istPunktInPolygon(punkt, polygonPx)
-  // useCallback statt einer einfachen Closure, weil diese Funktion (anders als
-  // punktInPolygon oben) in Abhängigkeitslisten von useCallback in FurnitureContext landet —
-  // eine bei jedem Aufruf neu erzeugte Funktionsreferenz würde deren Memoization brechen.
-  const rechteckInPolygon = useCallback(
-    (links, oben, breite, hoehe) => istRechteckInPolygon(links, oben, breite, hoehe, polygonPx),
-    [polygonPx],
-  )
 
-  // "Grenze" = die innere Fläche, auf die Fenster/Türen beim Ziehen einrasten (Rand abzüglich
-  // Wanddicke und ggf. Fußleiste). Dieselbe Eckpunktreihenfolge wie ein Rechteck-Polygon
-  // (siehe rechteckPolygon), damit Segmentindizes mit HIMMELSRICHTUNG_JE_SEGMENT übereinstimmen
-  // (0=nord, 1=ost, 2=sued, 3=west) — nur für Rechtecke gültig. Mit useMemo stabilisiert, da
-  // dieser Wert in der Abhängigkeitsliste von handleDrag (FurnitureContext) landet — ein bei
-  // jedem Aufruf neu erzeugtes Array würde dessen Memoization brechen.
+  // "Grenze" = die innere Fläche, auf die Fenster/Türen und Möbel beim Ziehen einrasten (Rand
+  // abzüglich Wanddicke und ggf. Fußleiste). Dieselbe Eckpunktreihenfolge wie ein
+  // Rechteck-Polygon (siehe rechteckPolygon), damit Segmentindizes mit
+  // HIMMELSRICHTUNG_JE_SEGMENT übereinstimmen (0=nord, 1=ost, 2=sued, 3=west) — nur für
+  // Rechtecke gültig. Mit useMemo stabilisiert, da dieser Wert in der Abhängigkeitsliste von
+  // handleDrag (FurnitureContext) landet — ein bei jedem Aufruf neu erzeugtes Array würde
+  // dessen Memoization brechen.
   const grenzeEckpunkte = useMemo(() => [
     { x: grenzStart, y: grenzStart },
     { x: grenzStart + grenzB, y: grenzStart },
@@ -56,5 +51,35 @@ export function useRaumGeometrie() {
     { x: grenzStart, y: grenzStart + grenzT },
   ], [grenzStart, grenzB, grenzT])
 
-  return { canvasB, canvasT, wandDicke, innenB, innenT, grenzB, grenzT, grenzStart, wandSegmente, grenzeEckpunkte, punktInPolygon, rechteckInPolygon }
+  // Rechteck-in-Polygon-Prüfung für Möbel (Schritt 5) — an grenzeEckpunkte gebunden statt an
+  // polygonPx, weil Möbel-left/top denselben Ursprung wie grenzeEckpunkte haben (0,0 = Ecke
+  // des canvasInnerRef-Divs, also bereits um die Wanddicke nach innen versetzt). polygonPx ist
+  // das äußere, unverschobene Randpolygon — als Prüf-Polygon wäre es um die Wanddicke daneben.
+  // useCallback, weil diese Funktion in Abhängigkeitslisten von useCallback in
+  // FurnitureContext landet — eine bei jedem Aufruf neu erzeugte Referenz würde dessen
+  // Memoization brechen.
+  const rechteckInPolygon = useCallback(
+    (links, oben, breite, hoehe) => istRechteckInPolygon(links, oben, breite, hoehe, grenzeEckpunkte),
+    [grenzeEckpunkte],
+  )
+
+  // Trennwand-Koordinaten (TrennwandContext) haben denselben Ursprung wie grenzeEckpunkte,
+  // aber ohne den zusätzlichen Fußleisten-Versatz — Trennwände dürfen bis an die Wand reichen.
+  const innenEckpunkte = useMemo(() => [
+    { x: 0, y: 0 },
+    { x: innenB, y: 0 },
+    { x: innenB, y: innenT },
+    { x: 0, y: innenT },
+  ], [innenB, innenT])
+
+  // Strecke-in-Polygon-Prüfung für Trennwände (Schritt 6) — analog zu rechteckInPolygon oben.
+  const streckeInPolygon = useCallback(
+    (a, b) => istStreckeInPolygon(a, b, innenEckpunkte),
+    [innenEckpunkte],
+  )
+
+  return {
+    canvasB, canvasT, wandDicke, innenB, innenT, grenzB, grenzT, grenzStart,
+    wandSegmente, grenzeEckpunkte, innenEckpunkte, punktInPolygon, rechteckInPolygon, streckeInPolygon,
+  }
 }
