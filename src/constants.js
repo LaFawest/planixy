@@ -134,16 +134,15 @@ export const wandFarben = [
   { name: 'Karamell',   farbe: '#C68B4F' }, { name: 'Graphit',    farbe: '#3A3A38' },
   { name: 'Türkis',     farbe: '#4FB8B0' }, { name: 'Zartgrün',   farbe: '#D4E8C4' },
 ]
-export const wandSeiten = [
-  { seite: 'nord', name: 'Nord' }, { seite: 'ost', name: 'Ost' },
-  { seite: 'sued', name: 'Süd' },  { seite: 'west', name: 'West' },
-]
+export const HIMMELSRICHTUNG_NAME = { nord: 'Nord', ost: 'Ost', sued: 'Süd', west: 'West' }
 
-// Rechteck-spezifische Übersetzung Segmentindex (siehe wandSegmente() in raumPolygon.js)
-// -> Himmelsrichtung. Die Eckpunktreihenfolge eines Rechteck-Polygons ist bewusst so gewählt,
-// dass Segment i mit wandSeiten[i] übereinstimmt (0 = nord, 1 = ost, 2 = sued, 3 = west).
-// Nur für Rechtecke gültig — bei freien Formen hat ein Segmentindex keine feste Himmelsrichtung.
-export const HIMMELSRICHTUNG_JE_SEGMENT = wandSeiten.map(w => w.seite)
+// Rechteck-spezifische Übersetzung Segmentindex -> Himmelsrichtung (0 = nord, 1 = ost,
+// 2 = sued, 3 = west). Wird nur noch von der historischen v4->v5-Migration in
+// projekteStorage.js gebraucht, die ausschließlich Alt-Daten aus der Zeit vor Eckpunktlisten
+// verarbeitet (damals gab es nur Rechtecke) — für aktuelle Wandfarben/Fenster/Türen gilt seit
+// Schritt 9a stattdessen der Segmentindex direkt bzw. himmelsrichtungAusNormale() aus
+// raumPolygon.js, die für jede Form funktioniert.
+export const HIMMELSRICHTUNG_JE_SEGMENT = ['nord', 'ost', 'sued', 'west']
 
 // Dicke der Außenwände in Pixel (bei 60px/m) — Basis für die nutzbare Innenfläche eines Raums
 export const WAND_DICKE_PX = 8

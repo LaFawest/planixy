@@ -1,13 +1,27 @@
-import { bodenBelaege, wandSeiten, wandFarben } from '../constants'
+import { bodenBelaege, wandFarben, HIMMELSRICHTUNG_NAME } from '../constants'
+import { himmelsrichtungAusNormale } from '../raumPolygon'
 import { useRooms } from '../context/RoomsContext'
 import { useDesign } from '../context/DesignContext'
+import { useRaumGeometrie } from '../context/useRaumGeometrie'
 
 export default function FarbenBodenSchritt() {
   const { activeRoom } = useRooms()
+  const { wandSegmente } = useRaumGeometrie()
   const {
     fussleiste, setFussleiste, fussleisteFarbe, setFussleisteFarbe, setBoden,
     aktiveWand, setAktiveWand, aktuelleWandfarbe, setWandfarbeFuer,
   } = useDesign()
+  // Chips nummeriert je Wandsegment, Himmelsrichtung als Zusatz aus der Segmentnormale
+  // abgeleitet (himmelsrichtungAusNormale) — funktioniert für jede Raumform, nicht nur für
+  // die vier festen Rechteckwände. Für ein Rechteck ergibt sich exakt Wand 1 (Nord) ...
+  // Wand 4 (West) in derselben Reihenfolge wie die bisherigen Nord/Ost/Süd/West-Chips.
+  const wandChips = [
+    { seite: 'alle', name: 'Alle' },
+    ...wandSegmente.map(segment => ({
+      seite: segment.index,
+      name: `Wand ${segment.index + 1} (${HIMMELSRICHTUNG_NAME[himmelsrichtungAusNormale(segment.normale)]})`,
+    })),
+  ]
   return (
     <>
       {/* Fußleiste */}
@@ -67,7 +81,7 @@ export default function FarbenBodenSchritt() {
       <div>
         <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.06em' }}>WANDFARBE</p>
         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '10px' }}>
-          {[{ seite: 'alle', name: 'Alle' }, ...wandSeiten].map(w => (
+          {wandChips.map(w => (
             <div key={w.seite} onClick={() => setAktiveWand(w.seite)} style={{
               padding: '4px 10px', borderRadius: '20px', fontSize: '11px', cursor: 'pointer',
               background: aktiveWand === w.seite ? '#185FA5' : '#F7F6F2',

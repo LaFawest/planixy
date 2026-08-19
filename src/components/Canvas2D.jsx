@@ -2,7 +2,6 @@ import RoomView3D from '../RoomView3D'
 import { moebelIconTyp, moebelShapes } from '../moebelIcons'
 import RotationsPanel from './RotationsPanel'
 import TrennwandPanel from './TrennwandPanel'
-import { HIMMELSRICHTUNG_JE_SEGMENT } from '../constants'
 import { useUI } from '../context/UIContext'
 import { useRooms } from '../context/RoomsContext'
 import { useDesign } from '../context/DesignContext'
@@ -10,7 +9,7 @@ import { useFurniture } from '../context/FurnitureContext'
 import { useTrennwand } from '../context/TrennwandContext'
 import { useWizard } from '../context/WizardContext'
 
-const wandFarbeFuer = (room, seite) => room?.wandfarben?.[seite] || room?.wandfarbe || '#FFFFFF'
+const wandFarbeFuer = (room, index) => room?.wandfarben?.[index] || room?.wandfarbe || '#FFFFFF'
 
 // Position/Größe eines Wandstreifens aus seinem Segment: die Kante selbst bildet eine
 // Seite des Streifens, der Streifen wird um die Wanddicke entgegen der Normale (also nach
@@ -80,7 +79,7 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
             {wandSegmente.map(segment => (
               <div key={segment.index} style={{
                 position: 'absolute', ...wandStreifenStyle(segment, wandDicke),
-                background: wandFarbeFuer(activeRoom, HIMMELSRICHTUNG_JE_SEGMENT[segment.index] || 'nord'),
+                background: wandFarbeFuer(activeRoom, segment.index),
                 zIndex: 3,
               }}></div>
             ))}

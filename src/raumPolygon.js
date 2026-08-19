@@ -3,8 +3,8 @@
 // daraus ab. Für ein Rechteck mit Breite B und Tiefe T: (0,0) → (B,0) → (B,T) → (0,T).
 //
 // Diese Reihenfolge deckt sich für Rechtecke mit der bisherigen Wandreihenfolge
-// nord/ost/sued/west aus wandSeiten in constants.js (Segment 0 = nord, 1 = ost, ...)
-// und ist Voraussetzung für die Normalen-Berechnung in wandSegmente().
+// nord/ost/sued/west (Segment 0 = nord, 1 = ost, ...), siehe HIMMELSRICHTUNG_JE_SEGMENT in
+// constants.js, und ist Voraussetzung für die Normalen-Berechnung in wandSegmente().
 //
 // Alle Werte werden in derselben Einheit wie die Eckpunkte erwartet/zurückgegeben
 // (aktuell: Meter). Die Umrechnung in Bildschirm-Pixel passiert erst bei den
@@ -144,6 +144,17 @@ export function distanzPunktZuStrecke(punkt, a, b) {
   let t = ((punkt.x - a.x) * dx + (punkt.y - a.y) * dy) / laengeQuadrat
   t = Math.max(0, Math.min(1, t))
   return Math.hypot(punkt.x - (a.x + t * dx), punkt.y - (a.y + t * dy))
+}
+
+// Leitet aus der nach außen zeigenden Normale eines Wandsegments eine grobe Himmelsrichtung
+// ab (die betragsmäßig größere Achse entscheidet) — funktioniert für jede Segment-Ausrichtung,
+// nicht nur für die vier achsparallelen Wände eines Rechtecks. Für ein Rechteck ergibt das
+// exakt die bisherige feste Zuordnung (Segment 0 = Nord, 1 = Ost, 2 = Süd, 3 = West), siehe
+// wandSegmente() oben.
+export function himmelsrichtungAusNormale(normale) {
+  return Math.abs(normale.x) >= Math.abs(normale.y)
+    ? (normale.x > 0 ? 'ost' : 'west')
+    : (normale.y > 0 ? 'sued' : 'nord')
 }
 
 // Liefert das nächstgelegene Wandsegment zu einem Punkt samt Distanz — Basis für

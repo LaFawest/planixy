@@ -5,7 +5,6 @@ import { baueTrennwaende } from './scene/trennwaende'
 import { baueWandElement } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
 import { rechteckPolygon, boundingBox, wandSegmente } from './raumPolygon'
-import { HIMMELSRICHTUNG_JE_SEGMENT } from './constants'
 import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
@@ -132,12 +131,11 @@ export default function RoomView3D() {
 
     // === WÄNDE (eine je Wandsegment, Transparenz wird dynamisch gesetzt, jede Wand einzeln
     // einfärbbar) ===
-    // Wandfarbe: room.wandfarben ist nach Himmelsrichtung geschlüsselt, nicht nach Segmentindex
-    // — HIMMELSRICHTUNG_JE_SEGMENT übersetzt (wie schon in Canvas2D.jsx), ist aber ausdrücklich
-    // nur für Rechtecke gültig (4 Segmente in fester Reihenfolge). Für L/U-Formen muss das
-    // Datenmodell in Schritt 9 auf segmentindex-basierte Farben migrieren.
-    const wandFarbeFuer = (seite) => room?.wandfarben?.[seite] || room?.wandfarbe || '#FFFFFF'
-    const wandMatFuer = (seite) => new THREE.MeshStandardMaterial({ color: wandFarbeFuer(seite), roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1 })
+    // Wandfarbe: room.wandfarben ist seit Schritt 9a nach Segmentindex geschlüsselt (statt nach
+    // Himmelsrichtung) — funktioniert damit für jede Segmentanzahl/-form, nicht nur für die vier
+    // festen Rechteckwände.
+    const wandFarbeFuer = (index) => room?.wandfarben?.[index] || room?.wandfarbe || '#FFFFFF'
+    const wandMatFuer = (index) => new THREE.MeshStandardMaterial({ color: wandFarbeFuer(index), roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1 })
 
     const segmente = wandSegmente(eckpunkte)
     // Für updateCamera unten: pro Wand Mesh + 3D-Normale (2D-Normale direkt auf X/Z übernommen,
@@ -145,9 +143,8 @@ export default function RoomView3D() {
     const wandMeshe = segmente.map(segment => {
       const x1 = segment.start.x - mitteX, z1 = segment.start.y - mitteZ
       const x2 = segment.ende.x - mitteX, z2 = segment.ende.y - mitteZ
-      const seite = HIMMELSRICHTUNG_JE_SEGMENT[segment.index] || 'nord'
       const wandGeo = new THREE.PlaneGeometry(segment.laenge, wandHoehe)
-      const wand = new THREE.Mesh(wandGeo, wandMatFuer(seite))
+      const wand = new THREE.Mesh(wandGeo, wandMatFuer(segment.index))
       wand.position.set((x1 + x2) / 2, wandHoehe / 2, (z1 + z2) / 2)
       wand.rotation.y = -Math.atan2(z2 - z1, x2 - x1)
       wand.receiveShadow = true

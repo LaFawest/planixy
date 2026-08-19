@@ -38,12 +38,12 @@ export function useRaumGeometrie() {
   const punktInPolygon = (punkt) => istPunktInPolygon(punkt, polygonPx)
 
   // "Grenze" = die innere Fläche, auf die Fenster/Türen und Möbel beim Ziehen einrasten (Rand
-  // abzüglich Wanddicke und ggf. Fußleiste). Dieselbe Eckpunktreihenfolge wie ein
-  // Rechteck-Polygon (siehe rechteckPolygon), damit Segmentindizes mit
-  // HIMMELSRICHTUNG_JE_SEGMENT übereinstimmen (0=nord, 1=ost, 2=sued, 3=west) — nur für
-  // Rechtecke gültig. Mit useMemo stabilisiert, da dieser Wert in der Abhängigkeitsliste von
-  // handleDrag (FurnitureContext) landet — ein bei jedem Aufruf neu erzeugtes Array würde
-  // dessen Memoization brechen.
+  // abzüglich Wanddicke und ggf. Fußleiste). Wird hier bewusst als feste 4-Punkt-Bounding-Box
+  // aus grenzB/grenzT aufgebaut statt aus dem tatsächlichen Randpolygon abgeleitet — nur für
+  // Rechtecke gültig, bei einer L-/U-Form (Schritt 9) deckt das nicht mehr die echte Kontur ab
+  // (siehe Notiz für Schritt 9b). Mit useMemo stabilisiert, da dieser Wert in der
+  // Abhängigkeitsliste von handleDrag (FurnitureContext) landet — ein bei jedem Aufruf neu
+  // erzeugtes Array würde dessen Memoization brechen.
   const grenzeEckpunkte = useMemo(() => [
     { x: grenzStart, y: grenzStart },
     { x: grenzStart + grenzB, y: grenzStart },

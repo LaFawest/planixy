@@ -3,7 +3,7 @@ import { migriereRaum } from './roomsStorage'
 import { rechteckPolygon } from '../raumPolygon'
 
 const STORAGE_KEY = 'planixy-rooms'
-const SCHEMA_VERSION = 5
+const SCHEMA_VERSION = 6
 const STANDARD_PROJEKT_NAME = 'Mein Zuhause'
 
 const SEGMENT_JE_HIMMELSRICHTUNG = Object.fromEntries(
@@ -82,13 +82,33 @@ const migriereV4ZuV5 = (v4Daten) => ({
   })),
 })
 
+// v5 -> v6: room.wandfarben wechselt von Himmelsrichtung-Schlüsseln (nord/ost/sued/west) auf
+// Segmentindex-Schlüssel (0/1/2/...), damit Wandfarben auch bei L-/U-Formen (Schritt 9)
+// funktionieren, wo ein Segmentindex keine feste Himmelsrichtung mehr hat. Alt-Daten sind
+// garantiert Rechtecke (siehe HIMMELSRICHTUNG_JE_SEGMENT), daher liefert
+// SEGMENT_JE_HIMMELSRICHTUNG hier eine eindeutige, verlustfreie Übersetzung. room.wandfarbe
+// (Farbe für "alle Wände") bleibt unverändert.
+const migriereV5ZuV6 = (v5Daten) => ({
+  schemaVersion: 6,
+  projekte: (v5Daten.projekte || []).map(projekt => ({
+    ...projekt,
+    raeume: (projekt.raeume || []).map(raum => {
+      if (!raum.wandfarben) return raum
+      const wandfarben = Object.fromEntries(
+        Object.entries(raum.wandfarben).map(([seite, farbe]) => [SEGMENT_JE_HIMMELSRICHTUNG[seite] ?? 0, farbe])
+      )
+      return { ...raum, wandfarben }
+    }),
+  })),
+})
+
 export const loadProjekte = () => {
   const saved = localStorage.getItem(STORAGE_KEY)
   if (!saved) return [neuesProjektObjekt(1, initialRooms)]
 
   let daten = JSON.parse(saved)
 
-  // Migrationskette darf keine Version überspringen: v0 -> v1 -> v2 -> v3 -> v4 -> v5
+  // Migrationskette darf keine Version überspringen: v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6
   if (Array.isArray(daten)) {
     daten = migriereV0ZuV1(daten)
   }
@@ -103,6 +123,9 @@ export const loadProjekte = () => {
   }
   if (daten.schemaVersion === 4) {
     daten = migriereV4ZuV5(daten)
+  }
+  if (daten.schemaVersion === 5) {
+    daten = migriereV5ZuV6(daten)
   }
   if (daten.schemaVersion === SCHEMA_VERSION) {
     return daten.projekte

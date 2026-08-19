@@ -6,6 +6,9 @@ const DesignContext = createContext(null)
 
 export function DesignProvider({ children }) {
   const { activeRoom, activeRoomId, updateRoom } = useRooms()
+  // aktiveWand ist entweder 'alle' oder der Segmentindex der gerade ausgewählten Wand (siehe
+  // wandSegmente() in raumPolygon.js) — seit Schritt 9a nicht mehr eine Himmelsrichtung, damit
+  // auch Formen mit mehr/weniger als vier Wänden einzeln einfärbbar sind.
   const [aktiveWand, setAktiveWand] = useState('alle')
 
   const fussleiste = activeRoom?.fussleiste ?? DEFAULT_RAUM_DESIGN.fussleiste
