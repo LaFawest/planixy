@@ -11,7 +11,30 @@ import { useWizard } from '../context/WizardContext'
 
 const wandFarbeFuer = (room, seite) => room?.wandfarben?.[seite] || room?.wandfarbe || '#FFFFFF'
 
-export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke }) {
+// Rechteck-spezifische Übersetzung Segmentindex → Himmelsrichtung. Die Reihenfolge der
+// Eckpunkte in raumPolygon.js ist bewusst deckungsgleich mit wandSeiten in constants.js
+// (0 = nord, 1 = ost, 2 = sued, 3 = west). Fenster/Türen hängen noch an dieser Zuordnung,
+// nicht an Segmenten — wird in einem späteren Schritt umgestellt.
+const HIMMELSRICHTUNG_JE_SEGMENT = ['nord', 'ost', 'sued', 'west']
+
+// Position/Größe eines Wandstreifens aus seinem Segment: die Kante selbst bildet eine
+// Seite des Streifens, der Streifen wird um die Wanddicke entgegen der Normale (also nach
+// innen) verbreitert. Nur für achsparallele Segmente (Rechteck) — bei freien Formen muss
+// das verallgemeinert werden.
+const wandStreifenStyle = (segment, wandDicke) => {
+  const minX = Math.min(segment.start.x, segment.ende.x)
+  const maxX = Math.max(segment.start.x, segment.ende.x)
+  const minY = Math.min(segment.start.y, segment.ende.y)
+  const maxY = Math.max(segment.start.y, segment.ende.y)
+  if (minY === maxY) {
+    const top = segment.normale.y < 0 ? minY : minY - wandDicke
+    return { left: `${minX}px`, top: `${top}px`, width: `${maxX - minX}px`, height: `${wandDicke}px` }
+  }
+  const left = segment.normale.x < 0 ? minX : minX - wandDicke
+  return { left: `${left}px`, top: `${minY}px`, width: `${wandDicke}px`, height: `${maxY - minY}px` }
+}
+
+export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, wandSegmente }) {
   const { ansicht } = useUI()
   const { schritt } = useWizard()
   const { activeRoom } = useRooms()
@@ -58,11 +81,14 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke }
             outline: '2px solid #B5D4F4',
             boxSizing: 'border-box',
           }}>
-            {/* Wände einzeln einfärbbar */}
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: `${wandDicke}px`, background: wandFarbeFuer(activeRoom, 'nord'), zIndex: 3 }}></div>
-            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: `${wandDicke}px`, background: wandFarbeFuer(activeRoom, 'sued'), zIndex: 3 }}></div>
-            <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: `${wandDicke}px`, background: wandFarbeFuer(activeRoom, 'west'), zIndex: 3 }}></div>
-            <div style={{ position: 'absolute', top: 0, bottom: 0, right: 0, width: `${wandDicke}px`, background: wandFarbeFuer(activeRoom, 'ost'), zIndex: 3 }}></div>
+            {/* Wände einzeln einfärbbar — ein Streifen pro Wandsegment */}
+            {wandSegmente.map(segment => (
+              <div key={segment.index} style={{
+                position: 'absolute', ...wandStreifenStyle(segment, wandDicke),
+                background: wandFarbeFuer(activeRoom, HIMMELSRICHTUNG_JE_SEGMENT[segment.index] || 'nord'),
+                zIndex: 3,
+              }}></div>
+            ))}
 
             <div ref={canvasInnerRef} className={`canvas-wrap ${activeRoom?.boden || 'boden-standard'}`} style={{ position: 'absolute', inset: `${wandDicke}px` }}>
             {/* Deselect Layer */}
