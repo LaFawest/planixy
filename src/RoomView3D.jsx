@@ -4,6 +4,7 @@ import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgeb
 import { baueTrennwaende } from './scene/trennwaende'
 import { baueWandElement } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
+import { rechteckPolygon } from './raumPolygon'
 import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
@@ -40,6 +41,7 @@ export default function RoomView3D() {
     const raumBreite = (room?.breite || 6)
     const raumTiefe  = (room?.tiefe  || 5)
     const wandHoehe = raumHoehe || 2.5
+    const eckpunkte = room?.eckpunkte || rechteckPolygon(raumBreite, raumTiefe)
 
     // === TEXTUREN (einmal pro Szene erzeugt, mehrfach verwendet) ===
     const holzTextur = erzeugeHolzTextur()
@@ -169,7 +171,7 @@ export default function RoomView3D() {
 
     furniture.forEach(item => {
       if (item.istWandElement) {
-        baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe)
+        baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte)
       } else {
         baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur)
       }

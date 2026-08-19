@@ -1,36 +1,33 @@
 import * as THREE from 'three'
-import { HIMMELSRICHTUNG_JE_SEGMENT } from '../constants'
+import { wandSegmente, rechteckPolygon } from '../raumPolygon'
 
 // === WANDELEMENTE (Tür/Fenster) ===
-export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe) {
+export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte) {
   const elBreite = item.width / 60
   const gruppe = new THREE.Group()
 
-  // Position basierend auf Wand. item.left/item.top bleiben unverändert die Quelle für die
-  // Position entlang der Wand (wie beim 2D-Rendering) — nur die Zuordnung zur Himmelsrichtung
-  // kommt jetzt aus dem Segmentindex statt aus dem alten wand-String.
-  const wand = HIMMELSRICHTUNG_JE_SEGMENT[item.wandSegment] || 'nord'
-  let px = 0
-  let pz = 0
-  let ry = 0
+  // Position/Drehung wie bei Trennwänden (siehe baueTrennwaende in trennwaende.js): Mittelpunkt
+  // und Blickrichtung ergeben sich direkt aus Segment-Start/-Ende, nicht mehr aus vier festen
+  // Fällen für die Himmelsrichtung.
+  const segmente = wandSegmente(eckpunkte || rechteckPolygon(raumBreite, raumTiefe))
+  const segment = segmente[item.wandSegment] || segmente[0]
 
-  if (wand === 'nord') {
-    pz = -raumTiefe / 2
-    px = (item.left / 60) - raumBreite / 2 + elBreite / 2
-    ry = 0
-  } else if (wand === 'sued') {
-    pz = raumTiefe / 2
-    px = (item.left / 60) - raumBreite / 2 + elBreite / 2
-    ry = Math.PI
-  } else if (wand === 'west') {
-    px = -raumBreite / 2
-    pz = (item.top / 60) - raumTiefe / 2 + elBreite / 2
-    ry = Math.PI / 2
-  } else if (wand === 'ost') {
-    px = raumBreite / 2
-    pz = (item.top / 60) - raumTiefe / 2 + elBreite / 2
-    ry = -Math.PI / 2
-  }
+  // Klemmung nur beim Rendern: wird das Segment (z.B. durch eine Größenänderung des Raums)
+  // kürzer als Position + Elementbreite, rückt das Element sichtbar mit, statt aus der Wand
+  // herauszuragen. item.wandPosition in den Daten bleibt davon unberührt — das Klemmen der
+  // gespeicherten Position ist ein eigener, späterer Schritt.
+  const position = Math.max(0, Math.min(item.wandPosition || 0, segment.laenge - elBreite))
+  const mitte = position + elBreite / 2
+  const t = segment.laenge > 0 ? mitte / segment.laenge : 0
+
+  const x1 = segment.start.x - raumBreite / 2
+  const z1 = segment.start.y - raumTiefe / 2
+  const x2 = segment.ende.x - raumBreite / 2
+  const z2 = segment.ende.y - raumTiefe / 2
+
+  const px = x1 + (x2 - x1) * t
+  const pz = z1 + (z2 - z1) * t
+  const ry = -Math.atan2(z2 - z1, x2 - x1)
 
   gruppe.position.set(px, 0, pz)
   gruppe.rotation.y = ry

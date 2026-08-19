@@ -84,7 +84,7 @@ export function punktInPolygon(punkt, eckpunkte) {
   return innen
 }
 
-function distanzPunktZuStrecke(punkt, a, b) {
+export function distanzPunktZuStrecke(punkt, a, b) {
   const dx = b.x - a.x, dy = b.y - a.y
   const laengeQuadrat = dx * dx + dy * dy
   if (laengeQuadrat === 0) return Math.hypot(punkt.x - a.x, punkt.y - a.y)

@@ -2,12 +2,13 @@ import { createContext, useContext, useCallback, useMemo, useState } from 'react
 import { useRooms } from './RoomsContext'
 import { useRaumGeometrie } from './useRaumGeometrie'
 import { vergibMoebelId } from './idZaehler'
+import { wandSegmente as wandSegmenteAus, distanzPunktZuStrecke } from '../raumPolygon'
 
 const FurnitureContext = createContext(null)
 
 export function FurnitureProvider({ children }) {
   const { activeRoom, activeRoomId, updateRoom } = useRooms()
-  const { grenzB, grenzT, grenzStart } = useRaumGeometrie()
+  const { grenzB, grenzT, grenzStart, grenzeEckpunkte } = useRaumGeometrie()
   const [selectedId, setSelectedId] = useState(null)
 
   const furniture = useMemo(() => activeRoom?.furniture || [], [activeRoom])
@@ -107,53 +108,64 @@ export function FurnitureProvider({ children }) {
       window.removeEventListener('touchmove', onMove)
       window.removeEventListener('touchend', onUp)
 
-      // Fenster/Türen: an nächstgelegene Wand snappen statt an Möbel-Kollisionen
+      // Fenster/Türen: an nächstgelegenes Wandsegment snappen statt an Möbel-Kollisionen.
+      // grenzeEckpunkte hat dieselbe Eckpunktreihenfolge wie ein Rechteck-Polygon, daher
+      // liefert Segmentindex i dieselbe Himmelsrichtung wie HIMMELSRICHTUNG_JE_SEGMENT
+      // (0=nord, 1=ost, 2=sued, 3=west) — generalisiert die vier festen Fälle von vorher.
       if (item.istWandElement) {
         const w = item.width
         const h = item.height
         const cx = currentLeft + w / 2
         const cy = currentTop  + h / 2
 
-        const distNord = cy - grenzStart
-        const distSued = (grenzStart + grenzT) - cy
-        const distWest = cx - grenzStart
-        const distOst  = (grenzStart + grenzB) - cx
-        const minDist  = Math.min(distNord, distSued, distWest, distOst)
+        const segmente = wandSegmenteAus(grenzeEckpunkte)
+        // Bei exakter Abstandsgleichheit behalten wir die alte Priorität aus der Vier-Fälle-
+        // Logik bei: nord > sued > west > ost (Segmentindizes 0,2,3,1) — praktisch unerreichbar
+        // bei einer Maus-Drag-Position, aber wir wollen echte Verhaltensgleichheit, keine
+        // Näherung über die naechsteKante()-Standardreihenfolge (die ost vor west bevorzugen würde).
+        const prioritaet = [0, 2, 3, 1]
+        let segment = null
+        let besteDistanz = Infinity
+        prioritaet.forEach(i => {
+          const kandidat = segmente[i]
+          if (!kandidat) return
+          const distanz = distanzPunktZuStrecke({ x: cx, y: cy }, kandidat.start, kandidat.ende)
+          if (distanz < besteDistanz) { besteDistanz = distanz; segment = kandidat }
+        })
 
-        // raumBreite/raumTiefe (Meter) — dieselbe Basis wie im 3D-Rendering (baueWandElement),
-        // damit wandPosition mit derselben Bezugsgröße rechnet.
-        const raumBreite = activeRoom?.breite || 6
-        const raumTiefe  = activeRoom?.tiefe  || 5
+        const horizontal = segment.start.y === segment.ende.y
+        const reversed = horizontal ? segment.start.x > segment.ende.x : segment.start.y > segment.ende.y
 
-        // wandSegment folgt HIMMELSRICHTUNG_JE_SEGMENT (0=nord, 1=ost, 2=sued, 3=west).
-        // wandPosition ist der Abstand vom jeweiligen Segmentanfang in Metern (siehe
-        // wandSegmente() in raumPolygon.js): für nord/ost deckungsgleich mit dem neuen
-        // left/top, für sued/west gespiegelt, weil deren Segmente in Gegenrichtung laufen.
-        let wandSegment, wandPosition, newLeft, newTop, newRotation
-        if (minDist === distNord) {
-          wandSegment = 0; newRotation = 0
-          newTop  = grenzStart
-          newLeft = Math.max(grenzStart, Math.min(grenzStart + grenzB - w, cx - w / 2))
-          wandPosition = newLeft / 60
-        } else if (minDist === distSued) {
-          wandSegment = 2; newRotation = 0
-          newTop  = grenzStart + grenzT - h
-          newLeft = Math.max(grenzStart, Math.min(grenzStart + grenzB - w, cx - w / 2))
-          wandPosition = raumBreite - newLeft / 60
-        } else if (minDist === distWest) {
-          wandSegment = 3; newRotation = 90
-          newLeft = grenzStart
-          newTop  = Math.max(grenzStart, Math.min(grenzStart + grenzT - w, cy - w / 2))
-          wandPosition = raumTiefe - newTop / 60
+        // "Entlang der Wand" ist immer die Elementbreite w (nicht h, siehe 3D-Rendering) — die
+        // flush-Seite (nah an der Segmentlinie) ergibt sich aus der nach außen zeigenden
+        // Normale: das Element liegt auf der Innenseite, also entgegen der Normale.
+        let newLeft, newTop, newRotation
+        if (horizontal) {
+          newRotation = 0
+          const minX = Math.min(segment.start.x, segment.ende.x)
+          const maxX = Math.max(segment.start.x, segment.ende.x)
+          newLeft = Math.max(minX, Math.min(maxX - w, cx - w / 2))
+          newTop  = segment.normale.y < 0 ? segment.start.y : segment.start.y - h
         } else {
-          wandSegment = 1; newRotation = 90
-          newLeft = grenzStart + grenzB - h
-          newTop  = Math.max(grenzStart, Math.min(grenzStart + grenzT - w, cy - w / 2))
-          wandPosition = newTop / 60
+          newRotation = 90
+          const minY = Math.min(segment.start.y, segment.ende.y)
+          const maxY = Math.max(segment.start.y, segment.ende.y)
+          newTop  = Math.max(minY, Math.min(maxY - w, cy - w / 2))
+          newLeft = segment.normale.x < 0 ? segment.start.x : segment.start.x - h
         }
 
+        // wandPosition ist der Abstand vom Segmentanfang in Metern (siehe wandSegmente() in
+        // raumPolygon.js, dieselbe Definition wie die v4->v5-Migration in projekteStorage.js):
+        // läuft das Segment in dieselbe Richtung wie die Pixel-Achse, direkt aus left/top;
+        // läuft es entgegengesetzt (reversed), vom Gesamtmaß der Wand rückwärts gerechnet.
+        const raumBreite = activeRoom?.breite || 6
+        const raumTiefe  = activeRoom?.tiefe  || 5
+        const wandPosition = horizontal
+          ? (reversed ? raumBreite - newLeft / 60 : newLeft / 60)
+          : (reversed ? raumTiefe  - newTop  / 60 : newTop  / 60)
+
         updateFurniture(aktuellesFurniture.map(f => f.id === id
-          ? { ...f, left: newLeft, top: newTop, wandSegment, wandPosition, rotation: newRotation, origWidth: w, origHeight: h }
+          ? { ...f, left: newLeft, top: newTop, wandSegment: segment.index, wandPosition, rotation: newRotation, origWidth: w, origHeight: h }
           : f))
         return
       }
@@ -237,7 +249,7 @@ export function FurnitureProvider({ children }) {
     window.addEventListener('mouseup', onUp)
     window.addEventListener('touchmove', onMove, { passive: false })
     window.addEventListener('touchend', onUp)
-  }, [activeRoom, updateFurniture, grenzB, grenzT, grenzStart])
+  }, [activeRoom, updateFurniture, grenzB, grenzT, grenzStart, grenzeEckpunkte])
 
   const value = useMemo(() => ({
     furniture, selectedId, setSelectedId,
