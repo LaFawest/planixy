@@ -2,6 +2,7 @@ import RoomView3D from '../RoomView3D'
 import { moebelIconTyp, moebelShapes } from '../moebelIcons'
 import RotationsPanel from './RotationsPanel'
 import TrennwandPanel from './TrennwandPanel'
+import { HIMMELSRICHTUNG_JE_SEGMENT } from '../constants'
 import { useUI } from '../context/UIContext'
 import { useRooms } from '../context/RoomsContext'
 import { useDesign } from '../context/DesignContext'
@@ -10,12 +11,6 @@ import { useTrennwand } from '../context/TrennwandContext'
 import { useWizard } from '../context/WizardContext'
 
 const wandFarbeFuer = (room, seite) => room?.wandfarben?.[seite] || room?.wandfarbe || '#FFFFFF'
-
-// Rechteck-spezifische Übersetzung Segmentindex → Himmelsrichtung. Die Reihenfolge der
-// Eckpunkte in raumPolygon.js ist bewusst deckungsgleich mit wandSeiten in constants.js
-// (0 = nord, 1 = ost, 2 = sued, 3 = west). Fenster/Türen hängen noch an dieser Zuordnung,
-// nicht an Segmenten — wird in einem späteren Schritt umgestellt.
-const HIMMELSRICHTUNG_JE_SEGMENT = ['nord', 'ost', 'sued', 'west']
 
 // Position/Größe eines Wandstreifens aus seinem Segment: die Kante selbst bildet eine
 // Seite des Streifens, der Streifen wird um die Wanddicke entgegen der Normale (also nach

@@ -139,6 +139,12 @@ export const wandSeiten = [
   { seite: 'sued', name: 'Süd' },  { seite: 'west', name: 'West' },
 ]
 
+// Rechteck-spezifische Übersetzung Segmentindex (siehe wandSegmente() in raumPolygon.js)
+// -> Himmelsrichtung. Die Eckpunktreihenfolge eines Rechteck-Polygons ist bewusst so gewählt,
+// dass Segment i mit wandSeiten[i] übereinstimmt (0 = nord, 1 = ost, 2 = sued, 3 = west).
+// Nur für Rechtecke gültig — bei freien Formen hat ein Segmentindex keine feste Himmelsrichtung.
+export const HIMMELSRICHTUNG_JE_SEGMENT = wandSeiten.map(w => w.seite)
+
 // Dicke der Außenwände in Pixel (bei 60px/m) — Basis für die nutzbare Innenfläche eines Raums
 export const WAND_DICKE_PX = 8
 

@@ -32,7 +32,10 @@ export function FurnitureProvider({ children }) {
     updateFurniture([...(activeRoom?.furniture || []), {
       ...item, id: vergibMoebelId(),
       top: grenzStart, left,
-      rotation: 0, istWandElement: true, wand: 'nord',
+      rotation: 0, istWandElement: true,
+      // Segment 0 = Nordwand (siehe HIMMELSRICHTUNG_JE_SEGMENT). Position = Abstand vom
+      // Segmentanfang (0,0) in Metern — für die Nordwand deckungsgleich mit left/60.
+      wandSegment: 0, wandPosition: left / 60,
     }])
   }, [updateFurniture, activeRoom, grenzB, grenzStart])
 
@@ -117,27 +120,40 @@ export function FurnitureProvider({ children }) {
         const distOst  = (grenzStart + grenzB) - cx
         const minDist  = Math.min(distNord, distSued, distWest, distOst)
 
-        let wand, newLeft, newTop, newRotation
+        // raumBreite/raumTiefe (Meter) — dieselbe Basis wie im 3D-Rendering (baueWandElement),
+        // damit wandPosition mit derselben Bezugsgröße rechnet.
+        const raumBreite = activeRoom?.breite || 6
+        const raumTiefe  = activeRoom?.tiefe  || 5
+
+        // wandSegment folgt HIMMELSRICHTUNG_JE_SEGMENT (0=nord, 1=ost, 2=sued, 3=west).
+        // wandPosition ist der Abstand vom jeweiligen Segmentanfang in Metern (siehe
+        // wandSegmente() in raumPolygon.js): für nord/ost deckungsgleich mit dem neuen
+        // left/top, für sued/west gespiegelt, weil deren Segmente in Gegenrichtung laufen.
+        let wandSegment, wandPosition, newLeft, newTop, newRotation
         if (minDist === distNord) {
-          wand = 'nord'; newRotation = 0
+          wandSegment = 0; newRotation = 0
           newTop  = grenzStart
           newLeft = Math.max(grenzStart, Math.min(grenzStart + grenzB - w, cx - w / 2))
+          wandPosition = newLeft / 60
         } else if (minDist === distSued) {
-          wand = 'sued'; newRotation = 0
+          wandSegment = 2; newRotation = 0
           newTop  = grenzStart + grenzT - h
           newLeft = Math.max(grenzStart, Math.min(grenzStart + grenzB - w, cx - w / 2))
+          wandPosition = raumBreite - newLeft / 60
         } else if (minDist === distWest) {
-          wand = 'west'; newRotation = 90
+          wandSegment = 3; newRotation = 90
           newLeft = grenzStart
           newTop  = Math.max(grenzStart, Math.min(grenzStart + grenzT - w, cy - w / 2))
+          wandPosition = raumTiefe - newTop / 60
         } else {
-          wand = 'ost'; newRotation = 90
+          wandSegment = 1; newRotation = 90
           newLeft = grenzStart + grenzB - h
           newTop  = Math.max(grenzStart, Math.min(grenzStart + grenzT - w, cy - w / 2))
+          wandPosition = newTop / 60
         }
 
         updateFurniture(aktuellesFurniture.map(f => f.id === id
-          ? { ...f, left: newLeft, top: newTop, wand, rotation: newRotation, origWidth: w, origHeight: h }
+          ? { ...f, left: newLeft, top: newTop, wandSegment, wandPosition, rotation: newRotation, origWidth: w, origHeight: h }
           : f))
         return
       }

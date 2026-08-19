@@ -1,10 +1,14 @@
-import { initialRooms, DEFAULT_WIZARD_SCHRITT } from '../constants'
+import { initialRooms, DEFAULT_WIZARD_SCHRITT, HIMMELSRICHTUNG_JE_SEGMENT } from '../constants'
 import { migriereRaum } from './roomsStorage'
 import { rechteckPolygon } from '../raumPolygon'
 
 const STORAGE_KEY = 'planixy-rooms'
-const SCHEMA_VERSION = 4
+const SCHEMA_VERSION = 5
 const STANDARD_PROJEKT_NAME = 'Mein Zuhause'
+
+const SEGMENT_JE_HIMMELSRICHTUNG = Object.fromEntries(
+  HIMMELSRICHTUNG_JE_SEGMENT.map((seite, i) => [seite, i])
+)
 
 const neuesProjektObjekt = (id, raeume, name = STANDARD_PROJEKT_NAME) => {
   const jetzt = new Date().toISOString()
@@ -47,13 +51,44 @@ const migriereV3ZuV4 = (v3Daten) => ({
   })),
 })
 
+// v4 -> v5: Fenster/Türen (furniture-Einträge mit istWandElement) verlieren das
+// Himmelsrichtungsfeld `wand` zugunsten von wandSegment (Index, siehe wandSegmente() in
+// raumPolygon.js) + wandPosition (Meter, Abstand vom Segmentanfang). left/top bleiben
+// unverändert die Quelle für 2D- und 3D-Rendering — am Ergebnis ändert sich nichts, nur die
+// Herkunft der Himmelsrichtung wechselt vom gespeicherten String zum Segmentindex.
+// Für Rechtecke ist die Zuordnung fix: Segment 0/1 (nord/ost) laufen in derselben Richtung
+// wie die bisherigen left/top-Werte, Segment 2/3 (sued/west) in Gegenrichtung — dort wird
+// beim Migrieren gespiegelt (raumBreite/-tiefe minus bisherige Position).
+const migriereFensterTuer = (item, raumBreite, raumTiefe) => {
+  if (!item.istWandElement) return item
+  const { wand, ...rest } = item
+  const richtung = wand || 'nord'
+  const wandSegment = SEGMENT_JE_HIMMELSRICHTUNG[richtung] ?? 0
+  const wandPosition = richtung === 'sued' ? raumBreite - item.left / 60
+    : richtung === 'west' ? raumTiefe - item.top / 60
+    : richtung === 'ost' ? item.top / 60
+    : item.left / 60
+  return { ...rest, wandSegment, wandPosition }
+}
+
+const migriereV4ZuV5 = (v4Daten) => ({
+  schemaVersion: 5,
+  projekte: (v4Daten.projekte || []).map(projekt => ({
+    ...projekt,
+    raeume: (projekt.raeume || []).map(raum => ({
+      ...raum,
+      furniture: (raum.furniture || []).map(item => migriereFensterTuer(item, raum.breite || 6, raum.tiefe || 5)),
+    })),
+  })),
+})
+
 export const loadProjekte = () => {
   const saved = localStorage.getItem(STORAGE_KEY)
   if (!saved) return [neuesProjektObjekt(1, initialRooms)]
 
   let daten = JSON.parse(saved)
 
-  // Migrationskette darf keine Version überspringen: v0 -> v1 -> v2 -> v3 -> v4
+  // Migrationskette darf keine Version überspringen: v0 -> v1 -> v2 -> v3 -> v4 -> v5
   if (Array.isArray(daten)) {
     daten = migriereV0ZuV1(daten)
   }
@@ -65,6 +100,9 @@ export const loadProjekte = () => {
   }
   if (daten.schemaVersion === 3) {
     daten = migriereV3ZuV4(daten)
+  }
+  if (daten.schemaVersion === 4) {
+    daten = migriereV4ZuV5(daten)
   }
   if (daten.schemaVersion === SCHEMA_VERSION) {
     return daten.projekte

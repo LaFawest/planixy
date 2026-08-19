@@ -1,12 +1,15 @@
 import * as THREE from 'three'
+import { HIMMELSRICHTUNG_JE_SEGMENT } from '../constants'
 
 // === WANDELEMENTE (Tür/Fenster) ===
 export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe) {
   const elBreite = item.width / 60
   const gruppe = new THREE.Group()
 
-  // Position basierend auf Wand
-  const wand = item.wand || 'nord'
+  // Position basierend auf Wand. item.left/item.top bleiben unverändert die Quelle für die
+  // Position entlang der Wand (wie beim 2D-Rendering) — nur die Zuordnung zur Himmelsrichtung
+  // kommt jetzt aus dem Segmentindex statt aus dem alten wand-String.
+  const wand = HIMMELSRICHTUNG_JE_SEGMENT[item.wandSegment] || 'nord'
   let px = 0
   let pz = 0
   let ry = 0
