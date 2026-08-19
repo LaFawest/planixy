@@ -6,9 +6,20 @@ import { wandSegmente as wandSegmenteAus, distanzPunktZuStrecke } from '../raumP
 
 const FurnitureContext = createContext(null)
 
+// Achsen-Slide: Kandidatposition übernehmen, wenn die volle Möbel-Bounding-Box im Polygon
+// liegt; sonst nur die Achse übernehmen, die noch eine gültige Position ergibt (fühlt sich
+// beim Ziehen an wie ein Entlanggleiten an der Kante); wenn keine Achse einzeln gültig ist,
+// bei der letzten bekannten gültigen Position bleiben.
+function klemmeMitSlide(kandidatLinks, kandidatOben, letzteLinks, letzteOben, boundW, boundH, rechteckInPolygon) {
+  if (rechteckInPolygon(kandidatLinks, kandidatOben, boundW, boundH)) return { left: kandidatLinks, top: kandidatOben }
+  if (rechteckInPolygon(kandidatLinks, letzteOben, boundW, boundH)) return { left: kandidatLinks, top: letzteOben }
+  if (rechteckInPolygon(letzteLinks, kandidatOben, boundW, boundH)) return { left: letzteLinks, top: kandidatOben }
+  return { left: letzteLinks, top: letzteOben }
+}
+
 export function FurnitureProvider({ children }) {
   const { activeRoom, activeRoomId, updateRoom } = useRooms()
-  const { grenzB, grenzT, grenzStart, grenzeEckpunkte } = useRaumGeometrie()
+  const { grenzB, grenzT, grenzStart, grenzeEckpunkte, rechteckInPolygon } = useRaumGeometrie()
   const [selectedId, setSelectedId] = useState(null)
 
   const furniture = useMemo(() => activeRoom?.furniture || [], [activeRoom])
@@ -67,12 +78,19 @@ export function FurnitureProvider({ children }) {
       const boundW = origW * cos + origH * sin
       const boundH = origW * sin + origH * cos
 
-      let newLeft = Math.max(grenzStart, Math.min(grenzStart + grenzB - boundW, mitteX - boundW / 2))
-      let newTop  = Math.max(grenzStart, Math.min(grenzStart + grenzT - boundH, mitteY - boundH / 2))
+      const kandidatLinks = Math.max(grenzStart, Math.min(grenzStart + grenzB - boundW, mitteX - boundW / 2))
+      const kandidatOben  = Math.max(grenzStart, Math.min(grenzStart + grenzT - boundH, mitteY - boundH / 2))
+      // Vorherige Position (mit den alten Maßen) als Fallback, falls die neue Rotation an
+      // dieser Stelle nicht ins Polygon passt.
+      const letzteLinks = Math.max(grenzStart, Math.min(grenzStart + grenzB - boundW, f.left))
+      const letzteOben  = Math.max(grenzStart, Math.min(grenzStart + grenzT - boundH, f.top))
+      const { left: newLeft, top: newTop } = klemmeMitSlide(
+        kandidatLinks, kandidatOben, letzteLinks, letzteOben, boundW, boundH, rechteckInPolygon,
+      )
 
       return { ...f, rotation: winkel, left: newLeft, top: newTop, origWidth: origW, origHeight: origH }
     }))
-  }, [updateFurniture, activeRoom, grenzB, grenzT, grenzStart])
+  }, [updateFurniture, activeRoom, grenzB, grenzT, grenzStart, rechteckInPolygon])
 
   const handleDrag = useCallback((e, id) => {
     e.preventDefault()
@@ -96,9 +114,16 @@ export function FurnitureProvider({ children }) {
       const sin = Math.abs(Math.sin(rad))
       const boundW = iW * cos + iH * sin
       const boundH = iW * sin + iH * cos
-      currentLeft = Math.max(grenzStart, Math.min(grenzStart + grenzB - boundW, startLeft + (clientX - startX)))
-      currentTop  = Math.max(grenzStart, Math.min(grenzStart + grenzT - boundH, startTop  + (clientY - startY)))
-      // Frei bewegen ohne Kollision
+      // Achsen-Klemmung zuerst als billiger Vorfilter (verhindert extreme Koordinaten bei
+      // schnellen Mausbewegungen), rechteckInPolygon danach nur einmal bis dreimal auf die
+      // bereits eingegrenzte Kandidatposition — für die aktuellen Raumgrößen vernachlässigbare
+      // Kosten pro Mousemove.
+      const kandidatLinks = Math.max(grenzStart, Math.min(grenzStart + grenzB - boundW, startLeft + (clientX - startX)))
+      const kandidatOben  = Math.max(grenzStart, Math.min(grenzStart + grenzT - boundH, startTop  + (clientY - startY)))
+      const geklemmt = klemmeMitSlide(kandidatLinks, kandidatOben, currentLeft, currentTop, boundW, boundH, rechteckInPolygon)
+      currentLeft = geklemmt.left
+      currentTop  = geklemmt.top
+      // Frei bewegen ohne Möbel-Kollision (nur Raumgrenze wird geprüft)
       updateFurniture(aktuellesFurniture.map(f => f.id === id ? { ...f, left: currentLeft, top: currentTop } : f))
     }
 
@@ -230,8 +255,8 @@ export function FurnitureProvider({ children }) {
           const l = Math.max(grenzStart, Math.min(grenzStart + grenzB - item.width,  pos.left))
           const t = Math.max(grenzStart, Math.min(grenzStart + grenzT - item.height, pos.top))
 
-          // Prüfen ob diese Position frei ist
-          if (!kollidiert(l, t)) {
+          // Prüfen ob diese Position frei ist und vollständig im Raumpolygon liegt
+          if (!kollidiert(l, t) && rechteckInPolygon(l, t, item.width, item.height)) {
             // Distanz zur aktuellen Position berechnen
             const distanz = Math.abs(l - currentLeft) + Math.abs(t - currentTop)
             if (distanz < besteDistanz) {
@@ -249,7 +274,7 @@ export function FurnitureProvider({ children }) {
     window.addEventListener('mouseup', onUp)
     window.addEventListener('touchmove', onMove, { passive: false })
     window.addEventListener('touchend', onUp)
-  }, [activeRoom, updateFurniture, grenzB, grenzT, grenzStart, grenzeEckpunkte])
+  }, [activeRoom, updateFurniture, grenzB, grenzT, grenzStart, grenzeEckpunkte, rechteckInPolygon])
 
   const value = useMemo(() => ({
     furniture, selectedId, setSelectedId,

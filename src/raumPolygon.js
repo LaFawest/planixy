@@ -84,6 +84,52 @@ export function punktInPolygon(punkt, eckpunkte) {
   return innen
 }
 
+// Liang-Barsky-Clipping: prüft, ob die Strecke a–b das (achsenparallele) Rechteck box
+// schneidet — auch wenn keiner der beiden Endpunkte selbst im Rechteck liegt.
+function segmentSchneidetRechteck(a, b, box) {
+  let t0 = 0, t1 = 1
+  const dx = b.x - a.x, dy = b.y - a.y
+  const grenzen = [
+    [-dx, a.x - box.minX],
+    [dx, box.maxX - a.x],
+    [-dy, a.y - box.minY],
+    [dy, box.maxY - a.y],
+  ]
+  for (const [p, q] of grenzen) {
+    if (p === 0) {
+      if (q < 0) return false
+      continue
+    }
+    const r = q / p
+    if (p < 0) {
+      if (r > t1) return false
+      if (r > t0) t0 = r
+    } else {
+      if (r < t0) return false
+      if (r < t1) t1 = r
+    }
+  }
+  return t0 < t1
+}
+
+// Prüft, ob ein achsenparalleles Rechteck (z.B. eine Möbel-Bounding-Box) vollständig im
+// Polygon liegt: alle vier Ecken müssen im Polygon liegen UND keine Wandkante darf durchs
+// Rechteck-Innere laufen. Der zweite Teil ist nötig, weil eine Nische mittig in einer Wand
+// (U-Form) sonst unentdeckt bliebe, obwohl alle vier Ecken links/rechts davon im soliden
+// Bereich liegen.
+export function rechteckInPolygon(links, oben, breite, hoehe, eckpunkte) {
+  const polygon = randpolygon(eckpunkte)
+  const ecken = [
+    { x: links, y: oben },
+    { x: links + breite, y: oben },
+    { x: links + breite, y: oben + hoehe },
+    { x: links, y: oben + hoehe },
+  ]
+  if (!ecken.every(p => punktInPolygon(p, polygon))) return false
+  const box = { minX: links, maxX: links + breite, minY: oben, maxY: oben + hoehe }
+  return !wandSegmente(polygon).some(s => segmentSchneidetRechteck(s.start, s.ende, box))
+}
+
 export function distanzPunktZuStrecke(punkt, a, b) {
   const dx = b.x - a.x, dy = b.y - a.y
   const laengeQuadrat = dx * dx + dy * dy

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { WAND_DICKE_PX } from '../constants'
 import { useRooms } from './RoomsContext'
 import { useDesign } from './DesignContext'
@@ -7,6 +7,7 @@ import {
   boundingBox,
   wandSegmente as wandSegmenteAus,
   punktInPolygon as istPunktInPolygon,
+  rechteckInPolygon as istRechteckInPolygon,
 } from '../raumPolygon'
 
 export function useRaumGeometrie() {
@@ -34,6 +35,13 @@ export function useRaumGeometrie() {
   // stabilisiert, aus demselben Grund wie grenzeEckpunkte unten.
   const wandSegmente = useMemo(() => wandSegmenteAus(polygonPx), [polygonPx])
   const punktInPolygon = (punkt) => istPunktInPolygon(punkt, polygonPx)
+  // useCallback statt einer einfachen Closure, weil diese Funktion (anders als
+  // punktInPolygon oben) in Abhängigkeitslisten von useCallback in FurnitureContext landet —
+  // eine bei jedem Aufruf neu erzeugte Funktionsreferenz würde deren Memoization brechen.
+  const rechteckInPolygon = useCallback(
+    (links, oben, breite, hoehe) => istRechteckInPolygon(links, oben, breite, hoehe, polygonPx),
+    [polygonPx],
+  )
 
   // "Grenze" = die innere Fläche, auf die Fenster/Türen beim Ziehen einrasten (Rand abzüglich
   // Wanddicke und ggf. Fußleiste). Dieselbe Eckpunktreihenfolge wie ein Rechteck-Polygon
@@ -48,5 +56,5 @@ export function useRaumGeometrie() {
     { x: grenzStart, y: grenzStart + grenzT },
   ], [grenzStart, grenzB, grenzT])
 
-  return { canvasB, canvasT, wandDicke, innenB, innenT, grenzB, grenzT, grenzStart, wandSegmente, grenzeEckpunkte, punktInPolygon }
+  return { canvasB, canvasT, wandDicke, innenB, innenT, grenzB, grenzT, grenzStart, wandSegmente, grenzeEckpunkte, punktInPolygon, rechteckInPolygon }
 }
