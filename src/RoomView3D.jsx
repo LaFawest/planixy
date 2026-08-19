@@ -4,7 +4,8 @@ import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgeb
 import { baueTrennwaende } from './scene/trennwaende'
 import { baueWandElement } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
-import { rechteckPolygon } from './raumPolygon'
+import { rechteckPolygon, boundingBox, wandSegmente } from './raumPolygon'
+import { HIMMELSRICHTUNG_JE_SEGMENT } from './constants'
 import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
@@ -38,10 +39,19 @@ export default function RoomView3D() {
     renderer.outputColorSpace = THREE.SRGBColorSpace
     mount.appendChild(renderer.domElement)
 
-    const raumBreite = (room?.breite || 6)
-    const raumTiefe  = (room?.tiefe  || 5)
     const wandHoehe = raumHoehe || 2.5
-    const eckpunkte = room?.eckpunkte || rechteckPolygon(raumBreite, raumTiefe)
+    const eckpunkte = room?.eckpunkte || rechteckPolygon(room?.breite || 6, room?.tiefe || 5)
+    // Breite/Tiefe und der 3D-Nullpunkt (Raummitte) kommen aus der Bounding-Box der Eckpunkte,
+    // nicht mehr aus room.breite/tiefe direkt — für ein Rechteck deckungsgleich, aber robust
+    // falls diese Felder bei einer L-Form (Schritt 9) nicht mehr die tatsächliche Ausdehnung
+    // abbilden. wandelemente.js/trennwaende.js bekommen raumBreite/raumTiefe weiterhin als
+    // Parameter durchgereicht und bleiben unverändert, da mitteX/mitteZ für Rechtecke exakt
+    // raumBreite/2, raumTiefe/2 entsprechen.
+    const box = boundingBox(eckpunkte)
+    const raumBreite = box.breite
+    const raumTiefe = box.tiefe
+    const mitteX = box.minX + raumBreite / 2
+    const mitteZ = box.minY + raumTiefe / 2
 
     // === TEXTUREN (einmal pro Szene erzeugt, mehrfach verwendet) ===
     const holzTextur = erzeugeHolzTextur()
@@ -96,74 +106,73 @@ export default function RoomView3D() {
     const fillLight = new THREE.HemisphereLight(0xffffff, 0xC8A97A, 0.3)
     scene.add(fillLight)
 
-    // === BODEN ===
-    const bodenGeo = new THREE.PlaneGeometry(raumBreite, raumTiefe)
+    // === BODEN & DECKE (aus dem Randpolygon, statt fester Rechteck-Ebenen) ===
+    // THREE.Shape mit ShapeGeometry statt ExtrudeGeometry: Boden/Decke bleiben masselose
+    // Flächen (keine Dicke), ShapeGeometry trianguliert per Ear-Clipping — das behandelt
+    // konkave Ränder (L-/U-Form) automatisch korrekt, ohne Sonderfall.
+    // Die Punkte werden mit gespiegeltem Y aufgebaut (mitteZ - p.y statt p.y - mitteZ): nur so
+    // ergibt die anschließende Rotation um X dieselbe nach oben zeigende Normale wie die
+    // bisherige PlaneGeometry (siehe Analyse Schritt 7). UV-Koordinaten normalisiert
+    // ShapeGeometry automatisch auf die Bounding-Box der Form — für ein Rechteck deckungsgleich
+    // mit PlaneGeometry, texture.repeat in erzeugeBodenTextur bleibt unverändert korrekt.
+    const flaechenShape = new THREE.Shape(eckpunkte.map(p => new THREE.Vector2(p.x - mitteX, mitteZ - p.y)))
+    const flaechenGeo = new THREE.ShapeGeometry(flaechenShape)
+
     const bodenMat = new THREE.MeshStandardMaterial({ map: erzeugeBodenTextur(room?.boden, raumBreite, raumTiefe), roughness: 0.8, metalness: 0.0 })
-    const boden = new THREE.Mesh(bodenGeo, bodenMat)
+    const boden = new THREE.Mesh(flaechenGeo, bodenMat)
     boden.rotation.x = -Math.PI / 2
     boden.receiveShadow = true
     scene.add(boden)
 
-
-    // === WÄNDE (alle 4, Transparenz wird dynamisch gesetzt, jede Wand einzeln einfärbbar) ===
-    const wandFarbeFuer = (seite) => room?.wandfarben?.[seite] || room?.wandfarbe || '#FFFFFF'
-    const wandMatFuer = (seite) => new THREE.MeshStandardMaterial({ color: wandFarbeFuer(seite), roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1 })
-
-    // Wand hinten / Nord (Z-)
-    const wandHintenGeo = new THREE.PlaneGeometry(raumBreite, wandHoehe)
-    const wandHinten = new THREE.Mesh(wandHintenGeo, wandMatFuer('nord'))
-    wandHinten.position.set(0, wandHoehe / 2, -raumTiefe / 2)
-    wandHinten.receiveShadow = true
-    scene.add(wandHinten)
-
-    // Wand vorne / Süd (Z+)
-    const wandVorneGeo = new THREE.PlaneGeometry(raumBreite, wandHoehe)
-    const wandVorne = new THREE.Mesh(wandVorneGeo, wandMatFuer('sued'))
-    wandVorne.position.set(0, wandHoehe / 2, raumTiefe / 2)
-    wandVorne.rotation.y = Math.PI
-    wandVorne.receiveShadow = true
-    scene.add(wandVorne)
-
-    // Wand links / West (X-)
-    const wandLinksGeo = new THREE.PlaneGeometry(raumTiefe, wandHoehe)
-    const wandLinks = new THREE.Mesh(wandLinksGeo, wandMatFuer('west'))
-    wandLinks.position.set(-raumBreite / 2, wandHoehe / 2, 0)
-    wandLinks.rotation.y = Math.PI / 2
-    wandLinks.receiveShadow = true
-    scene.add(wandLinks)
-
-    // Wand rechts / Ost (X+)
-    const wandRechtsGeo = new THREE.PlaneGeometry(raumTiefe, wandHoehe)
-    const wandRechts = new THREE.Mesh(wandRechtsGeo, wandMatFuer('ost'))
-    wandRechts.position.set(raumBreite / 2, wandHoehe / 2, 0)
-    wandRechts.rotation.y = -Math.PI / 2
-    wandRechts.receiveShadow = true
-    scene.add(wandRechts)
-
-    // Decke
-    const deckeGeo = new THREE.PlaneGeometry(raumBreite, raumTiefe)
     const deckeMat = new THREE.MeshStandardMaterial({ color: '#F0EDE8', roughness: 0.95, metalness: 0.0, side: THREE.DoubleSide, transparent: true, opacity: 1 })
-    const decke = new THREE.Mesh(deckeGeo, deckeMat)
+    const decke = new THREE.Mesh(flaechenGeo, deckeMat)
     decke.rotation.x = Math.PI / 2
     decke.position.y = wandHoehe
     scene.add(decke)
 
-    // Sockelleisten
+    // === WÄNDE (eine je Wandsegment, Transparenz wird dynamisch gesetzt, jede Wand einzeln
+    // einfärbbar) ===
+    // Wandfarbe: room.wandfarben ist nach Himmelsrichtung geschlüsselt, nicht nach Segmentindex
+    // — HIMMELSRICHTUNG_JE_SEGMENT übersetzt (wie schon in Canvas2D.jsx), ist aber ausdrücklich
+    // nur für Rechtecke gültig (4 Segmente in fester Reihenfolge). Für L/U-Formen muss das
+    // Datenmodell in Schritt 9 auf segmentindex-basierte Farben migrieren.
+    const wandFarbeFuer = (seite) => room?.wandfarben?.[seite] || room?.wandfarbe || '#FFFFFF'
+    const wandMatFuer = (seite) => new THREE.MeshStandardMaterial({ color: wandFarbeFuer(seite), roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1 })
+
+    const segmente = wandSegmente(eckpunkte)
+    // Für updateCamera unten: pro Wand Mesh + 3D-Normale (2D-Normale direkt auf X/Z übernommen,
+    // wie schon bei allen anderen Konvertierungen in dieser Datei/trennwaende.js/wandelemente.js).
+    const wandMeshe = segmente.map(segment => {
+      const x1 = segment.start.x - mitteX, z1 = segment.start.y - mitteZ
+      const x2 = segment.ende.x - mitteX, z2 = segment.ende.y - mitteZ
+      const seite = HIMMELSRICHTUNG_JE_SEGMENT[segment.index] || 'nord'
+      const wandGeo = new THREE.PlaneGeometry(segment.laenge, wandHoehe)
+      const wand = new THREE.Mesh(wandGeo, wandMatFuer(seite))
+      wand.position.set((x1 + x2) / 2, wandHoehe / 2, (z1 + z2) / 2)
+      wand.rotation.y = -Math.atan2(z2 - z1, x2 - x1)
+      wand.receiveShadow = true
+      scene.add(wand)
+      return { mesh: wand, normale: { x: segment.normale.x, z: segment.normale.y } }
+    })
+
+    // Sockelleisten — eine Leiste je Wandsegment, volle Segmentlänge, nach innen versetzt um die
+    // halbe Dicke entlang der Segment-Normale (ersetzt die 4 festen ±0.02-Offsets). An Außenecken
+    // überlappen sich zwei Leisten geringfügig, wie schon bei den bisherigen 4 Leisten — siehe
+    // Notiz zu einspringenden Ecken für Schritt 9.
     if (fussleiste) {
       const sockelMat = new THREE.MeshLambertMaterial({ color: fussleisteFarbe || '#E0DDD8' })
-      // Alle 4 Wände
-      const s1 = new THREE.Mesh(new THREE.BoxGeometry(raumBreite, 0.08, 0.04), sockelMat)
-      s1.position.set(0, 0.04, -raumTiefe / 2 + 0.02)
-      scene.add(s1)
-      const s2 = new THREE.Mesh(new THREE.BoxGeometry(raumBreite, 0.08, 0.04), sockelMat)
-      s2.position.set(0, 0.04, raumTiefe / 2 - 0.02)
-      scene.add(s2)
-      const s3 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, raumTiefe), sockelMat)
-      s3.position.set(-raumBreite / 2 + 0.02, 0.04, 0)
-      scene.add(s3)
-      const s4 = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, raumTiefe), sockelMat)
-      s4.position.set(raumBreite / 2 - 0.02, 0.04, 0)
-      scene.add(s4)
+      segmente.forEach(segment => {
+        const x1 = segment.start.x - mitteX, z1 = segment.start.y - mitteZ
+        const x2 = segment.ende.x - mitteX, z2 = segment.ende.y - mitteZ
+        const sockel = new THREE.Mesh(new THREE.BoxGeometry(segment.laenge, 0.08, 0.04), sockelMat)
+        sockel.position.set(
+          (x1 + x2) / 2 - segment.normale.x * 0.02,
+          0.04,
+          (z1 + z2) / 2 - segment.normale.y * 0.02,
+        )
+        sockel.rotation.y = -Math.atan2(z2 - z1, x2 - x1)
+        scene.add(sockel)
+      })
     }
 
     // === TRENNWÄNDE, WANDELEMENTE & MÖBEL ===
@@ -193,25 +202,16 @@ export default function RoomView3D() {
       decke.material.opacity = phiGrad < 30 ? Math.max(0, phiGrad / 30) : 1
       decke.material.transparent = phiGrad < 30
 
-      // Wände dynamisch ein/ausblenden je nach Kameraposition
-      const camX = camera.position.x
-      const camZ = camera.position.z
-
-      // Wenn Kamera von vorne kommt → Vorderwand ausblenden
-      wandVorne.material.opacity  = camZ > 0 ? 0 : 1
-      wandVorne.material.transparent = camZ > 0
-
-      // Wenn Kamera von hinten kommt → Hinterwand ausblenden
-      wandHinten.material.opacity = camZ < 0 ? 0 : 1
-      wandHinten.material.transparent = camZ < 0
-
-      // Wenn Kamera von rechts kommt → Rechte Wand ausblenden
-      wandRechts.material.opacity = camX > 0 ? 0 : 1
-      wandRechts.material.transparent = camX > 0
-
-      // Wenn Kamera von links kommt → Linke Wand ausblenden
-      wandLinks.material.opacity  = camX < 0 ? 0 : 1
-      wandLinks.material.transparent = camX < 0
+      // Wände dynamisch ein/ausblenden je nach Kameraposition: eine Wand wird ausgeblendet,
+      // sobald ihre nach außen zeigende Normale zur Kamera zeigt (Kamera steht "vor" ihrer
+      // Außenseite). Für ein Rechteck reduziert sich das exakt auf die bisherigen 4 Sonderfälle
+      // camX/camZ ></< 0 — siehe Analyse Schritt 7 zu Innenecken (dieselbe Vereinfachung wie
+      // heute schon bei einer Diagonalansicht, keine echte Verdeckungsberechnung).
+      wandMeshe.forEach(({ mesh, normale }) => {
+        const versteckt = camera.position.x * normale.x + camera.position.z * normale.z > 0
+        mesh.material.opacity = versteckt ? 0 : 1
+        mesh.material.transparent = versteckt
+      })
     }
     updateCamera()
 
