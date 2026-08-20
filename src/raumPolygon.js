@@ -70,6 +70,55 @@ export function innenmasse(eckpunkte, wandDicke) {
   }
 }
 
+// Schnittpunkt zweier unbegrenzter Geraden, je durch einen Punkt und einen Richtungsvektor
+// gegeben. null, wenn die Geraden parallel sind (kein eindeutiger Schnittpunkt).
+function linienSchnittpunkt(p0, d0, p1, d1) {
+  const nenner = d0.x * d1.y - d0.y * d1.x
+  if (Math.abs(nenner) < 1e-9) return null
+  const t = ((p1.x - p0.x) * d1.y - (p1.y - p0.y) * d1.x) / nenner
+  return { x: p0.x + d0.x * t, y: p0.y + d0.y * t }
+}
+
+// Versetzt jede Kante eines Randpolygons um `versatz` entgegen ihrer nach außen zeigenden
+// Normale (also nach innen) und bildet aus den Schnittpunkten benachbarter versetzter Kanten
+// ein neues, verkleinertes Polygon — die "echte" Innenfläche (Wanddicke/Fußleiste vom Rand
+// abgezogen) für jede Form, nicht nur für ein Rechteck. Für ein Rechteck ergibt das wieder ein
+// Rechteck, auf jeder Seite um `versatz` verkleinert — identisch zur bisherigen festen
+// Bounding-Box-Berechnung.
+//
+// Wirft einen Fehler statt ein kaputtes (sich selbst überschneidendes) Polygon zurückzugeben,
+// wenn der Versatz eine Kante umklappen würde — das passiert, sobald ein Raumteil schmaler als
+// der doppelte Versatz ist (z.B. ein zu schmaler Schenkel einer L-/U-Form). Die hier geprüfte
+// Kanten-Umklapp-Bedingung deckt genau diesen bei achsparallelen Formen (Schritt 9b) tatsächlich
+// auftretenden Fall ab; eine vollständige Selbstüberschneidungsprüfung für beliebige (auch
+// schräge) Polygone wäre deutlich aufwendiger und ist hier nicht nötig.
+export function versetztesPolygon(eckpunkte, versatz) {
+  const polygon = randpolygon(eckpunkte)
+  const n = polygon.length
+  const versetzteKanten = wandSegmente(polygon).map(segment => ({
+    start: { x: segment.start.x - segment.normale.x * versatz, y: segment.start.y - segment.normale.y * versatz },
+    richtung: { x: segment.ende.x - segment.start.x, y: segment.ende.y - segment.start.y },
+  }))
+  const neuePunkte = polygon.map((_, i) => {
+    const vorherige = versetzteKanten[(i - 1 + n) % n]
+    const aktuelle = versetzteKanten[i]
+    const schnitt = linienSchnittpunkt(vorherige.start, vorherige.richtung, aktuelle.start, aktuelle.richtung)
+    if (!schnitt) {
+      throw new Error('raumPolygon: Wandversatz nicht möglich (parallele Kanten ohne Schnittpunkt)')
+    }
+    return schnitt
+  })
+  neuePunkte.forEach((punkt, i) => {
+    const naechsterPunkt = neuePunkte[(i + 1) % n]
+    const neueRichtung = { x: naechsterPunkt.x - punkt.x, y: naechsterPunkt.y - punkt.y }
+    const originalRichtung = versetzteKanten[i].richtung
+    if (neueRichtung.x * originalRichtung.x + neueRichtung.y * originalRichtung.y <= 0) {
+      throw new Error('raumPolygon: Raumteil ist schmaler als der doppelte Wandversatz')
+    }
+  })
+  return neuePunkte
+}
+
 // Punkt-in-Polygon-Prüfung (Ray-Casting-Algorithmus). Punkt in denselben Koordinaten
 // wie die Eckpunkte. Randinklusiv: ein Punkt exakt auf einer Kante gilt als innen — das
 // reine Ray-Casting behandelt (durch die Wahl von >/< statt >=/<=) die untere/rechte Kante

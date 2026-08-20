@@ -169,9 +169,11 @@ export function TrennwandProvider({ children }) {
         letzte = { ...letzte, x2: x, y2: y }
         updated = { ...orig, x2: x, y2: y }
       } else {
-        // Ganze Wand verschieben: dx/dy so begrenzen, dass beide Endpunkte innerhalb der
-        // rechteckigen Innenfläche bleiben, ohne die Wand zu verzerren (statt jeden Punkt
-        // einzeln zu klemmen) — dann zusätzlich Achsen-Slide gegen das Raumpolygon.
+        // Ganze Wand verschieben: dx/dy zunächst grob gegen die Bounding-Box (innenB/innenT)
+        // vorbegrenzen, ohne die Wand zu verzerren (statt jeden Punkt einzeln zu klemmen) — das
+        // ist nur ein billiger Vorfilter gegen extreme Werte, keine Formprüfung. Die eigentliche
+        // Gültigkeit entscheidet danach derselbe Achsen-Slide gegen streckeInPolygon (innenEckpunkte,
+        // seit Schritt 9a das echte Randpolygon) wie beim Ziehen der Endpunkte oben.
         const minDx = -Math.min(orig.x1, orig.x2)
         const maxDx = innenB - Math.max(orig.x1, orig.x2)
         const minDy = -Math.min(orig.y1, orig.y2)

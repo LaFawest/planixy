@@ -13,8 +13,11 @@ const wandFarbeFuer = (room, index) => room?.wandfarben?.[index] || room?.wandfa
 
 // Position/Größe eines Wandstreifens aus seinem Segment: die Kante selbst bildet eine
 // Seite des Streifens, der Streifen wird um die Wanddicke entgegen der Normale (also nach
-// innen) verbreitert. Nur für achsparallele Segmente (Rechteck) — bei freien Formen muss
-// das verallgemeinert werden.
+// innen) verbreitert. Nur für achsparallele Segmente korrekt (minY===maxY = horizontal,
+// sonst wird vertikal angenommen) — geprüft für Schritt 9b: die L-/U-Vorlagen bestehen
+// ausschließlich aus achsparallelen Kanten, sind also unproblematisch. Erst echte schräge
+// Kanten (freies Zeichnen, noch nicht geplant) würden hier ein falsches Rechteck liefern und
+// eine echte Verallgemeinerung nötig machen.
 const wandStreifenStyle = (segment, wandDicke) => {
   const minX = Math.min(segment.start.x, segment.ende.x)
   const maxX = Math.max(segment.start.x, segment.ende.x)
@@ -89,8 +92,9 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
                 clip-path nur das Muster auf die Raumkontur begrenzt und nicht Möbel, Trennwände
                 oder Wandelemente mit abschneidet. Ohne Pointer-Events und ganz hinten, damit sie
                 nichts Interaktives verdeckt. innenEckpunkte ist dieselbe Kontur, auf die auch
-                Trennwände gezeichnet werden — für Rechtecke deckungsgleich mit der bisherigen
-                Fläche, siehe Kommentar dort zur Rechteck-Einschränkung. */}
+                Trennwände gezeichnet werden — seit Schritt 9a aus dem echten Randpolygon
+                abgeleitet (siehe useRaumGeometrie), deckt also auch bei einer L-/U-Form genau
+                die tatsächliche Raumfläche ab. */}
             <div className={activeRoom?.boden || 'boden-standard'} style={{
               position: 'absolute', inset: 0, zIndex: -1, pointerEvents: 'none',
               clipPath: `polygon(${innenEckpunkte.map(p => `${p.x}px ${p.y}px`).join(', ')})`,
