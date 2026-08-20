@@ -316,3 +316,63 @@ export function naechsteKante(punkt, eckpunkte) {
     return !beste || distanz < beste.distanz ? { ...segment, distanz } : beste
   }, null)
 }
+
+// Platziert ein Fenster/Tür-Element (Breite w, Höhe h) flush auf der Innenseite eines bereits
+// gewählten Wandsegments, so nah wie möglich an gewuenschtePosition (Pixel vom Segmentanfang in
+// Richtung Segmentende, wird hier auf die tatsächliche Segmentlänge geklemmt). Reine
+// Platzierungsgeometrie, getrennt von der Segment-Auswahl — genutzt sowohl von snappeWandElement
+// (Segment über die nächstgelegene Kante gesucht) als auch von platziereAufWandSegment (Segment
+// über seinen Index vorgegeben, siehe dort).
+function platziereAufSegment(segment, gewuenschtePosition, w, h) {
+  const horizontal = segment.start.y === segment.ende.y
+  const vorwaerts = horizontal ? segment.ende.x >= segment.start.x : segment.ende.y >= segment.start.y
+
+  let left, top, rotation
+  if (horizontal) {
+    rotation = 0
+    const minX = Math.min(segment.start.x, segment.ende.x)
+    const maxX = Math.max(segment.start.x, segment.ende.x)
+    const ziel = vorwaerts ? segment.start.x + gewuenschtePosition : segment.start.x - gewuenschtePosition
+    left = Math.max(minX, Math.min(maxX - w, ziel))
+    top = segment.normale.y < 0 ? segment.start.y : segment.start.y - h
+  } else {
+    rotation = 90
+    const minY = Math.min(segment.start.y, segment.ende.y)
+    const maxY = Math.max(segment.start.y, segment.ende.y)
+    const ziel = vorwaerts ? segment.start.y + gewuenschtePosition : segment.start.y - gewuenschtePosition
+    top = Math.max(minY, Math.min(maxY - w, ziel))
+    left = segment.normale.x < 0 ? segment.start.x : segment.start.x - h
+  }
+
+  const wandPosition = horizontal
+    ? Math.abs(left - segment.start.x) / 60
+    : Math.abs(top - segment.start.y) / 60
+
+  return { left, top, wandSegment: segment.index, wandPosition, rotation }
+}
+
+// Snapt ein Fenster/Tür-Element (Breite w, Höhe h, gesucht um seinen Mittelpunkt cx/cy) auf das
+// nächstgelegene Wandsegment von eckpunkte. Reine Funktion ohne React-Bezug, deshalb sowohl beim
+// interaktiven Ziehen (FurnitureContext.jsx) als auch als Fallback bei der Nachjustierung nach
+// einer Formänderung (RoomsContext.jsx, Schritt 9b-2) verwendbar, wenn platziereAufWandSegment
+// (siehe dort) das bisherige Segment nicht mehr wiederverwenden kann.
+export function snappeWandElement(cx, cy, w, h, eckpunkte) {
+  const segment = naechsteKante({ x: cx, y: cy }, eckpunkte)
+  const horizontal = segment.start.y === segment.ende.y
+  const gewuenschtePosition = horizontal
+    ? Math.abs((cx - w / 2) - segment.start.x)
+    : Math.abs((cy - w / 2) - segment.start.y)
+  return platziereAufSegment(segment, gewuenschtePosition, w, h)
+}
+
+// Hält ein Fenster/Tür-Element auf SEINEM bisherigen Wandsegment (Index segmentIndex, Position
+// wandPositionM in Metern vom Segmentanfang), statt komplett neu zu suchen — für die
+// Nachjustierung nach einer Formänderung (RoomsContext.jsx, Schritt 9b-2): eine Größenänderung
+// verschiebt oft die Segment-Endpunkte, ohne dass die Wand, an der ein Fenster hängt, eine
+// andere sein sollte. null, wenn der Index nicht mehr existiert oder das Element nicht mehr
+// darauf passt — dann muss der Aufrufer auf snappeWandElement zurückfallen.
+export function platziereAufWandSegment(segmentIndex, wandPositionM, w, h, eckpunkte) {
+  const segment = wandSegmente(eckpunkte)[segmentIndex]
+  if (!segment || wandPositionM * 60 + w > segment.laenge + 1e-6) return null
+  return platziereAufSegment(segment, wandPositionM * 60, w, h)
+}
