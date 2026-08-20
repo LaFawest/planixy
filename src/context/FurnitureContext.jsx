@@ -2,7 +2,7 @@ import { createContext, useContext, useCallback, useMemo, useState } from 'react
 import { useRooms } from './RoomsContext'
 import { useRaumGeometrie } from './useRaumGeometrie'
 import { vergibMoebelId } from './idZaehler'
-import { wandSegmente as wandSegmenteAus, distanzPunktZuStrecke } from '../raumPolygon'
+import { naechsteKante } from '../raumPolygon'
 
 const FurnitureContext = createContext(null)
 
@@ -134,32 +134,18 @@ export function FurnitureProvider({ children }) {
       window.removeEventListener('touchend', onUp)
 
       // Fenster/Türen: an nächstgelegenes Wandsegment snappen statt an Möbel-Kollisionen.
-      // grenzeEckpunkte hat dieselbe Eckpunktreihenfolge wie ein Rechteck-Polygon, daher
-      // liefert Segmentindex i dieselbe Himmelsrichtung wie HIMMELSRICHTUNG_JE_SEGMENT
-      // (0=nord, 1=ost, 2=sued, 3=west) — generalisiert die vier festen Fälle von vorher.
+      // Generische Suche über alle Segmente (naechsteKante), nicht mehr auf die vier
+      // Rechteckwände beschränkt — bei einer L-/U-Form (Schritt 9b) müssen auch die neuen
+      // Segmente der Aussparung erreichbar sein.
       if (item.istWandElement) {
         const w = item.width
         const h = item.height
         const cx = currentLeft + w / 2
         const cy = currentTop  + h / 2
 
-        const segmente = wandSegmenteAus(grenzeEckpunkte)
-        // Bei exakter Abstandsgleichheit behalten wir die alte Priorität aus der Vier-Fälle-
-        // Logik bei: nord > sued > west > ost (Segmentindizes 0,2,3,1) — praktisch unerreichbar
-        // bei einer Maus-Drag-Position, aber wir wollen echte Verhaltensgleichheit, keine
-        // Näherung über die naechsteKante()-Standardreihenfolge (die ost vor west bevorzugen würde).
-        const prioritaet = [0, 2, 3, 1]
-        let segment = null
-        let besteDistanz = Infinity
-        prioritaet.forEach(i => {
-          const kandidat = segmente[i]
-          if (!kandidat) return
-          const distanz = distanzPunktZuStrecke({ x: cx, y: cy }, kandidat.start, kandidat.ende)
-          if (distanz < besteDistanz) { besteDistanz = distanz; segment = kandidat }
-        })
+        const segment = naechsteKante({ x: cx, y: cy }, grenzeEckpunkte)
 
         const horizontal = segment.start.y === segment.ende.y
-        const reversed = horizontal ? segment.start.x > segment.ende.x : segment.start.y > segment.ende.y
 
         // "Entlang der Wand" ist immer die Elementbreite w (nicht h, siehe 3D-Rendering) — die
         // flush-Seite (nah an der Segmentlinie) ergibt sich aus der nach außen zeigenden
@@ -180,14 +166,15 @@ export function FurnitureProvider({ children }) {
         }
 
         // wandPosition ist der Abstand vom Segmentanfang in Metern (siehe wandSegmente() in
-        // raumPolygon.js, dieselbe Definition wie die v4->v5-Migration in projekteStorage.js):
-        // läuft das Segment in dieselbe Richtung wie die Pixel-Achse, direkt aus left/top;
-        // läuft es entgegengesetzt (reversed), vom Gesamtmaß der Wand rückwärts gerechnet.
-        const raumBreite = activeRoom?.breite || 6
-        const raumTiefe  = activeRoom?.tiefe  || 5
+        // raumPolygon.js, dieselbe Definition wie die v4->v5-Migration in projekteStorage.js) —
+        // direkt aus der Segment-Startkoordinate berechnet. Vor Schritt 9b wurde das über
+        // raumBreite/raumTiefe angenähert, was nur für die vier Rechteckwände einigermaßen
+        // stimmte (und selbst dort den Wanddicke-/Fußleisten-Versatz ignorierte) und bei einer
+        // L-/U-Form für die neuen Segmente komplett falsch läge, da deren Länge nichts mit
+        // raumBreite/raumTiefe zu tun hat.
         const wandPosition = horizontal
-          ? (reversed ? raumBreite - newLeft / 60 : newLeft / 60)
-          : (reversed ? raumTiefe  - newTop  / 60 : newTop  / 60)
+          ? Math.abs(newLeft - segment.start.x) / 60
+          : Math.abs(newTop - segment.start.y) / 60
 
         updateFurniture(aktuellesFurniture.map(f => f.id === id
           ? { ...f, left: newLeft, top: newTop, wandSegment: segment.index, wandPosition, rotation: newRotation, origWidth: w, origHeight: h }

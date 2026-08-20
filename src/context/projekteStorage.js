@@ -3,7 +3,7 @@ import { migriereRaum } from './roomsStorage'
 import { rechteckPolygon } from '../raumPolygon'
 
 const STORAGE_KEY = 'planixy-rooms'
-const SCHEMA_VERSION = 6
+const SCHEMA_VERSION = 7
 const STANDARD_PROJEKT_NAME = 'Mein Zuhause'
 
 const SEGMENT_JE_HIMMELSRICHTUNG = Object.fromEntries(
@@ -102,13 +102,25 @@ const migriereV5ZuV6 = (v5Daten) => ({
   })),
 })
 
+// v6 -> v7: jeder Raum bekommt ein explizites raumForm-Feld ('rechteck'), Grundlage für die
+// L-/U-Formen aus Schritt 9b. Alt-Daten sind alle Rechtecke, keine weiteren Felder nötig —
+// aussparungBreite/aussparungTiefe/ausrichtung bleiben unbelegt und werden nur gelesen, wenn
+// raumForm auf 'l-form'/'u-form' steht (siehe raumformPolygon() in raumPolygon.js).
+const migriereV6ZuV7 = (v6Daten) => ({
+  schemaVersion: 7,
+  projekte: (v6Daten.projekte || []).map(projekt => ({
+    ...projekt,
+    raeume: (projekt.raeume || []).map(raum => ({ raumForm: 'rechteck', ...raum })),
+  })),
+})
+
 export const loadProjekte = () => {
   const saved = localStorage.getItem(STORAGE_KEY)
   if (!saved) return [neuesProjektObjekt(1, initialRooms)]
 
   let daten = JSON.parse(saved)
 
-  // Migrationskette darf keine Version überspringen: v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6
+  // Migrationskette darf keine Version überspringen: v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7
   if (Array.isArray(daten)) {
     daten = migriereV0ZuV1(daten)
   }
@@ -126,6 +138,9 @@ export const loadProjekte = () => {
   }
   if (daten.schemaVersion === 5) {
     daten = migriereV5ZuV6(daten)
+  }
+  if (daten.schemaVersion === 6) {
+    daten = migriereV6ZuV7(daten)
   }
   if (daten.schemaVersion === SCHEMA_VERSION) {
     return daten.projekte

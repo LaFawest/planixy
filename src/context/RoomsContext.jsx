@@ -2,7 +2,7 @@ import { createContext, useContext, useCallback, useEffect, useMemo, useState } 
 import { useUI } from './UIContext'
 import { useProjekte } from './ProjectsContext'
 import { vergibRaumId } from './idZaehler'
-import { rechteckPolygon } from '../raumPolygon'
+import { rechteckPolygon, raumformPolygon } from '../raumPolygon'
 import { DEFAULT_RAUM_DESIGN, DEFAULT_WIZARD_SCHRITT } from '../constants'
 
 const RoomsContext = createContext(null)
@@ -26,11 +26,11 @@ export function RoomsProvider({ children }) {
     const neueRaeume = (activeProject?.raeume || []).map(r => {
       if (r.id !== id) return r
       const aktualisiert = { ...r, ...changes }
-      // breite/tiefe sind (noch) die Quelle der Wahrheit für die Raumform — eckpunkte muss
-      // bei jeder Änderung mitgezogen werden, damit beide nicht auseinanderlaufen, sobald
-      // ein Verbraucher eckpunkte liest.
-      if ('breite' in changes || 'tiefe' in changes) {
-        aktualisiert.eckpunkte = rechteckPolygon(aktualisiert.breite, aktualisiert.tiefe)
+      // raumForm/breite/tiefe/aussparungBreite/aussparungTiefe/ausrichtung sind die Quelle der
+      // Wahrheit für die Raumform — eckpunkte muss bei jeder Änderung mitgezogen werden, damit
+      // beide nicht auseinanderlaufen, sobald ein Verbraucher eckpunkte liest.
+      if (['breite', 'tiefe', 'raumForm', 'aussparungBreite', 'aussparungTiefe', 'ausrichtung'].some(feld => feld in changes)) {
+        aktualisiert.eckpunkte = raumformPolygon(aktualisiert)
       }
       return aktualisiert
     })
@@ -39,7 +39,7 @@ export function RoomsProvider({ children }) {
 
   const addRoom = useCallback(() => {
     const raumId = vergibRaumId()
-    const newRoom = { id: raumId, name: `Raum ${raumId}`, breite: 5, tiefe: 4, furniture: [], eckpunkte: rechteckPolygon(5, 4), ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT }
+    const newRoom = { id: raumId, name: `Raum ${raumId}`, raumForm: 'rechteck', breite: 5, tiefe: 4, furniture: [], eckpunkte: rechteckPolygon(5, 4), ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT }
     const neueRaeume = [...(activeProject?.raeume || []), newRoom]
     updateProjekt(activeProjectId, { raeume: neueRaeume })
     setActiveRoomId(newRoom.id)

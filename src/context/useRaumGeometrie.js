@@ -5,7 +5,7 @@ import { useDesign } from './DesignContext'
 import {
   rechteckPolygon,
   boundingBox,
-  versetztesPolygon,
+  innenPolygone as berechneInnenPolygone,
   wandSegmente as wandSegmenteAus,
   punktInPolygon as istPunktInPolygon,
   rechteckInPolygon as istRechteckInPolygon,
@@ -39,15 +39,15 @@ export function useRaumGeometrie() {
   const punktInPolygon = (punkt) => istPunktInPolygon(punkt, polygonPx)
 
   // "Grenze" = die innere Fläche, auf die Fenster/Türen und Möbel beim Ziehen einrasten (Rand
-  // abzüglich Wanddicke und ggf. Fußleiste) — aus dem tatsächlichen Randpolygon abgeleitet
-  // (versetztesPolygon), nicht mehr als feste Bounding-Box, funktioniert damit auch für L-/U-
-  // Formen. polygonPx ist im äußeren, unverschobenen Rahmen; canvasInnerRef (und damit alle
-  // Möbel-Koordinaten) beginnt erst um die Wanddicke nach innen versetzt bei (0,0) — deshalb der
-  // abschließende Shift um -wandDicke in beiden Achsen. Mit useMemo stabilisiert, da dieser Wert
-  // in der Abhängigkeitsliste von handleDrag (FurnitureContext) landet — ein bei jedem Aufruf neu
-  // erzeugtes Array würde dessen Memoization brechen.
-  const grenzeEckpunkte = useMemo(
-    () => versetztesPolygon(polygonPx, wandDicke + fussleisteBreite).map(p => ({ x: p.x - wandDicke, y: p.y - wandDicke })),
+  // abzüglich Wanddicke und ggf. Fußleiste); "innen" = dieselbe Fläche ohne den zusätzlichen
+  // Fußleisten-Versatz, für Trennwände (dürfen bis an die Wand reichen). Beide aus dem
+  // tatsächlichen Randpolygon abgeleitet (innenPolygone/versetztesPolygon), nicht als feste
+  // Bounding-Box, funktioniert damit auch für L-/U-Formen. Mit useMemo stabilisiert, da diese
+  // Werte in Abhängigkeitslisten von handleDrag (FurnitureContext) und handleWandDrag
+  // (TrennwandContext) landen — ein bei jedem Aufruf neu erzeugtes Array würde deren
+  // Memoization brechen.
+  const { grenzeEckpunkte, innenEckpunkte } = useMemo(
+    () => berechneInnenPolygone(polygonPx, wandDicke, fussleisteBreite),
     [polygonPx, wandDicke, fussleisteBreite],
   )
 
@@ -61,15 +61,6 @@ export function useRaumGeometrie() {
   const rechteckInPolygon = useCallback(
     (links, oben, breite, hoehe) => istRechteckInPolygon(links, oben, breite, hoehe, grenzeEckpunkte),
     [grenzeEckpunkte],
-  )
-
-  // Trennwand-Koordinaten (TrennwandContext) haben denselben Ursprung wie grenzeEckpunkte,
-  // aber ohne den zusätzlichen Fußleisten-Versatz — Trennwände dürfen bis an die Wand reichen.
-  // Ebenfalls aus dem echten Randpolygon abgeleitet statt als feste Bounding-Box, siehe
-  // grenzeEckpunkte oben.
-  const innenEckpunkte = useMemo(
-    () => versetztesPolygon(polygonPx, wandDicke).map(p => ({ x: p.x - wandDicke, y: p.y - wandDicke })),
-    [polygonPx, wandDicke],
   )
 
   // Strecke-in-Polygon-Prüfung für Trennwände (Schritt 6) — analog zu rechteckInPolygon oben.

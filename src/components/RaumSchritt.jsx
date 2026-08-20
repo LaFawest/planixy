@@ -1,5 +1,6 @@
 import { useRooms } from '../context/RoomsContext'
 import { useDesign } from '../context/DesignContext'
+import { polygonFlaeche } from '../raumPolygon'
 
 export default function RaumSchritt() {
   const { activeRoom, activeRoomId, updateRoom } = useRooms()
@@ -24,7 +25,7 @@ export default function RaumSchritt() {
           <input type="number" min="1.9" max="5" step="0.1" value={raumHoehe} onChange={e => setRaumHoehe(Number(e.target.value))}
             style={{ width: '48px', padding: '5px 6px', border: '1px solid #E8E6E0', borderRadius: '8px', fontSize: '12px', textAlign: 'center', outline: 'none', background: '#F7F6F2' }} />
           <span style={{ fontSize: '12px', color: '#888780' }}>m</span>
-          <span style={{ marginLeft: 'auto', background: '#EAF3DE', color: '#3B6D11', fontSize: '11px', padding: '3px 8px', borderRadius: '20px', fontWeight: '500' }}>{(activeRoom.breite || 6) * (activeRoom.tiefe || 5)} m²</span>
+          <span style={{ marginLeft: 'auto', background: '#EAF3DE', color: '#3B6D11', fontSize: '11px', padding: '3px 8px', borderRadius: '20px', fontWeight: '500' }}>{Math.round(polygonFlaeche(activeRoom.eckpunkte) * 10) / 10} m²</span>
         </div>
       </div>
     </>

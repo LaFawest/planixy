@@ -20,6 +20,77 @@ export function rechteckPolygon(breite, tiefe) {
   ]
 }
 
+// Erzeugt die Eckpunkte eines L-förmigen Raums: ein Rechteck B×T, aus dem an einer Ecke ein
+// Rechteck aussparungBreite×aussparungTiefe ausgespart ist. `ecke` bestimmt, welche Ecke fehlt.
+// Jeder Zweig verfolgt den Rand im Uhrzeigersinn um die Aussparung herum (dieselbe Orientierung
+// wie rechteckPolygon, Voraussetzung für wandSegmente()).
+export function lFormPolygon(breite, tiefe, aussparungBreite, aussparungTiefe, ecke) {
+  const b = breite, t = tiefe, nb = aussparungBreite, nt = aussparungTiefe
+  switch (ecke) {
+    case 'nordost':
+      return [{ x: 0, y: 0 }, { x: b - nb, y: 0 }, { x: b - nb, y: nt }, { x: b, y: nt }, { x: b, y: t }, { x: 0, y: t }]
+    case 'suedwest':
+      return [{ x: 0, y: 0 }, { x: b, y: 0 }, { x: b, y: t }, { x: nb, y: t }, { x: nb, y: t - nt }, { x: 0, y: t - nt }]
+    case 'nordwest':
+      return [{ x: 0, y: nt }, { x: nb, y: nt }, { x: nb, y: 0 }, { x: b, y: 0 }, { x: b, y: t }, { x: 0, y: t }]
+    case 'suedost':
+    default:
+      return [{ x: 0, y: 0 }, { x: b, y: 0 }, { x: b, y: t - nt }, { x: b - nb, y: t - nt }, { x: b - nb, y: t }, { x: 0, y: t }]
+  }
+}
+
+// Erzeugt die Eckpunkte eines U-förmigen Raums: ein Rechteck B×T, aus dessen einer Seite mittig
+// eine Aussparung aussparungBreite×aussparungTiefe herausgeschnitten ist. `seite` bestimmt,
+// welche Seite die Aussparung trägt. Analog zu lFormPolygon im Uhrzeigersinn aufgebaut.
+export function uFormPolygon(breite, tiefe, aussparungBreite, aussparungTiefe, seite) {
+  const b = breite, t = tiefe, nb = aussparungBreite, nt = aussparungTiefe
+  const bMin = (b - nb) / 2, bMax = (b + nb) / 2
+  const tMin = (t - nt) / 2, tMax = (t + nt) / 2
+  switch (seite) {
+    case 'sued':
+      return [
+        { x: 0, y: 0 }, { x: b, y: 0 }, { x: b, y: t },
+        { x: bMax, y: t }, { x: bMax, y: t - nt }, { x: bMin, y: t - nt }, { x: bMin, y: t }, { x: 0, y: t },
+      ]
+    case 'ost':
+      return [
+        { x: 0, y: 0 }, { x: b, y: 0 }, { x: b, y: tMin }, { x: b - nb, y: tMin },
+        { x: b - nb, y: tMax }, { x: b, y: tMax }, { x: b, y: t }, { x: 0, y: t },
+      ]
+    case 'west':
+      return [
+        { x: 0, y: 0 }, { x: b, y: 0 }, { x: b, y: t }, { x: 0, y: t }, { x: 0, y: tMax },
+        { x: nb, y: tMax }, { x: nb, y: tMin }, { x: 0, y: tMin },
+      ]
+    case 'nord':
+    default:
+      return [
+        { x: 0, y: 0 }, { x: bMin, y: 0 }, { x: bMin, y: nt }, { x: bMax, y: nt }, { x: bMax, y: 0 },
+        { x: b, y: 0 }, { x: b, y: t }, { x: 0, y: t },
+      ]
+  }
+}
+
+// Erzeugt die Eckpunkte für einen Raum anhand seiner Formfelder (raumForm, breite, tiefe,
+// aussparungBreite, aussparungTiefe, ausrichtung) — der zentrale Dispatcher, den updateRoom
+// (RoomsContext.jsx) bei jeder Formänderung aufruft. Für raumForm 'rechteck' (oder fehlend, zur
+// Rückwärtskompatibilität mit Räumen vor Schritt 9b) identisch zu rechteckPolygon(breite, tiefe).
+export function raumformPolygon(room) {
+  const breite = room.breite || 6
+  const tiefe = room.tiefe || 5
+  if (room.raumForm === 'l-form' || room.raumForm === 'u-form') {
+    const nb = room.aussparungBreite
+    const nt = room.aussparungTiefe
+    if (!(nb > 0) || !(nt > 0) || nb >= breite || nt >= tiefe) {
+      throw new Error('raumPolygon: Aussparung muss größer als 0 und kleiner als Breite/Tiefe sein')
+    }
+    return room.raumForm === 'l-form'
+      ? lFormPolygon(breite, tiefe, nb, nt, room.ausrichtung || 'nordost')
+      : uFormPolygon(breite, tiefe, nb, nt, room.ausrichtung || 'nord')
+  }
+  return rechteckPolygon(breite, tiefe)
+}
+
 // Validiert/bereinigt eine rohe Eckpunktliste zu einem gültigen Randpolygon:
 // mindestens 3 Punkte, keine doppelten/deckungsgleichen aufeinanderfolgenden Punkte.
 export function randpolygon(eckpunkte) {
@@ -70,6 +141,20 @@ export function innenmasse(eckpunkte, wandDicke) {
   }
 }
 
+// Fläche eines (auch konkaven) Polygons per Shoelace-Formel. Für ein Rechteck identisch zu
+// breite*tiefe — bei einer L-/U-Form dagegen (anders als breite*tiefe, was nur die
+// Bounding-Box-Fläche wäre) die tatsächliche Grundfläche abzüglich der Aussparung.
+export function polygonFlaeche(eckpunkte) {
+  const polygon = randpolygon(eckpunkte)
+  let summe = 0
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i]
+    const b = polygon[(i + 1) % polygon.length]
+    summe += a.x * b.y - b.x * a.y
+  }
+  return Math.abs(summe) / 2
+}
+
 // Schnittpunkt zweier unbegrenzter Geraden, je durch einen Punkt und einen Richtungsvektor
 // gegeben. null, wenn die Geraden parallel sind (kein eindeutiger Schnittpunkt).
 function linienSchnittpunkt(p0, d0, p1, d1) {
@@ -117,6 +202,23 @@ export function versetztesPolygon(eckpunkte, versatz) {
     }
   })
   return neuePunkte
+}
+
+// Liefert die beiden inneren Konturen, auf die Möbel/Fenster (grenzeEckpunkte, zusätzlich um die
+// Fußleiste versetzt) bzw. Trennwände (innenEckpunkte) beim Ziehen einrasten — aus dem äußeren
+// Randpolygon (in Pixeln, z.B. polygonPx aus useRaumGeometrie) über versetztesPolygon()
+// abgeleitet. Beide Konturen werden zusätzlich um wandDicke verschoben, weil ihr Ursprung (0,0)
+// im lokalen Koordinatensystem von canvasInnerRef liegt, das selbst schon um wandDicke nach
+// innen versetzt aus dem äußeren Rahmen (eckpunkte) hervorgeht — ohne diesen Shift wären beide
+// Konturen um wandDicke zu weit außen. Hook-freie Variante der Logik, die bisher direkt in
+// useRaumGeometrie.js stand, damit sie auch außerhalb von React-Komponenten aufrufbar ist (siehe
+// RoomsContext.jsx, Nachjustierung nach einer Formänderung, Schritt 9b-2).
+export function innenPolygone(eckpunkte, wandDicke, fussleisteBreite) {
+  const verschieben = (polygon) => polygon.map(p => ({ x: p.x - wandDicke, y: p.y - wandDicke }))
+  return {
+    innenEckpunkte: verschieben(versetztesPolygon(eckpunkte, wandDicke)),
+    grenzeEckpunkte: verschieben(versetztesPolygon(eckpunkte, wandDicke + fussleisteBreite)),
+  }
 }
 
 // Punkt-in-Polygon-Prüfung (Ray-Casting-Algorithmus). Punkt in denselben Koordinaten

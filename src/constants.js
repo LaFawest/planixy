@@ -167,7 +167,7 @@ export const WIZARD_SCHRITTE = [
 export const DEFAULT_WIZARD_SCHRITT = WIZARD_SCHRITTE[0].nummer
 
 export const initialRooms = [
-  { id: 1, name: 'Wohnzimmer',   breite: 6, tiefe: 5, furniture: [], eckpunkte: rechteckPolygon(6, 5), ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT },
-  { id: 2, name: 'Schlafzimmer', breite: 5, tiefe: 4, furniture: [], eckpunkte: rechteckPolygon(5, 4), ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT },
-  { id: 3, name: 'Küche',        breite: 4, tiefe: 3, furniture: [], eckpunkte: rechteckPolygon(4, 3), ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT },
+  { id: 1, name: 'Wohnzimmer',   raumForm: 'rechteck', breite: 6, tiefe: 5, furniture: [], eckpunkte: rechteckPolygon(6, 5), ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT },
+  { id: 2, name: 'Schlafzimmer', raumForm: 'rechteck', breite: 5, tiefe: 4, furniture: [], eckpunkte: rechteckPolygon(5, 4), ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT },
+  { id: 3, name: 'Küche',        raumForm: 'rechteck', breite: 4, tiefe: 3, furniture: [], eckpunkte: rechteckPolygon(4, 3), ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT },
 ]
