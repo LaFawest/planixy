@@ -3,12 +3,12 @@ import { useUI } from './UIContext'
 import { useProjekte } from './ProjectsContext'
 import { vergibRaumId } from './idZaehler'
 import {
-  rechteckPolygon, raumformPolygon, boundingBox, innenPolygone,
+  raumformPolygon, boundingBox, innenPolygone,
   rechteckInPolygon as istRechteckInPolygon,
   streckeInPolygon as istStreckeInPolygon,
   snappeWandElement, platziereAufWandSegment, naechsteFreieEcke,
 } from '../raumPolygon'
-import { DEFAULT_RAUM_DESIGN, DEFAULT_WIZARD_SCHRITT, WAND_DICKE_PX } from '../constants'
+import { DEFAULT_RAUM_DESIGN, WAND_DICKE_PX, erzeugeRaum } from '../constants'
 
 const RoomsContext = createContext(null)
 
@@ -148,7 +148,7 @@ export function RoomsProvider({ children }) {
 
   const addRoom = useCallback(() => {
     const raumId = vergibRaumId()
-    const newRoom = { id: raumId, name: `Raum ${raumId}`, raumForm: 'rechteck', breite: 5, tiefe: 4, furniture: [], eckpunkte: rechteckPolygon(5, 4), ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT }
+    const newRoom = erzeugeRaum({ id: raumId, name: `Raum ${raumId}` })
     const neueRaeume = [...(activeProject?.raeume || []), newRoom]
     updateProjekt(activeProjectId, { raeume: neueRaeume })
     setActiveRoomId(newRoom.id)

@@ -1,4 +1,4 @@
-import { rechteckPolygon } from './raumPolygon'
+import { raumformPolygon } from './raumPolygon'
 
 export const furnitureLibrary = [
   { name: 'Sofa 2-Sitzer',  kategorie: 'Wohnen',     width: 100, height: 52,  color: '#B5D4F4', border: '#378ADD' },
@@ -189,8 +189,47 @@ export const WIZARD_SCHRITTE = [
 ]
 export const DEFAULT_WIZARD_SCHRITT = WIZARD_SCHRITTE[0].nummer
 
+// Erlaubte Felder für erzeugeRaum() — id/name sind Pflicht (jeder Aufrufer muss sie explizit
+// mitgeben, dafür gibt es keinen sinnvollen Default), alles andere ist optional und bekommt
+// einen Default. Eine unbekannte Angabe (Tippfehler, ein Feld das erzeugeRaum nicht kennt) oder
+// eine fehlende Pflichtangabe wirft absichtlich einen Fehler, statt einen unvollständigen Raum
+// still durchzulassen — genau das war die Ursache des weiße-Seite-Fehlers: ein Aufrufer hatte
+// raumForm/eckpunkte vergessen, und niemand hat es bemerkt, bis die App beim Rendern abstürzte.
+const RAUM_PFLICHTFELDER = ['id', 'name']
+const RAUM_OPTIONALE_FELDER = [
+  'raumForm', 'breite', 'tiefe', 'aussparungBreite', 'aussparungTiefe', 'ausrichtung',
+  'eckpunkte', 'furniture', 'fussleiste', 'fussleisteFarbe', 'raumHoehe', 'wizardSchritt',
+]
+const RAUM_FELDER = new Set([...RAUM_PFLICHTFELDER, ...RAUM_OPTIONALE_FELDER])
+
+// Einzige Stelle, die einen vollständigen, neuen Raum erzeugt — genutzt von initialRooms hier,
+// RoomsContext.jsx (addRoom) und ProjekteListeContext.jsx (addProjekt). Defaults werden zuerst
+// gesetzt, `felder` überschreibt sie; eckpunkte wird zuletzt aus dem fertigen Raum berechnet
+// (raumformPolygon), außer der Aufrufer hat schon welche mitgegeben.
+export function erzeugeRaum(felder = {}) {
+  const unbekannt = Object.keys(felder).filter(feld => !RAUM_FELDER.has(feld))
+  if (unbekannt.length > 0) {
+    throw new Error(`erzeugeRaum: unbekannte Felder: ${unbekannt.join(', ')}`)
+  }
+  const fehlend = RAUM_PFLICHTFELDER.filter(feld => felder[feld] === undefined)
+  if (fehlend.length > 0) {
+    throw new Error(`erzeugeRaum: Pflichtfelder fehlen: ${fehlend.join(', ')}`)
+  }
+  const raum = {
+    raumForm: 'rechteck',
+    breite: 5,
+    tiefe: 4,
+    furniture: [],
+    ...DEFAULT_RAUM_DESIGN,
+    wizardSchritt: DEFAULT_WIZARD_SCHRITT,
+    ...felder,
+  }
+  raum.eckpunkte = raum.eckpunkte || raumformPolygon(raum)
+  return raum
+}
+
 export const initialRooms = [
-  { id: 1, name: 'Wohnzimmer',   raumForm: 'rechteck', breite: 6, tiefe: 5, furniture: [], eckpunkte: rechteckPolygon(6, 5), ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT },
-  { id: 2, name: 'Schlafzimmer', raumForm: 'rechteck', breite: 5, tiefe: 4, furniture: [], eckpunkte: rechteckPolygon(5, 4), ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT },
-  { id: 3, name: 'Küche',        raumForm: 'rechteck', breite: 4, tiefe: 3, furniture: [], eckpunkte: rechteckPolygon(4, 3), ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT },
+  erzeugeRaum({ id: 1, name: 'Wohnzimmer',   breite: 6, tiefe: 5 }),
+  erzeugeRaum({ id: 2, name: 'Schlafzimmer', breite: 5, tiefe: 4 }),
+  erzeugeRaum({ id: 3, name: 'Küche',        breite: 4, tiefe: 3 }),
 ]

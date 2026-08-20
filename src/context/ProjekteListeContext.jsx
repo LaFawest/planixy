@@ -2,8 +2,7 @@ import { createContext, useContext, useCallback, useEffect, useMemo, useState } 
 import { useNavigate } from 'react-router-dom'
 import { loadProjekte, saveProjekte } from './projekteStorage'
 import { vergibProjektId, vergibRaumId, vergibMoebelId, vergibWandId } from './idZaehler'
-import { DEFAULT_RAUM_DESIGN, DEFAULT_WIZARD_SCHRITT } from '../constants'
-import { rechteckPolygon } from '../raumPolygon'
+import { erzeugeRaum } from '../constants'
 
 const ProjekteListeContext = createContext(null)
 
@@ -24,7 +23,7 @@ export function ProjekteListeProvider({ children }) {
   const addProjekt = useCallback((name) => {
     const jetzt = new Date().toISOString()
     const raumId = vergibRaumId()
-    const standardRaum = { id: raumId, name: `Raum ${raumId}`, raumForm: 'rechteck', breite: 5, tiefe: 4, furniture: [], eckpunkte: rechteckPolygon(5, 4), ...DEFAULT_RAUM_DESIGN, wizardSchritt: DEFAULT_WIZARD_SCHRITT }
+    const standardRaum = erzeugeRaum({ id: raumId, name: `Raum ${raumId}` })
     const neues = { id: vergibProjektId(), name, erstelltAm: jetzt, geaendertAm: jetzt, raeume: [standardRaum] }
     setProjekte(prev => [...prev, neues])
     navigate(`/projekt/${neues.id}`)
