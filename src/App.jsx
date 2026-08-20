@@ -16,6 +16,7 @@ import SchrittLeiste from './components/SchrittLeiste'
 import MobileNav from './components/MobileNav'
 import Canvas2D from './components/Canvas2D'
 import PanelRechts from './components/PanelRechts'
+import ErrorBoundary from './components/ErrorBoundary'
 
 export default function App() {
   return (
@@ -33,21 +34,23 @@ export default function App() {
 
 function ProjektRoute() {
   return (
-    <ProjectsProvider>
-      <RoomsProvider>
-        <WizardProvider>
-          <DesignProvider>
-            <FurnitureProvider>
-              <TrennwandProvider>
-                <KatalogProvider>
-                  <AppContent />
-                </KatalogProvider>
-              </TrennwandProvider>
-            </FurnitureProvider>
-          </DesignProvider>
-        </WizardProvider>
-      </RoomsProvider>
-    </ProjectsProvider>
+    <ErrorBoundary>
+      <ProjectsProvider>
+        <RoomsProvider>
+          <WizardProvider>
+            <DesignProvider>
+              <FurnitureProvider>
+                <TrennwandProvider>
+                  <KatalogProvider>
+                    <AppContent />
+                  </KatalogProvider>
+                </TrennwandProvider>
+              </FurnitureProvider>
+            </DesignProvider>
+          </WizardProvider>
+        </RoomsProvider>
+      </ProjectsProvider>
+    </ErrorBoundary>
   )
 }
 
