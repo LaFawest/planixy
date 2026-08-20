@@ -123,9 +123,16 @@ export default function RoomView3D() {
     boden.receiveShadow = true
     scene.add(boden)
 
+    // Dieselbe Rotation wie boden, nicht ihr Gegenstück (+90°): eine Drehung um die X-Achse
+    // spiegelt bei entgegengesetztem Vorzeichen zusätzlich die Z-Koordinate der Kontur (bei
+    // -90° wird Punkt.y zu +Z, bei +90° zu -Z) — für ein zum Mittelpunkt symmetrisches Rechteck
+    // unsichtbar, bei einer L-/U-Form landet die Decke dadurch spiegelverkehrt über der
+    // Aussparung statt über der echten Bodenfläche. decke braucht die entgegengesetzte
+    // Blickrichtung nicht durch eine eigene Rotation, weil ihr Material bereits DoubleSide ist —
+    // Three.js beleuchtet die von unten sichtbare Rückseite dann automatisch korrekt.
     const deckeMat = new THREE.MeshStandardMaterial({ color: '#F0EDE8', roughness: 0.95, metalness: 0.0, side: THREE.DoubleSide, transparent: true, opacity: 1 })
     const decke = new THREE.Mesh(flaechenGeo, deckeMat)
-    decke.rotation.x = Math.PI / 2
+    decke.rotation.x = -Math.PI / 2
     decke.position.y = wandHoehe
     scene.add(decke)
 
