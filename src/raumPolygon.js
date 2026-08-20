@@ -278,6 +278,21 @@ export function rechteckInPolygon(links, oben, breite, hoehe, eckpunkte) {
     rechteckKanten.some(([a, b]) => segmenteKreuzenSich(a, b, segment.start, segment.ende)))
 }
 
+// Sucht eine gültige Position für ein Möbelstück (Breite/Höhe in Pixel) nahe einer der Ecken des
+// Randpolygons — Fallback, wenn eine Kandidatposition weder direkt noch nach einer einfachen
+// Bounding-Box-Klemmung gültig ist. Das kann bei einer konkaven Form (Aussparung) passieren: eine
+// Position kann innerhalb der äußeren Bounding-Box liegen und trotzdem in der Aussparung selbst,
+// wo eine reine Min/Max-Klemmung nichts ausrichtet. null, wenn keine Ecke passt (z.B. Möbelstück
+// größer als jede Nische) — der Aufrufer muss dann selbst entscheiden, was er stattdessen tut.
+export function naechsteFreieEcke(breite, hoehe, eckpunkte, grenzStart, grenzB, grenzT) {
+  const polygon = randpolygon(eckpunkte)
+  const klemmeX = (x) => Math.max(grenzStart, Math.min(grenzStart + grenzB - breite, x))
+  const klemmeY = (y) => Math.max(grenzStart, Math.min(grenzStart + grenzT - hoehe, y))
+  return polygon
+    .map(p => ({ left: klemmeX(p.x - breite / 2), top: klemmeY(p.y - hoehe / 2) }))
+    .find(({ left, top }) => rechteckInPolygon(left, top, breite, hoehe, polygon)) || null
+}
+
 // Prüft, ob eine Strecke a–b (z.B. eine Trennwand) vollständig im Polygon liegt: beide
 // Endpunkte müssen im Polygon liegen UND keine Wandkante darf die Strecke echt kreuzen —
 // sonst bliebe eine Strecke quer über eine Nische (U-Form) unentdeckt, obwohl beide

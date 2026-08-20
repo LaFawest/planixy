@@ -6,19 +6,25 @@ import {
   rechteckPolygon, raumformPolygon, boundingBox, innenPolygone,
   rechteckInPolygon as istRechteckInPolygon,
   streckeInPolygon as istStreckeInPolygon,
-  snappeWandElement, platziereAufWandSegment,
+  snappeWandElement, platziereAufWandSegment, naechsteFreieEcke,
 } from '../raumPolygon'
 import { DEFAULT_RAUM_DESIGN, DEFAULT_WIZARD_SCHRITT, WAND_DICKE_PX } from '../constants'
 
 const RoomsContext = createContext(null)
 
+// Felder, die eckpunkte beeinflussen — bei jeder Änderung an einem davon muss eckpunkte über
+// raumformPolygon() neu erzeugt werden, damit es nicht mit dem Rest der Formfelder auseinanderläuft.
+const FORM_FELDER = ['breite', 'tiefe', 'raumForm', 'aussparungBreite', 'aussparungTiefe', 'ausrichtung']
+
 // Klemmt ein Möbelstück in die neue Innenfläche (grenzeEckpunkte), wenn es nach einer
 // Formänderung nicht mehr vollständig hineinpasst — dieselbe Bounding-Box-Klemmung wie beim
-// Ziehen (FurnitureContext.jsx), nur einmalig statt interaktiv. Reicht für jedes Rechteck
-// vollständig aus; bei einer Aussparung (L-/U-Form, Schritt 9b-3) kann ein Möbelstück, dessen
-// alte Position jetzt in der Nische liegt, trotz Klemmung ungültig bleiben — dann bleibt es
-// unverändert stehen, statt an eine geratene Position zu springen. Wird beim Testen von 9b-3
-// vertieft.
+// Ziehen (FurnitureContext.jsx), nur einmalig statt interaktiv; reicht für jedes Rechteck
+// vollständig aus. Bei einer Aussparung (L-/U-Form) kann eine Position innerhalb der äußeren
+// Bounding-Box trotzdem in der Aussparung selbst liegen, wo die Klemmung nichts ausrichtet —
+// dort greift als Fallback naechsteFreieEcke (raumPolygon.js, dieselbe Funktion, die auch
+// addFurniture in FurnitureContext.jsx für neu hinzugefügte Möbelstücke benutzt). Nur wenn
+// selbst das keinen Platz findet (Möbelstück größer als jede Nische), bleibt das Stück
+// unverändert stehen, statt an eine geratene Position zu springen.
 function moebelReparieren(item, grenzeEckpunkte, grenzStart, grenzB, grenzT) {
   const w = item.origWidth || item.width
   const h = item.origHeight || item.height
@@ -29,7 +35,9 @@ function moebelReparieren(item, grenzeEckpunkte, grenzStart, grenzB, grenzT) {
   if (istRechteckInPolygon(item.left, item.top, boundW, boundH, grenzeEckpunkte)) return item
   const left = Math.max(grenzStart, Math.min(grenzStart + grenzB - boundW, item.left))
   const top = Math.max(grenzStart, Math.min(grenzStart + grenzT - boundH, item.top))
-  return istRechteckInPolygon(left, top, boundW, boundH, grenzeEckpunkte) ? { ...item, left, top } : item
+  if (istRechteckInPolygon(left, top, boundW, boundH, grenzeEckpunkte)) return { ...item, left, top }
+  const ecke = naechsteFreieEcke(boundW, boundH, grenzeEckpunkte, grenzStart, grenzB, grenzT)
+  return ecke ? { ...item, left: ecke.left, top: ecke.top } : item
 }
 
 // Hält ein Fenster/Tür-Element nach Möglichkeit auf seinem bisherigen Wandsegment
@@ -81,7 +89,7 @@ export function RoomsProvider({ children }) {
       // raumForm/breite/tiefe/aussparungBreite/aussparungTiefe/ausrichtung sind die Quelle der
       // Wahrheit für die Raumform — eckpunkte muss bei jeder Änderung mitgezogen werden, damit
       // beide nicht auseinanderlaufen, sobald ein Verbraucher eckpunkte liest.
-      if (['breite', 'tiefe', 'raumForm', 'aussparungBreite', 'aussparungTiefe', 'ausrichtung'].some(feld => feld in changes)) {
+      if (FORM_FELDER.some(feld => feld in changes)) {
         aktualisiert.eckpunkte = raumformPolygon(aktualisiert)
       }
       return aktualisiert
@@ -100,9 +108,22 @@ export function RoomsProvider({ children }) {
   // größer ist. Rechnet dieselbe Geometrie wie useRaumGeometrie.js, aber hook-frei (RoomsContext
   // kann useRaumGeometrie nicht aufrufen, das würde useDesign voraussetzen, das seinerseits auf
   // RoomsContext aufbaut).
-  const nachjustiereRaum = useCallback((id) => {
-    const neueRaeume = (activeProject?.raeume || []).map(raum => {
-      if (raum.id !== id) return raum
+  //
+  // `changes` (optional) wird VOR der Neuberechnung angewandt, im selben Durchlauf wie eckpunkte
+  // und die Reparatur — das ist für die Formauswahl/Ausrichtungs-Kacheln (Schritt 9b-3) nötig:
+  // ein Klick dort ändert raumForm/ausrichtung UND soll sofort nachjustieren, aber zwei getrennte
+  // Aufrufe (erst updateRoom, dann nachjustiereRaum) würden auf demselben veralteten activeProject
+  // arbeiten, solange React dazwischen nicht neu gerendert hat — nachjustiereRaum sähe dann noch
+  // die alte Form. Bei Breite/Tiefe bleibt es dagegen bei zwei Schritten (siehe RaumSchritt.jsx):
+  // die einzelnen Tastendrücke laufen weiter über updateRoom (live, ohne Reparatur), erst der
+  // abschließende Blur ruft nachjustiereRaum ohne changes auf.
+  const nachjustiereRaum = useCallback((id, changes = {}) => {
+    const neueRaeume = (activeProject?.raeume || []).map(raumOhneAenderung => {
+      if (raumOhneAenderung.id !== id) return raumOhneAenderung
+      const raum = { ...raumOhneAenderung, ...changes }
+      if (FORM_FELDER.some(feld => feld in changes)) {
+        raum.eckpunkte = raumformPolygon(raum)
+      }
 
       const polygonPx = raum.eckpunkte.map(p => ({ x: p.x * 60, y: p.y * 60 }))
       const box = boundingBox(polygonPx)

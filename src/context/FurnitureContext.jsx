@@ -2,7 +2,7 @@ import { createContext, useContext, useCallback, useMemo, useState } from 'react
 import { useRooms } from './RoomsContext'
 import { useRaumGeometrie } from './useRaumGeometrie'
 import { vergibMoebelId } from './idZaehler'
-import { snappeWandElement } from '../raumPolygon'
+import { snappeWandElement, naechsteFreieEcke } from '../raumPolygon'
 
 const FurnitureContext = createContext(null)
 
@@ -28,28 +28,48 @@ export function FurnitureProvider({ children }) {
     updateRoom(activeRoomId, { furniture: newFurniture })
   }, [updateRoom, activeRoomId])
 
+  // Zufällige Position in der oberen linken Raumecke (wie bisher) — bei einem Rechteck immer
+  // gültig, landet beim ersten Versuch. Bei einer L-/U-Form kann genau diese Ecke aber die
+  // Aussparung sein: ein paar weitere Zufallsversuche in derselben kleinen Ecke helfen dann
+  // nichts (sie liegen alle im selben ungültigen Bereich). Als letztes Mittel greift
+  // naechsteFreieEcke (raumPolygon.js) — eine reine Bounding-Box-Klemmung würde hier nicht
+  // reichen, eine Position kann innerhalb der Bounding-Box liegen und trotzdem in der
+  // (konkaven) Aussparung.
   const addFurniture = useCallback((item) => {
+    let left, top
+    let versuch = 0
+    do {
+      left = 20 + Math.random() * 100
+      top = 20 + Math.random() * 100
+      versuch++
+    } while (!rechteckInPolygon(left, top, item.width, item.height) && versuch < 12)
+    if (!rechteckInPolygon(left, top, item.width, item.height)) {
+      const ecke = naechsteFreieEcke(item.width, item.height, grenzeEckpunkte, grenzStart, grenzB, grenzT)
+      if (ecke) { left = ecke.left; top = ecke.top }
+    }
     updateFurniture([...(activeRoom?.furniture || []), {
       ...item, id: vergibMoebelId(),
-      top: 20 + Math.random() * 100,
-      left: 20 + Math.random() * 100,
+      top, left,
       rotation: 0,
       origWidth: item.width,
       origHeight: item.height,
     }])
-  }, [updateFurniture, activeRoom])
+  }, [updateFurniture, activeRoom, grenzB, grenzT, grenzStart, grenzeEckpunkte, rechteckInPolygon])
 
+  // Startpunkt oben, zufällig versetzt (wie bisher bei Rechtecken), aber über snappeWandElement
+  // auf das tatsächlich nächstgelegene Segment gesnappt statt Segment 0 hart zu unterstellen —
+  // bei einer L-/U-Form ist Segment 0 nicht zwangsläufig die durchgehende Nordwand, sondern kann
+  // eine kurze Innenwand der Aussparung sein, auf die weder die feste Wandsegment-Zuordnung noch
+  // die auf grenzB bezogene left-Klemmung gepasst hätten.
   const addWandElement = useCallback((item) => {
-    const left = Math.max(grenzStart, Math.min(grenzStart + grenzB - item.width, grenzStart + 20 + Math.random() * 100))
+    const cx = grenzStart + 20 + Math.random() * 100
+    const cy = grenzStart
+    const { left, top, wandSegment, wandPosition, rotation } = snappeWandElement(cx, cy, item.width, item.height, grenzeEckpunkte)
     updateFurniture([...(activeRoom?.furniture || []), {
       ...item, id: vergibMoebelId(),
-      top: grenzStart, left,
-      rotation: 0, istWandElement: true,
-      // Segment 0 = Nordwand (siehe HIMMELSRICHTUNG_JE_SEGMENT). Position = Abstand vom
-      // Segmentanfang (0,0) in Metern — für die Nordwand deckungsgleich mit left/60.
-      wandSegment: 0, wandPosition: left / 60,
+      left, top, rotation, istWandElement: true, wandSegment, wandPosition,
     }])
-  }, [updateFurniture, activeRoom, grenzB, grenzStart])
+  }, [updateFurniture, activeRoom, grenzeEckpunkte, grenzStart])
 
   const removeFurniture = useCallback((id) => {
     updateFurniture((activeRoom?.furniture || []).filter(f => f.id !== id))

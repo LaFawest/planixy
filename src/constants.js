@@ -147,6 +147,29 @@ export const HIMMELSRICHTUNG_JE_SEGMENT = ['nord', 'ost', 'sued', 'west']
 // Dicke der Außenwände in Pixel (bei 60px/m) — Basis für die nutzbare Innenfläche eines Raums
 export const WAND_DICKE_PX = 8
 
+export const RAUM_FORMEN = [
+  { id: 'rechteck', name: 'Rechteck' },
+  { id: 'l-form',   name: 'L-Form' },
+  { id: 'u-form',   name: 'U-Form' },
+]
+
+// Reihenfolge bewusst so gewählt, dass ein 2-Spalten-Raster wie ein Kompass liest:
+// Nordwest/Nordost oben, Südwest/Südost unten.
+export const L_FORM_ECKEN = [
+  { id: 'nordwest', name: 'Nordwest' }, { id: 'nordost', name: 'Nordost' },
+  { id: 'suedwest', name: 'Südwest' },  { id: 'suedost', name: 'Südost' },
+]
+export const U_FORM_SEITEN = [
+  { id: 'nord', name: 'Nord' }, { id: 'ost',  name: 'Ost' },
+  { id: 'sued', name: 'Süd' },  { id: 'west', name: 'West' },
+]
+
+// Mindest-Schenkelbreite (Meter), auf die die Aussparungsfelder im Raum-Schritt eine L-/U-Form
+// klemmen — deutlich oberhalb der harten geometrischen Kollaps-Schwelle aus versetztesPolygon()
+// (≈0,53 m bei Standard-Wanddicke+Fußleiste), damit deren Fehler über die UI praktisch nie
+// erreichbar ist, aber als Sicherheitsnetz bestehen bleibt.
+export const MIN_RAUM_SCHENKEL_M = 1
+
 export function berechneInnenmasse(raumBreite, raumTiefe) {
   const innenBpx = raumBreite * 60 - WAND_DICKE_PX * 2
   const innenTpx = raumTiefe  * 60 - WAND_DICKE_PX * 2
