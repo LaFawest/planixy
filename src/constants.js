@@ -180,11 +180,13 @@ export const DEFAULT_RAUM_DESIGN = { fussleiste: true, fussleisteFarbe: '#E0DDD8
 
 // Schrittleiste des Editor-Wizards. `bald: true` markiert einen Schritt als noch nicht
 // funktionsfähig — er bleibt trotzdem anklickbar (kein Zwang zur Reihenfolge).
+// `hinweis` steht nur bei Schritten ohne Katalog (siehe KatalogContext.jsx) und wird dort statt
+// des Möbelrasters angezeigt.
 export const WIZARD_SCHRITTE = [
-  { nummer: 1, label: 'Raum' },
-  { nummer: 2, label: 'Farben & Boden' },
+  { nummer: 1, label: 'Raum', hinweis: 'Hier legst du Form und Maße deines Raums fest.' },
+  { nummer: 2, label: 'Farben & Boden', hinweis: 'Hier wählst du Wandfarbe und Bodenbelag für den Raum.' },
   { nummer: 3, label: 'Fenster & Türen' },
-  { nummer: 4, label: 'Licht', bald: true },
+  { nummer: 4, label: 'Licht', bald: true, hinweis: 'Beleuchtung ist noch nicht verfügbar und folgt in einer späteren Phase.' },
   { nummer: 5, label: 'Möbel & Deko' },
 ]
 export const DEFAULT_WIZARD_SCHRITT = WIZARD_SCHRITTE[0].nummer
