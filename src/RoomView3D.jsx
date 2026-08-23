@@ -59,7 +59,7 @@ export default function RoomView3D() {
     scene.environment = erzeugeUmgebungsTextur()
 
     // === BELEUCHTUNG ===
-    baueBeleuchtung(scene, raumBreite, raumTiefe, wandHoehe)
+    baueBeleuchtung(scene, eckpunkte, mitteX, mitteZ, raumBreite, raumTiefe, wandHoehe)
 
     // === BODEN & DECKE (aus dem Randpolygon, statt fester Rechteck-Ebenen) ===
     // THREE.Shape mit ShapeGeometry statt ExtrudeGeometry: Boden/Decke bleiben masselose

@@ -312,6 +312,50 @@ export function distanzPunktZuStrecke(punkt, a, b) {
   return Math.hypot(punkt.x - (a.x + t * dx), punkt.y - (a.y + t * dy))
 }
 
+// Flächen-gewichteter Schwerpunkt (Centroid) eines Polygons per Shoelace-Formel — für ein
+// Rechteck identisch zum einfachen Eckpunkt-Mittelwert, bei einer L-/U-Form (Schritt 9b) aber
+// zur tatsächlichen Fläche hin verschoben statt zur (ggf. in der Aussparung liegenden)
+// Bounding-Box-Mitte. Nicht für jede denkbare konkave Form garantiert innerhalb der Fläche
+// (siehe punktSicherImPolygon für den abgesicherten Fall).
+export function polygonZentroid(eckpunkte) {
+  const polygon = randpolygon(eckpunkte)
+  let flaecheSumme = 0, cx = 0, cy = 0
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i]
+    const b = polygon[(i + 1) % polygon.length]
+    const kreuz = a.x * b.y - b.x * a.y
+    flaecheSumme += kreuz
+    cx += (a.x + b.x) * kreuz
+    cy += (a.y + b.y) * kreuz
+  }
+  const flaeche = flaecheSumme / 2
+  if (Math.abs(flaeche) < 1e-9) return { x: polygon[0].x, y: polygon[0].y }
+  return { x: cx / (6 * flaeche), y: cy / (6 * flaeche) }
+}
+
+// Liefert einen Punkt, der garantiert innerhalb des Randpolygons liegt — für Default-Platzierungen
+// ohne Bezug zu einem echten, bereits polygon-geprüften Möbelstück (z.B. die feste Deckenleuchte,
+// solange keine Lampe im Raum steht). Der Flächenschwerpunkt reicht für die allermeisten Formen,
+// kann bei einer L-/U-Form mit besonders großer/versetzter Aussparung aber knapp außerhalb der
+// Fläche (in der Aussparung) landen — dann auf die nächstgelegene Kante projiziert und ein Stück
+// nach innen versetzt (`versatzNachInnen`), statt weiterhin außerhalb des Raums zu hängen.
+export function punktSicherImPolygon(eckpunkte, versatzNachInnen = 0.3) {
+  const polygon = randpolygon(eckpunkte)
+  const zentroid = polygonZentroid(polygon)
+  if (punktInPolygon(zentroid, polygon)) return zentroid
+  const segment = naechsteKante(zentroid, polygon)
+  const dx = segment.ende.x - segment.start.x
+  const dy = segment.ende.y - segment.start.y
+  const laengeQuadrat = dx * dx + dy * dy
+  const t = laengeQuadrat === 0 ? 0 : Math.max(0, Math.min(1,
+    ((zentroid.x - segment.start.x) * dx + (zentroid.y - segment.start.y) * dy) / laengeQuadrat))
+  const lotfusspunkt = { x: segment.start.x + t * dx, y: segment.start.y + t * dy }
+  return {
+    x: lotfusspunkt.x - segment.normale.x * versatzNachInnen,
+    y: lotfusspunkt.y - segment.normale.y * versatzNachInnen,
+  }
+}
+
 // Leitet aus der nach außen zeigenden Normale eines Wandsegments eine grobe Himmelsrichtung
 // ab (die betragsmäßig größere Achse entscheidet) — funktioniert für jede Segment-Ausrichtung,
 // nicht nur für die vier achsparallelen Wände eines Rechtecks. Für ein Rechteck ergibt das
