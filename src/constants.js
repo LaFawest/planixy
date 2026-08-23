@@ -55,8 +55,8 @@ export const furnitureLibrary = [
   { name: 'Bidet',          kategorie: 'Badezimmer', width: 36,  height: 48,  color: '#f0f0f0', border: '#B4B2A9' },
   { name: 'Pflanze',        kategorie: 'Deko',       width: 30,  height: 30,  color: '#C0DD97', border: '#3B6D11' },
   { name: 'Großpflanze',    kategorie: 'Deko',       width: 44,  height: 44,  color: '#C0DD97', border: '#3B6D11' },
-  { name: 'Lampe',          kategorie: 'Deko',       width: 32,  height: 32,  color: '#FAC775', border: '#BA7517' },
-  { name: 'Stehlampe',      kategorie: 'Deko',       width: 20,  height: 20,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Lampe',          kategorie: 'Licht',      width: 32,  height: 32,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Stehlampe',      kategorie: 'Licht',      width: 20,  height: 20,  color: '#FAC775', border: '#BA7517' },
   { name: 'Teppich klein',  kategorie: 'Deko',       width: 80,  height: 60,  color: '#F4C0D1', border: '#993556' },
   { name: 'Teppich groß',   kategorie: 'Deko',       width: 140, height: 100, color: '#F4C0D1', border: '#993556' },
   { name: 'Bild',           kategorie: 'Deko',       width: 40,  height: 30,  color: '#E1D4F4', border: '#7F77DD' },
@@ -69,11 +69,11 @@ export const furnitureLibrary = [
   { name: 'Skulptur',       kategorie: 'Deko',       width: 25,  height: 25,  color: '#D3D1C7', border: '#5F5E5A' },
   { name: 'Kaktus',         kategorie: 'Deko',       width: 22,  height: 22,  color: '#C0DD97', border: '#3B6D11' },
   { name: 'Lichterkette',   kategorie: 'Deko',       width: 40,  height: 10,  color: '#FAC775', border: '#BA7517' },
-  { name: 'Deckenlampe',    kategorie: 'Deko',       width: 35,  height: 35,  color: '#FAC775', border: '#BA7517' },
-  { name: 'Pendelleuchte',  kategorie: 'Deko',       width: 25,  height: 25,  color: '#FAC775', border: '#BA7517' },
-  { name: 'Wandleuchte',    kategorie: 'Deko',       width: 20,  height: 10,  color: '#FAC775', border: '#BA7517' },
-  { name: 'Kronleuchter',   kategorie: 'Deko',       width: 45,  height: 45,  color: '#FAC775', border: '#BA7517' },
-  { name: 'Tischlampe',     kategorie: 'Deko',       width: 18,  height: 18,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Deckenlampe',    kategorie: 'Licht',      width: 35,  height: 35,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Pendelleuchte',  kategorie: 'Licht',      width: 25,  height: 25,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Wandleuchte',    kategorie: 'Licht',      width: 20,  height: 10,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Kronleuchter',   kategorie: 'Licht',      width: 45,  height: 45,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Tischlampe',     kategorie: 'Licht',      width: 18,  height: 18,  color: '#FAC775', border: '#BA7517' },
   { name: 'Lautsprecher',   kategorie: 'Elektrogeräte', width: 20, height: 20, color: '#E8E6E0', border: '#444441' },
   { name: 'Spielekonsole',  kategorie: 'Elektrogeräte', width: 34, height: 24, color: '#E8E6E0', border: '#444441' },
   { name: 'Laptop',         kategorie: 'Elektrogeräte', width: 34, height: 24, color: '#E8E6E0', border: '#444441' },
@@ -84,7 +84,7 @@ export const furnitureLibrary = [
   { name: 'Ventilator',     kategorie: 'Elektrogeräte', width: 24, height: 24, color: '#E8E6E0', border: '#444441' },
 ]
 
-export const kategorien = ['Alle', 'Wohnen', 'Schlafen', 'Büro', 'Küche', 'Badezimmer', 'Deko', 'Elektrogeräte', 'Fenster & Türen']
+export const kategorien = ['Alle', 'Wohnen', 'Schlafen', 'Büro', 'Küche', 'Badezimmer', 'Deko', 'Licht', 'Elektrogeräte', 'Fenster & Türen']
 export const kategorieFarben = {
   'Wohnen':          { bg: '#E6F1FB', color: '#185FA5' },
   'Schlafen':        { bg: '#FAECE7', color: '#993C1D' },
@@ -92,6 +92,7 @@ export const kategorieFarben = {
   'Küche':           { bg: '#EAF3DE', color: '#3B6D11' },
   'Badezimmer':      { bg: '#E1F5EE', color: '#0F6E56' },
   'Deko':            { bg: '#FBEAF0', color: '#993556' },
+  'Licht':           { bg: '#FDF3E0', color: '#BA7517' },
   'Elektrogeräte':   { bg: '#EAEAEA', color: '#444441' },
   'Fenster & Türen': { bg: '#E6F1FB', color: '#185FA5' },
 }
@@ -186,7 +187,7 @@ export const WIZARD_SCHRITTE = [
   { nummer: 1, label: 'Raum', hinweis: 'Hier legst du Form und Maße deines Raums fest.' },
   { nummer: 2, label: 'Farben & Boden', hinweis: 'Hier wählst du Wandfarbe und Bodenbelag für den Raum.' },
   { nummer: 3, label: 'Fenster & Türen' },
-  { nummer: 4, label: 'Licht', bald: true, hinweis: 'Beleuchtung ist noch nicht verfügbar und folgt in einer späteren Phase.' },
+  { nummer: 4, label: 'Licht' },
   { nummer: 5, label: 'Möbel & Deko' },
 ]
 export const DEFAULT_WIZARD_SCHRITT = WIZARD_SCHRITTE[0].nummer

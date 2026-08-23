@@ -1,9 +1,15 @@
+import { useFurniture } from '../context/FurnitureContext'
+import ImRaumListe from './ImRaumListe'
+
 export default function LichtSchritt() {
+  const { furniture, removeFurniture } = useFurniture()
+  const leuchten = furniture.filter(f => f.kategorie === 'Licht')
   return (
-    <div style={{ textAlign: 'center', padding: '32px 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-      <span style={{ fontSize: '28px' }}>💡</span>
-      <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '15px', fontWeight: '500', color: '#2C2C2A' }}>Licht kommt bald</p>
-      <p style={{ fontSize: '12px', color: '#888780', lineHeight: 1.5 }}>Dieser Schritt hat noch keine Funktion — schau später wieder vorbei.</p>
-    </div>
+    <ImRaumListe
+      titel="LEUCHTEN"
+      items={leuchten}
+      removeFurniture={removeFurniture}
+      leerText="Noch keine Leuchten — links im Katalog auswählen"
+    />
   )
 }

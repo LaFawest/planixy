@@ -3,7 +3,7 @@ import ImRaumListe from './ImRaumListe'
 
 export default function MoebelDekoSchritt() {
   const { furniture, removeFurniture } = useFurniture()
-  const moebelUndDeko = furniture.filter(f => !f.istWandElement)
+  const moebelUndDeko = furniture.filter(f => !f.istWandElement && f.kategorie !== 'Licht')
   return (
     <ImRaumListe
       titel="MÖBEL & DEKO"
