@@ -135,6 +135,15 @@ export const wandFarben = [
   { name: 'Karamell',   farbe: '#C68B4F' }, { name: 'Graphit',    farbe: '#3A3A38' },
   { name: 'Türkis',     farbe: '#4FB8B0' }, { name: 'Zartgrün',   farbe: '#D4E8C4' },
 ]
+// Farbtemperatur-Vorauswahl für Leuchten (Schritt 4) — als fertige Hex-Farbe statt Kelvin-Wert
+// gespeichert, direkt als PointLight-/Emissive-Farbe in moebel.js verwendbar. '#fff0c8'
+// (Warmweiß) ist der Default für Leuchten ohne eigene Auswahl, siehe baueMoebel().
+export const FARBTEMPERATUREN = [
+  { name: 'Warmweiß', farbe: '#fff0c8' },
+  { name: 'Neutralweiß', farbe: '#fff8ec' },
+  { name: 'Kaltweiß', farbe: '#e8f0ff' },
+]
+
 export const HIMMELSRICHTUNG_NAME = { nord: 'Nord', ost: 'Ost', sued: 'Süd', west: 'West' }
 
 // Rechteck-spezifische Übersetzung Segmentindex -> Himmelsrichtung (0 = nord, 1 = ost,
