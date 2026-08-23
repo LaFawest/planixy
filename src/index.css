@@ -250,3 +250,18 @@ input[type=number]::-webkit-outer-spin-button { opacity: 1; }
     display: block !important;
   }
 }
+
+/* Licht-Schritt: Entfernen-Knopf je Leuchte bekommt die 44px-Antippfläche nur unterhalb der
+   Mobile-Bruchstelle (Finger brauchen sie, eine Maus trifft auch das kleine ✕ wie die anderen
+   Entfernen-Icons im Rest der App) — sonst schneidet die schmale Desktop-Sidebar (220px) lange
+   Leuchtennamen wie "Deckenlampe" ab. */
+.licht-entfernen-knopf {
+  width: auto;
+  height: auto;
+}
+@media (max-width: 680px) {
+  .licht-entfernen-knopf {
+    width: 44px;
+    height: 44px;
+  }
+}

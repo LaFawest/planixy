@@ -53,8 +53,11 @@ export default function LichtSchritt() {
                     <div style={{ width: '10px', height: '10px', background: item.color, border: `1px solid ${item.border}`, borderRadius: '3px', flexShrink: 0 }}></div>
                     <span title={item.name} style={{ fontSize: '12px', color: '#444441', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
                   </div>
-                  {/* 44×44px Antippflächen für Schalter/Löschen, wie schon bei der mobilen Schrittleiste — der
-                      sichtbare Regler bleibt klein, nur die klickbare/tippbare Fläche drumherum wächst. */}
+                  {/* 44×44px Antippflächen wie bei der mobilen Schrittleiste — der sichtbare Regler bleibt
+                      klein, nur die klickbare/tippbare Fläche drumherum wächst. Für den Entfernen-Knopf nur
+                      unterhalb der 680px-Bruchstelle (.licht-entfernen-knopf in index.css): am Desktop reicht
+                      dort die kleine, mausgerechte Fläche wie bei den anderen ✕-Icons im Rest der App — sonst
+                      schneidet die schmale Sidebar lange Leuchtennamen ab. */}
                   <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                     <button onClick={() => setLichtAn(item.id, !an)} aria-label={`${item.name} ${an ? 'ausschalten' : 'einschalten'}`} style={{
                       width: '44px', height: '44px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -71,8 +74,8 @@ export default function LichtSchritt() {
                         }}></span>
                       </span>
                     </button>
-                    <button onClick={() => removeFurniture(item.id)} aria-label={`${item.name} entfernen`} style={{
-                      width: '44px', height: '44px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    <button onClick={() => removeFurniture(item.id)} aria-label={`${item.name} entfernen`} className="licht-entfernen-knopf" style={{
+                      flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
                       background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: '#D3D1C7', fontSize: '13px',
                     }}
                       onMouseEnter={e => e.currentTarget.style.color = '#E24B4A'}
