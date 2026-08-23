@@ -177,7 +177,8 @@ export function berechneInnenmasse(raumBreite, raumTiefe) {
   return { innenBpx, innenTpx }
 }
 
-export const DEFAULT_RAUM_DESIGN = { fussleiste: true, fussleisteFarbe: '#E0DDD8', raumHoehe: 2.5 }
+// tageszeit in Stunden (0–24), Default Mittag — siehe tageslichtWerte() in scene/beleuchtung.js
+export const DEFAULT_RAUM_DESIGN = { fussleiste: true, fussleisteFarbe: '#E0DDD8', raumHoehe: 2.5, tageszeit: 12 }
 
 // Schrittleiste des Editor-Wizards. `bald: true` markiert einen Schritt als noch nicht
 // funktionsfähig — er bleibt trotzdem anklickbar (kein Zwang zur Reihenfolge).
@@ -201,7 +202,7 @@ export const DEFAULT_WIZARD_SCHRITT = WIZARD_SCHRITTE[0].nummer
 const RAUM_PFLICHTFELDER = ['id', 'name']
 const RAUM_OPTIONALE_FELDER = [
   'raumForm', 'breite', 'tiefe', 'aussparungBreite', 'aussparungTiefe', 'ausrichtung',
-  'eckpunkte', 'furniture', 'fussleiste', 'fussleisteFarbe', 'raumHoehe', 'wizardSchritt',
+  'eckpunkte', 'furniture', 'fussleiste', 'fussleisteFarbe', 'raumHoehe', 'tageszeit', 'wizardSchritt',
 ]
 const RAUM_FELDER = new Set([...RAUM_PFLICHTFELDER, ...RAUM_OPTIONALE_FELDER])
 

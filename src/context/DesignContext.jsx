@@ -14,10 +14,12 @@ export function DesignProvider({ children }) {
   const fussleiste = activeRoom?.fussleiste ?? DEFAULT_RAUM_DESIGN.fussleiste
   const fussleisteFarbe = activeRoom?.fussleisteFarbe ?? DEFAULT_RAUM_DESIGN.fussleisteFarbe
   const raumHoehe = activeRoom?.raumHoehe ?? DEFAULT_RAUM_DESIGN.raumHoehe
+  const tageszeit = activeRoom?.tageszeit ?? DEFAULT_RAUM_DESIGN.tageszeit
 
   const setFussleiste = useCallback((wert) => updateRoom(activeRoomId, { fussleiste: wert }), [updateRoom, activeRoomId])
   const setFussleisteFarbe = useCallback((farbe) => updateRoom(activeRoomId, { fussleisteFarbe: farbe }), [updateRoom, activeRoomId])
   const setRaumHoehe = useCallback((hoehe) => updateRoom(activeRoomId, { raumHoehe: hoehe }), [updateRoom, activeRoomId])
+  const setTageszeit = useCallback((stunde) => updateRoom(activeRoomId, { tageszeit: stunde }), [updateRoom, activeRoomId])
 
   const setBoden = useCallback((boden) => updateRoom(activeRoomId, { boden }), [updateRoom, activeRoomId])
 
@@ -36,12 +38,13 @@ export function DesignProvider({ children }) {
   const value = useMemo(() => ({
     fussleiste, setFussleiste,
     raumHoehe, setRaumHoehe,
+    tageszeit, setTageszeit,
     fussleisteFarbe, setFussleisteFarbe,
     aktiveWand, setAktiveWand,
     setBoden, setWandfarbeFuer, aktuelleWandfarbe,
   }), [
-    fussleiste, setFussleiste, raumHoehe, setRaumHoehe, fussleisteFarbe, setFussleisteFarbe,
-    aktiveWand, setBoden, setWandfarbeFuer, aktuelleWandfarbe,
+    fussleiste, setFussleiste, raumHoehe, setRaumHoehe, tageszeit, setTageszeit,
+    fussleisteFarbe, setFussleisteFarbe, aktiveWand, setBoden, setWandfarbeFuer, aktuelleWandfarbe,
   ])
 
   return <DesignContext.Provider value={value}>{children}</DesignContext.Provider>

@@ -13,7 +13,7 @@ import { useDesign } from './context/DesignContext'
 export default function RoomView3D() {
   const { activeRoom: room } = useRooms()
   const { furniture } = useFurniture()
-  const { fussleiste, fussleisteFarbe, raumHoehe } = useDesign()
+  const { fussleiste, fussleisteFarbe, raumHoehe, tageszeit } = useDesign()
   const mountRef = useRef(null)
 
   useEffect(() => {
@@ -59,7 +59,7 @@ export default function RoomView3D() {
     scene.environment = erzeugeUmgebungsTextur()
 
     // === BELEUCHTUNG ===
-    baueBeleuchtung(scene, eckpunkte, mitteX, mitteZ, raumBreite, raumTiefe, wandHoehe)
+    baueBeleuchtung(scene, eckpunkte, mitteX, mitteZ, raumBreite, raumTiefe, wandHoehe, tageszeit)
 
     // === BODEN & DECKE (aus dem Randpolygon, statt fester Rechteck-Ebenen) ===
     // THREE.Shape mit ShapeGeometry statt ExtrudeGeometry: Boden/Decke bleiben masselose
@@ -259,7 +259,7 @@ return () => {
   mount.removeChild(renderer.domElement)
   renderer.dispose()
 }
-  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe])
+  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit])
 
   return (
     <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: 'grab' }} />
