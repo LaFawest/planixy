@@ -47,35 +47,50 @@ export default function LichtSchritt() {
             const an = item.lichtAn !== false
             const farbe = item.farbtemperatur || '#fff0c8'
             return (
-              <div key={item.id} style={{ padding: '8px 10px', background: '#FAFAF8', borderRadius: '8px', marginBottom: '6px', border: '1px solid #E8E6E0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: an ? '8px' : 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div key={item.id} style={{ padding: '4px 0 4px 10px', background: '#FAFAF8', borderRadius: '8px', marginBottom: '6px', border: '1px solid #E8E6E0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                     <div style={{ width: '10px', height: '10px', background: item.color, border: `1px solid ${item.border}`, borderRadius: '3px', flexShrink: 0 }}></div>
-                    <span style={{ fontSize: '12px', color: '#444441' }}>{item.name}</span>
+                    <span title={item.name} style={{ fontSize: '12px', color: '#444441', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div onClick={() => setLichtAn(item.id, !an)} style={{
-                      width: '32px', height: '18px', borderRadius: '9px', cursor: 'pointer', position: 'relative',
-                      background: an ? '#185FA5' : '#E8E6E0', transition: 'background 0.2s', flexShrink: 0,
+                  {/* 44×44px Antippflächen für Schalter/Löschen, wie schon bei der mobilen Schrittleiste — der
+                      sichtbare Regler bleibt klein, nur die klickbare/tippbare Fläche drumherum wächst. */}
+                  <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                    <button onClick={() => setLichtAn(item.id, !an)} aria-label={`${item.name} ${an ? 'ausschalten' : 'einschalten'}`} style={{
+                      width: '44px', height: '44px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
                     }}>
-                      <div style={{
-                        position: 'absolute', top: '2px', left: an ? '16px' : '2px',
-                        width: '14px', height: '14px', borderRadius: '50%', background: 'white',
-                        transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                      }}></div>
-                    </div>
-                    <span onClick={() => removeFurniture(item.id)} style={{ cursor: 'pointer', color: '#D3D1C7', fontSize: '11px' }}
-                      onMouseEnter={e => e.target.style.color = '#E24B4A'}
-                      onMouseLeave={e => e.target.style.color = '#D3D1C7'}>✕</span>
+                      <span style={{
+                        width: '32px', height: '18px', borderRadius: '9px', position: 'relative', display: 'block',
+                        background: an ? '#185FA5' : '#E8E6E0', transition: 'background 0.2s',
+                      }}>
+                        <span style={{
+                          position: 'absolute', top: '2px', left: an ? '16px' : '2px',
+                          width: '14px', height: '14px', borderRadius: '50%', background: 'white',
+                          transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                        }}></span>
+                      </span>
+                    </button>
+                    <button onClick={() => removeFurniture(item.id)} aria-label={`${item.name} entfernen`} style={{
+                      width: '44px', height: '44px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', color: '#D3D1C7', fontSize: '13px',
+                    }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#E24B4A'}
+                      onMouseLeave={e => e.currentTarget.style.color = '#D3D1C7'}>✕</button>
                   </div>
                 </div>
                 {an && (
-                  <div style={{ display: 'flex', gap: '6px' }}>
+                  <div style={{ display: 'flex' }}>
                     {FARBTEMPERATUREN.map(ft => (
-                      <div key={ft.name} onClick={() => setFarbtemperatur(item.id, ft.farbe)} title={ft.name} style={{
-                        width: '20px', height: '20px', borderRadius: '50%', cursor: 'pointer',
-                        background: ft.farbe, border: `${farbe === ft.farbe ? '2px' : '1px'} solid ${farbe === ft.farbe ? '#185FA5' : '#E8E6E0'}`,
-                      }}></div>
+                      <button key={ft.name} onClick={() => setFarbtemperatur(item.id, ft.farbe)} aria-label={ft.name} title={ft.name} style={{
+                        width: '44px', height: '44px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
+                      }}>
+                        <span style={{
+                          width: '20px', height: '20px', borderRadius: '50%', display: 'block',
+                          background: ft.farbe, border: `${farbe === ft.farbe ? '2px' : '1px'} solid ${farbe === ft.farbe ? '#185FA5' : '#E8E6E0'}`,
+                        }}></span>
+                      </button>
                     ))}
                   </div>
                 )}
