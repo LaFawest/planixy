@@ -90,12 +90,6 @@ export function baueBeleuchtung(scene, eckpunkte, mitteX, mitteZ, raumBreite, ra
   ceilingLight.shadow.camera.far = wandHoehe + Math.max(raumBreite, raumTiefe)
   scene.add(ceilingLight)
 
-  const lampGeo = new THREE.SphereGeometry(0.12, 16, 16)
-  const lampMat = new THREE.MeshBasicMaterial({ color: 0xfffde0 })
-  const lamp = new THREE.Mesh(lampGeo, lampMat)
-  lamp.position.set(deckenX, wandHoehe - 0.1, deckenZ)
-  scene.add(lamp)
-
   const fillLight = new THREE.HemisphereLight(0xffffff, 0xC8A97A, hemisphereIntensitaet)
   scene.add(fillLight)
 }
