@@ -15,16 +15,19 @@ function baueBeine(gruppe, positionen, radius, hoehe, farbe, holzTextur, { segme
   })
 }
 
-// Gemeinsamer Teil aller Leuchten: Glühmaterial, optional Kabel (Aufhängung) und optional PointLight (echte Lichtquelle)
-function baueGluehlampe(gruppe, borderMat, glowIntensity, kabel, licht) {
-  const glowMat = new THREE.MeshStandardMaterial({ color: '#FFF3D0', emissive: '#FFDA88', emissiveIntensity: glowIntensity })
+// Gemeinsamer Teil aller Leuchten: Glühmaterial, optional Kabel (Aufhängung) und optional
+// PointLight (echte Lichtquelle). eingeschaltet/farbe kommen aus item.lichtAn/item.farbtemperatur
+// (siehe baueMoebel) — bei ausgeschalteter Leuchte bleibt die Glühbirnen-Geometrie stehen, glimmt
+// aber nicht (emissiveIntensity 0) und es wird kein PointLight erzeugt.
+function baueGluehlampe(gruppe, borderMat, glowIntensity, kabel, licht, eingeschaltet, farbe) {
+  const glowMat = new THREE.MeshStandardMaterial({ color: '#FFF3D0', emissive: farbe || '#FFDA88', emissiveIntensity: eingeschaltet ? glowIntensity : 0 })
   if (kabel) {
     const kabelMesh = new THREE.Mesh(new THREE.CylinderGeometry(kabel.radius, kabel.radius, kabel.laenge, 8), borderMat)
     kabelMesh.position.set(0, -kabel.laenge / 2, 0)
     gruppe.add(kabelMesh)
   }
-  if (licht) {
-    const lichtMesh = new THREE.PointLight(0xfff0c8, licht.intensitaet, licht.reichweite)
+  if (licht && eingeschaltet) {
+    const lichtMesh = new THREE.PointLight(farbe || 0xfff0c8, licht.intensitaet, licht.reichweite)
     lichtMesh.position.set(0, licht.y, 0)
     gruppe.add(lichtMesh)
   }
@@ -86,6 +89,10 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
 
   const name = item.name.toLowerCase()
   const istDeckenleuchte = name.includes('deckenlampe') || name.includes('pendelleuchte') || name.includes('kronleuchter')
+  // Nur für Leuchten (kategorie 'Licht') relevant — an/aus und Farbe je Leuchte, mit Warmweiß-
+  // Default, solange der Licht-Schritt (Schritt 4f) noch keinen eigenen Regler dafür anbietet.
+  const lichtAn = item.lichtAn !== false
+  const lichtFarbe = item.farbtemperatur || '#fff0c8'
 
   const x = -raumBreite / 2 + (centerXpx / innenBpx) * raumBreite
   const z = -raumTiefe  / 2 + (centerZpx / innenTpx) * raumTiefe
@@ -488,7 +495,8 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
     const kabelLaenge = 0.25
     const glowMat = baueGluehlampe(gruppe, borderMat, 0.9,
       { radius: 0.008, laenge: kabelLaenge },
-      { intensitaet: 0.9, reichweite: Math.max(raumBreite, raumTiefe) * 0.8, y: -kabelLaenge })
+      { intensitaet: 0.9, reichweite: Math.max(raumBreite, raumTiefe) * 0.8, y: -kabelLaenge },
+      lichtAn, lichtFarbe)
 
     const hub = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.22, 12, 10), borderMat)
     hub.position.set(0, -kabelLaenge, 0)
@@ -514,7 +522,8 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
     const kabelLaenge = name.includes('pendelleuchte') ? 0.4 : 0.08
     const glowMat = baueGluehlampe(gruppe, borderMat, 0.9,
       { radius: 0.01, laenge: kabelLaenge },
-      { intensitaet: 0.7, reichweite: Math.max(raumBreite, raumTiefe) * 0.7, y: -kabelLaenge - radius * 0.3 })
+      { intensitaet: 0.7, reichweite: Math.max(raumBreite, raumTiefe) * 0.7, y: -kabelLaenge - radius * 0.3 },
+      lichtAn, lichtFarbe)
 
     const schirm = new THREE.Mesh(new THREE.SphereGeometry(radius, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.6), mat)
     schirm.position.set(0, -kabelLaenge, 0)
@@ -528,7 +537,9 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
   } else if (name.includes('lampe') || name.includes('leuchte')) {
     // Steh-/Tisch-/Wandlampe: Fuß, Stange, Lampenschirm
     const radius = Math.min(moebelBreite, moebelTiefe) / 2
-    const glowMat = baueGluehlampe(gruppe, borderMat, 0.8, null, null)
+    const glowMat = baueGluehlampe(gruppe, borderMat, 0.8, null,
+      { intensitaet: 0.5, reichweite: Math.max(raumBreite, raumTiefe) * 0.5, y: moebelHoehe - radius * 0.6 },
+      lichtAn, lichtFarbe)
 
     const basis = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.9, radius, 0.02, 20), borderMat)
     basis.position.set(0, 0.01, 0)
