@@ -235,10 +235,16 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '10px', fontWeight: '500', cursor: 'grab', userSelect: 'none',
                     color: item.border, position: 'relative', transition: 'box-shadow 0.15s',
-                    boxShadow: selectedId === item.id ? `0 0 0 2px #185FA5` : 'none',
+                    // Rote Umrandung, wenn die Nachjustierung nach einer Raum-Größenänderung
+                    // keine kollisionsfreie Position mehr fand (RoomsContext.jsx,
+                    // moebelReparieren) — dieselbe Farbe wie die ungültige Trennwand-Vorschau
+                    // (Schritt 6), damit "hier muss manuell nachjustiert werden" auf einen Blick
+                    // erkennbar ist. Geht der Selektions-Umrandung vor, bleibt also auch beim
+                    // Anklicken sichtbar.
+                    boxShadow: item.ungueltig ? '0 0 0 2px #E24B4A' : selectedId === item.id ? '0 0 0 2px #185FA5' : 'none',
                   }}
                   onMouseEnter={e => e.currentTarget.style.boxShadow = `0 0 0 2px ${item.border}`}
-                  onMouseLeave={e => e.currentTarget.style.boxShadow = selectedId === item.id ? '0 0 0 2px #185FA5' : 'none'}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow = item.ungueltig ? '0 0 0 2px #E24B4A' : selectedId === item.id ? '0 0 0 2px #185FA5' : 'none'}
                 >
                   {isEcksofa ? (
                     <>

@@ -6,7 +6,7 @@ import {
   raumformPolygon, boundingBox, innenPolygone,
   rechteckInPolygon as istRechteckInPolygon,
   streckeInPolygon as istStreckeInPolygon,
-  snappeWandElement, platziereAufWandSegment, naechsteFreieEcke,
+  snappeWandElement, platziereAufWandSegment, naechsteFreieEcke, snappeAnFreieKante,
 } from '../raumPolygon'
 import { DEFAULT_RAUM_DESIGN, WAND_DICKE_PX, erzeugeRaum } from '../constants'
 
@@ -16,28 +16,54 @@ const RoomsContext = createContext(null)
 // raumformPolygon() neu erzeugt werden, damit es nicht mit dem Rest der Formfelder auseinanderläuft.
 const FORM_FELDER = ['breite', 'tiefe', 'raumForm', 'aussparungBreite', 'aussparungTiefe', 'ausrichtung']
 
+// Ermittelt für ein Möbelstück eine Position, die vollständig in grenzeEckpunkte liegt —
+// dieselbe dreistufige Klemmung wie bisher (unverändert, falls noch gültig / Bounding-Box-
+// Klemmung / naechsteFreieEcke als Fallback für eine Aussparung), aber ohne Rücksicht auf andere
+// Möbelstücke — reine Raumgeometrie, siehe moebelReparieren für die Kollisionsprüfung danach.
+// null, wenn selbst naechsteFreieEcke keinen Platz findet (Möbelstück größer als jede Nische).
+function polygonPosition(item, boundW, boundH, grenzeEckpunkte, grenzStart, grenzB, grenzT) {
+  if (istRechteckInPolygon(item.left, item.top, boundW, boundH, grenzeEckpunkte)) {
+    return { left: item.left, top: item.top }
+  }
+  const left = Math.max(grenzStart, Math.min(grenzStart + grenzB - boundW, item.left))
+  const top = Math.max(grenzStart, Math.min(grenzStart + grenzT - boundH, item.top))
+  if (istRechteckInPolygon(left, top, boundW, boundH, grenzeEckpunkte)) return { left, top }
+  return naechsteFreieEcke(boundW, boundH, grenzeEckpunkte, grenzStart, grenzB, grenzT)
+}
+
 // Klemmt ein Möbelstück in die neue Innenfläche (grenzeEckpunkte), wenn es nach einer
-// Formänderung nicht mehr vollständig hineinpasst — dieselbe Bounding-Box-Klemmung wie beim
-// Ziehen (FurnitureContext.jsx), nur einmalig statt interaktiv; reicht für jedes Rechteck
-// vollständig aus. Bei einer Aussparung (L-/U-Form) kann eine Position innerhalb der äußeren
-// Bounding-Box trotzdem in der Aussparung selbst liegen, wo die Klemmung nichts ausrichtet —
-// dort greift als Fallback naechsteFreieEcke (raumPolygon.js, dieselbe Funktion, die auch
-// addFurniture in FurnitureContext.jsx für neu hinzugefügte Möbelstücke benutzt). Nur wenn
-// selbst das keinen Platz findet (Möbelstück größer als jede Nische), bleibt das Stück
-// unverändert stehen, statt an eine geratene Position zu springen.
-function moebelReparieren(item, grenzeEckpunkte, grenzStart, grenzB, grenzT) {
+// Formänderung nicht mehr vollständig hineinpasst (polygonPosition), UND snapt es bei einer
+// Kollision mit einem bereits in diesem Durchlauf reparierten Möbelstück (`bereitsPlatziert`) an
+// dessen nächstgelegene freie Kante (snappeAnFreieKante, raumPolygon.js — dieselbe Funktion wie
+// beim interaktiven Ziehen in FurnitureContext.jsx). Ohne diese Prüfung könnten zwei Möbelstücke,
+// die unabhängig voneinander an dieselbe (jetzt einzige verbliebene) Stelle geklemmt werden,
+// exakt übereinander landen. Elektrogeräte stehen bewusst auf anderen Möbelstücken (siehe
+// FurnitureContext.jsx) und bleiben deshalb von der Kollisionsprüfung UND von
+// `bereitsPlatziert` ausgenommen (mutiert das Array als Sammel-Nebeneffekt für den Aufrufer).
+// Setzt `ungueltig: true`, wenn selbst das Snapping keine freie, im Polygon liegende Position
+// findet — die Position bleibt dann unverändert stehen (nicht an eine geratene Stelle springen),
+// aber sichtbar markiert (Canvas2D.jsx), damit der Nutzer manuell nachjustiert.
+function moebelReparieren(item, bereitsPlatziert, grenzeEckpunkte, grenzStart, grenzB, grenzT) {
   const w = item.origWidth || item.width
   const h = item.origHeight || item.height
   const rad = (item.rotation || 0) * Math.PI / 180
-  const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad))
-  const boundW = w * cos + h * sin
-  const boundH = w * sin + h * cos
-  if (istRechteckInPolygon(item.left, item.top, boundW, boundH, grenzeEckpunkte)) return item
-  const left = Math.max(grenzStart, Math.min(grenzStart + grenzB - boundW, item.left))
-  const top = Math.max(grenzStart, Math.min(grenzStart + grenzT - boundH, item.top))
-  if (istRechteckInPolygon(left, top, boundW, boundH, grenzeEckpunkte)) return { ...item, left, top }
-  const ecke = naechsteFreieEcke(boundW, boundH, grenzeEckpunkte, grenzStart, grenzB, grenzT)
-  return ecke ? { ...item, left: ecke.left, top: ecke.top } : item
+  const boundW = w * Math.abs(Math.cos(rad)) + h * Math.abs(Math.sin(rad))
+  const boundH = w * Math.abs(Math.sin(rad)) + h * Math.abs(Math.cos(rad))
+  const istElektro = item.kategorie === 'Elektrogeräte'
+
+  const kandidat = polygonPosition(item, boundW, boundH, grenzeEckpunkte, grenzStart, grenzB, grenzT)
+  if (!kandidat) return { ...item, ungueltig: true }
+
+  const position = istElektro
+    ? kandidat
+    : snappeAnFreieKante(kandidat, boundW, boundH, bereitsPlatziert, grenzeEckpunkte, grenzStart, grenzB, grenzT)
+
+  if (!position) {
+    bereitsPlatziert.push({ left: kandidat.left, top: kandidat.top, breite: boundW, hoehe: boundH })
+    return { ...item, left: kandidat.left, top: kandidat.top, ungueltig: true }
+  }
+  if (!istElektro) bereitsPlatziert.push({ left: position.left, top: position.top, breite: boundW, hoehe: boundH })
+  return { ...item, left: position.left, top: position.top, ungueltig: false }
 }
 
 // Hält ein Fenster/Tür-Element nach Möglichkeit auf seinem bisherigen Wandsegment
@@ -137,9 +163,14 @@ export function RoomsProvider({ children }) {
       const grenzStart = fussleisteBreite
       const { grenzeEckpunkte, innenEckpunkte } = innenPolygone(polygonPx, wandDicke, fussleisteBreite)
 
+      // Sammelt die Bounding-Boxen der schon in diesem Durchlauf reparierten Möbelstücke —
+      // moebelReparieren braucht sie, um neu geklemmte Kollisionen untereinander aufzulösen
+      // (siehe dort). Muss dieselbe Reihenfolge wie raum.furniture durchlaufen, damit spätere
+      // Möbelstücke den bereits reparierten früheren ausweichen, nicht umgekehrt.
+      const bereitsPlatziert = []
       const furniture = (raum.furniture || []).map(item => item.istWandElement
         ? wandElementReparieren(item, innenEckpunkte, wandDicke)
-        : moebelReparieren(item, grenzeEckpunkte, grenzStart, grenzB, grenzT))
+        : moebelReparieren(item, bereitsPlatziert, grenzeEckpunkte, grenzStart, grenzB, grenzT))
       const trennwaende = (raum.trennwaende || []).map(wand => trennwandReparieren(wand, innenEckpunkte, innenB, innenT))
 
       return { ...raum, furniture, trennwaende }

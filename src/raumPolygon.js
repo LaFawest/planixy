@@ -293,6 +293,49 @@ export function naechsteFreieEcke(breite, hoehe, eckpunkte, grenzStart, grenzB, 
     .find(({ left, top }) => rechteckInPolygon(left, top, breite, hoehe, polygon)) || null
 }
 
+// Snapt ein Möbelstück, das mit anderen Bounding-Boxen kollidiert, an deren nächstgelegene freie
+// Kante — vier Kandidaten (rechts/links/über/unter jeder anderen Box), auf die Klemmgrenze
+// reduziert und gegen das Randpolygon geprüft. Reine Funktion, geteilt zwischen dem interaktiven
+// Loslassen eines gezogenen Möbelstücks (FurnitureContext.jsx) und der Nachjustierung nach einer
+// Formänderung (RoomsContext.jsx, moebelReparieren) — beide brauchen bei einer Kollision dieselbe
+// "an der Kante entlangrutschen"-Anmutung, nur einmal live beim Ziehen, einmal einmalig nach einer
+// Größenänderung. `andere` sind die Bounding-Boxen der übrigen kollisionsrelevanten Möbelstücke
+// (Elektrogeräte ausgeschlossen, Entscheidung liegt beim Aufrufer), jeweils {left, top, breite,
+// hoehe}. `fallback` (optional) ist eine bekannte Position, die nur akzeptiert wird, wenn sie
+// selbst kollisionsfrei und gültig ist — kein blindes Zurückfallen. null, wenn weder kandidat,
+// noch eine Kanten-Position, noch fallback funktioniert; der Aufrufer entscheidet dann selbst über
+// den Notfall (z.B. Position unverändert lassen und als ungültig markieren).
+export function snappeAnFreieKante(kandidat, breite, hoehe, andere, eckpunkte, grenzStart, grenzB, grenzT, fallback) {
+  const kollidiert = (l, t) => andere.some(a =>
+    l < a.left + a.breite && l + breite > a.left &&
+    t < a.top + a.hoehe && t + hoehe > a.top)
+  const gueltig = (l, t) => !kollidiert(l, t) && rechteckInPolygon(l, t, breite, hoehe, eckpunkte)
+
+  if (gueltig(kandidat.left, kandidat.top)) return kandidat
+
+  let beste = null
+  let besteDistanz = Infinity
+  andere.forEach(a => {
+    const kandidaten = [
+      { left: a.left + a.breite, top: kandidat.top },
+      { left: a.left - breite, top: kandidat.top },
+      { left: kandidat.left, top: a.top + a.hoehe },
+      { left: kandidat.left, top: a.top - hoehe },
+    ]
+    kandidaten.forEach(pos => {
+      const l = Math.max(grenzStart, Math.min(grenzStart + grenzB - breite, pos.left))
+      const t = Math.max(grenzStart, Math.min(grenzStart + grenzT - hoehe, pos.top))
+      if (gueltig(l, t)) {
+        const distanz = Math.abs(l - kandidat.left) + Math.abs(t - kandidat.top)
+        if (distanz < besteDistanz) { besteDistanz = distanz; beste = { left: l, top: t } }
+      }
+    })
+  })
+  if (beste) return beste
+  if (fallback && gueltig(fallback.left, fallback.top)) return fallback
+  return null
+}
+
 // Prüft, ob eine Strecke a–b (z.B. eine Trennwand) vollständig im Polygon liegt: beide
 // Endpunkte müssen im Polygon liegen UND keine Wandkante darf die Strecke echt kreuzen —
 // sonst bliebe eine Strecke quer über eine Nische (U-Form) unentdeckt, obwohl beide

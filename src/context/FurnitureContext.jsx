@@ -2,7 +2,7 @@ import { createContext, useContext, useCallback, useMemo, useState } from 'react
 import { useRooms } from './RoomsContext'
 import { useRaumGeometrie } from './useRaumGeometrie'
 import { vergibMoebelId } from './idZaehler'
-import { snappeWandElement, naechsteFreieEcke } from '../raumPolygon'
+import { snappeWandElement, naechsteFreieEcke, snappeAnFreieKante } from '../raumPolygon'
 
 const FurnitureContext = createContext(null)
 
@@ -177,83 +177,41 @@ export function FurnitureProvider({ children }) {
       // Elektrogeräte stehen auf anderen Möbelstücken — keine Kollisionsprüfung
       if (item.kategorie === 'Elektrogeräte') return
 
-      // Beim Loslassen — Kollision prüfen und an nächste freie Kante snappen
-      const anderesMoebel = aktuellesFurniture.filter(f => f.id !== id && f.kategorie !== 'Elektrogeräte')
-
+      // Beim Loslassen — Kollision prüfen und an nächste freie Kante snappen (snappeAnFreieKante,
+      // raumPolygon.js — geteilt mit moebelReparieren in RoomsContext.jsx, Nachjustierung nach
+      // einer Formänderung).
       const iW = item.origWidth  || item.width
       const iH = item.origHeight || item.height
       const rad = (item.rotation || 0) * Math.PI / 180
-      const cos = Math.abs(Math.cos(rad))
-      const sin = Math.abs(Math.sin(rad))
-      const boundW = iW * cos + iH * sin
-      const boundH = iW * sin + iH * cos
+      const boundW = iW * Math.abs(Math.cos(rad)) + iH * Math.abs(Math.sin(rad))
+      const boundH = iW * Math.abs(Math.sin(rad)) + iH * Math.abs(Math.cos(rad))
 
-      const kollidiert = (l, t) => anderesMoebel.some(f => {
-        const fW = f.origWidth  || f.width
-        const fH = f.origHeight || f.height
-        const fRad = (f.rotation || 0) * Math.PI / 180
-        const fCos = Math.abs(Math.cos(fRad))
-        const fSin = Math.abs(Math.sin(fRad))
-        const fBoundW = fW * fCos + fH * fSin
-        const fBoundH = fW * fSin + fH * fCos
-        return (
-          l < f.left + fBoundW &&
-          l + boundW > f.left &&
-          t < f.top + fBoundH &&
-          t + boundH > f.top
-        )
-      })
-
-      if (!kollidiert(currentLeft, currentTop)) {
-        // Keine Kollision — Position beibehalten
-        return
-      }
-
-      // Snap zu nächster freier Kante
-      let bestePosition = { left: startLeft, top: startTop }
-      let besteDistanz = Infinity
-
-      anderesMoebel.forEach(f => {
-        // Mögliche Snap-Positionen an allen 4 Kanten
-        const fW = f.origWidth  || f.width
-        const fH = f.origHeight || f.height
-        const fRad = (f.rotation || 0) * Math.PI / 180
-        const fCos = Math.abs(Math.cos(fRad))
-        const fSin = Math.abs(Math.sin(fRad))
-        const fBoundW = fW * fCos + fH * fSin
-        const fBoundH = fW * fSin + fH * fCos
-        const kandidaten = [
-          { left: f.left + fBoundW, top: currentTop },
-          { left: f.left - boundW,  top: currentTop },
-          { left: currentLeft, top: f.top + fBoundH },
-          { left: currentLeft, top: f.top - boundH  },
-        ]
-
-        kandidaten.forEach(pos => {
-          // Grenzen einhalten
-          const l = Math.max(grenzStart, Math.min(grenzStart + grenzB - item.width,  pos.left))
-          const t = Math.max(grenzStart, Math.min(grenzStart + grenzT - item.height, pos.top))
-
-          // Prüfen ob diese Position frei ist und vollständig im Raumpolygon liegt
-          if (!kollidiert(l, t) && rechteckInPolygon(l, t, item.width, item.height)) {
-            // Distanz zur aktuellen Position berechnen
-            const distanz = Math.abs(l - currentLeft) + Math.abs(t - currentTop)
-            if (distanz < besteDistanz) {
-              besteDistanz = distanz
-              bestePosition = { left: l, top: t }
-            }
+      const andere = aktuellesFurniture
+        .filter(f => f.id !== id && f.kategorie !== 'Elektrogeräte')
+        .map(f => {
+          const fW = f.origWidth  || f.width
+          const fH = f.origHeight || f.height
+          const fRad = (f.rotation || 0) * Math.PI / 180
+          return {
+            left: f.left, top: f.top,
+            breite: fW * Math.abs(Math.cos(fRad)) + fH * Math.abs(Math.sin(fRad)),
+            hoehe: fW * Math.abs(Math.sin(fRad)) + fH * Math.abs(Math.cos(fRad)),
           }
         })
-      })
 
-      updateFurniture(aktuellesFurniture.map(f => f.id === id ? { ...f, left: bestePosition.left, top: bestePosition.top } : f))
+      const position = snappeAnFreieKante(
+        { left: currentLeft, top: currentTop }, boundW, boundH, andere,
+        grenzeEckpunkte, grenzStart, grenzB, grenzT, { left: startLeft, top: startTop },
+      ) || { left: startLeft, top: startTop }
+
+      updateFurniture(aktuellesFurniture.map(f => f.id === id ? { ...f, left: position.left, top: position.top } : f))
     }
 
     window.addEventListener('mousemove', onMove)
     window.addEventListener('mouseup', onUp)
     window.addEventListener('touchmove', onMove, { passive: false })
     window.addEventListener('touchend', onUp)
-  }, [activeRoom, updateFurniture, grenzB, grenzT, grenzStart, innenEckpunkte, wandDicke, rechteckInPolygon])
+  }, [activeRoom, updateFurniture, grenzB, grenzT, grenzStart, grenzeEckpunkte, innenEckpunkte, wandDicke, rechteckInPolygon])
 
   const value = useMemo(() => ({
     furniture, selectedId, setSelectedId,
