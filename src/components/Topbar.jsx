@@ -17,9 +17,6 @@ export default function Topbar() {
       <div style={{ flex: 1 }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <div style={{ fontSize: '12px', color: '#B4B2A9' }}>{furniture.length} Objekte</div>
-        <button style={{ padding: '8px 18px', background: '#185FA5', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '13px', fontFamily: "'DM Sans', sans-serif", fontWeight: '500' }}
-          onMouseEnter={e => e.currentTarget.style.background = '#0C447C'}
-          onMouseLeave={e => e.currentTarget.style.background = '#185FA5'}>KI-Vorschlag</button>
       </div>
     </div>
   )
