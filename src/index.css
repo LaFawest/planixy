@@ -265,3 +265,12 @@ input[type=number]::-webkit-outer-spin-button { opacity: 1; }
     height: 44px;
   }
 }
+
+/* Home-Knopf in der Topbar: schmal auf Desktop, 44px Antippfläche auf mobil (Finger statt Maus) */
+@media (max-width: 680px) {
+  .topbar-home-knopf {
+    min-height: 44px;
+    min-width: 44px;
+    justify-content: center;
+  }
+}
