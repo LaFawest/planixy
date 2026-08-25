@@ -15,8 +15,14 @@ export function ProjekteListeProvider({ children }) {
     saveProjekte(projekte)
   }, [projekte])
 
+  // String(p.id) === String(id): id kann sowohl der native Wert eines Projekts (Dashboard.jsx,
+  // z.B. beim Umbenennen/Löschen — dann immer schon vom selben Typ wie p.id) als auch der
+  // String aus der URL sein (activeProjectId aus ProjectsContext.jsx, RoomsContext.jsx reicht ihn
+  // an updateProjekt durch) — für alte Projekte ist p.id dann eine Zahl, id aber ein String.
+  // Ohne die String()-Normalisierung würde updateProjekt/deleteProjekt für alte Projekte über
+  // die URL nie mehr greifen, sobald activeProjectId nicht mehr per Number() erzwungen wird.
   const updateProjekt = useCallback((id, changes) => {
-    setProjekte(prev => prev.map(p => p.id === id
+    setProjekte(prev => prev.map(p => String(p.id) === String(id)
       ? { ...p, ...changes, geaendertAm: new Date().toISOString() }
       : p))
   }, [])
@@ -24,14 +30,14 @@ export function ProjekteListeProvider({ children }) {
   const addProjekt = useCallback((name) => {
     const jetzt = new Date().toISOString()
     const raumId = vergibRaumId()
-    const standardRaum = erzeugeRaum({ id: raumId, name: `Raum ${raumId}` })
+    const standardRaum = erzeugeRaum({ id: raumId, name: 'Raum 1' })
     const neues = { id: vergibProjektId(), name, erstelltAm: jetzt, geaendertAm: jetzt, raeume: [standardRaum] }
     setProjekte(prev => [...prev, neues])
     navigate(`/projekt/${neues.id}`)
   }, [navigate])
 
   const deleteProjekt = useCallback((id) => {
-    setProjekte(prev => prev.length === 1 ? prev : prev.filter(p => p.id !== id))
+    setProjekte(prev => prev.length === 1 ? prev : prev.filter(p => String(p.id) !== String(id)))
   }, [])
 
   const renameProjekt = useCallback((id, name) => {

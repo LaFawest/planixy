@@ -6,10 +6,15 @@ const ProjectsContext = createContext(null)
 
 export function ProjectsProvider({ children }) {
   const { id } = useParams()
-  const activeProjectId = Number(id)
+  // id kommt aus der URL und ist deshalb immer ein String — project.id kann aber je nach Alter
+  // des Projekts eine echte Zahl (alte Projekte, vor der Umstellung auf crypto.randomUUID() in
+  // idZaehler.js) oder ein UUID-String (neue Projekte) sein. String(p.id) === id vergleicht
+  // beide Fälle typtolerant, ohne id in eine Zahl zu zwingen (das würde bei einer UUID zu NaN
+  // und damit zu einem permanenten Redirect auf "/" führen).
+  const activeProjectId = id
   const { projekte, updateProjekt, addProjekt, deleteProjekt, renameProjekt, waehleProjekt } = useProjekteListe()
 
-  const activeProject = projekte.find(p => p.id === activeProjectId)
+  const activeProject = projekte.find(p => String(p.id) === activeProjectId)
 
   const value = useMemo(() => ({
     projekte, activeProjectId, activeProject,

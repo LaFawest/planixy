@@ -1,18 +1,18 @@
-import { loadProjekte, alleRaeume } from './projekteStorage'
-import { maxId } from './roomsStorage'
-
-// Alle ID-Zähler liegen zentral hier, weil IDs app-weit eindeutig sein müssen — Räume/Möbel/
+// Alle ID-Vergaben liegen zentral hier, weil IDs app-weit eindeutig sein müssen — Räume/Möbel/
 // Trennwände entstehen sowohl beim normalen Bearbeiten (RoomsContext/FurnitureContext/
-// TrennwandContext) als auch beim Duplizieren eines ganzen Projekts (ProjekteListeContext).
-
-let naechsteRaumId = maxId(alleRaeume(loadProjekte()).map(r => r.id)) + 1
-export const vergibRaumId = () => naechsteRaumId++
-
-let naechsteProjektId = maxId(loadProjekte().map(p => p.id)) + 1
-export const vergibProjektId = () => naechsteProjektId++
-
-let naechsteMoebelId = maxId(alleRaeume(loadProjekte()).flatMap(r => (r.furniture || []).map(f => f.id))) + 1
-export const vergibMoebelId = () => naechsteMoebelId++
-
-let naechsteWandId = maxId(alleRaeume(loadProjekte()).flatMap(r => (r.trennwaende || []).map(w => w.id))) + 1
-export const vergibWandId = () => naechsteWandId++
+// TrennwandContext) als auch beim Duplizieren/Importieren eines ganzen Projekts
+// (ProjekteListeContext/projektExport.js).
+//
+// crypto.randomUUID() statt eines localStorage-weiten "größte ID + 1"-Zählers: der Zähler musste
+// bei jedem neuen Element alle Projekte aus localStorage einlesen, um die nächste freie ID zu
+// finden — rein lokal/sequenziell gedacht, und spätestens sobald zwei Geräte/Nutzer gleichzeitig
+// schreiben (Supabase-Umbau), könnten zwei Clients dieselbe ID vergeben. Ein UUID braucht dagegen
+// keinen gemeinsamen Zustand und keinen Lese-Zugriff, um eindeutig zu sein.
+//
+// Bestehende Projekte behalten ihre alten numerischen IDs unverändert (keine Migration) — neue
+// und alte IDs sind einfach beides gültige, eindeutige Strings/Werte, die per === verglichen
+// werden; nirgends in der App wird mit einer ID gerechnet oder nach ihr sortiert.
+export const vergibProjektId = () => crypto.randomUUID()
+export const vergibRaumId = () => crypto.randomUUID()
+export const vergibMoebelId = () => crypto.randomUUID()
+export const vergibWandId = () => crypto.randomUUID()

@@ -180,7 +180,10 @@ export function RoomsProvider({ children }) {
 
   const addRoom = useCallback(() => {
     const raumId = vergibRaumId()
-    const newRoom = erzeugeRaum({ id: raumId, name: `Raum ${raumId}` })
+    // Default-Name aus der Position in der Raumliste, nicht aus raumId (die ist seit der
+    // Umstellung auf crypto.randomUUID() ein UUID-String, kein lesbarer Zähler mehr).
+    const raumNummer = (activeProject?.raeume?.length || 0) + 1
+    const newRoom = erzeugeRaum({ id: raumId, name: `Raum ${raumNummer}` })
     const neueRaeume = [...(activeProject?.raeume || []), newRoom]
     updateProjekt(activeProjectId, { raeume: neueRaeume })
     setActiveRoomId(newRoom.id)
