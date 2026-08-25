@@ -1,5 +1,15 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useProjekteListe } from '../context/ProjekteListeContext'
+
+// Suchfeld und Sortierung würden bei ein, zwei Projekten nur unnötig im Weg stehen — sie
+// erscheinen erst ab dieser Anzahl, wenn Scannen der Kacheln allein umständlicher wird.
+const MIND_PROJEKTE_FUER_STEUERUNG = 4
+
+const SORTIERUNGEN = [
+  { id: 'geaendert', label: 'Zuletzt geändert', vergleiche: (a, b) => new Date(b.geaendertAm) - new Date(a.geaendertAm) },
+  { id: 'name', label: 'Name', vergleiche: (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }) },
+  { id: 'erstellt', label: 'Erstellungsdatum', vergleiche: (a, b) => new Date(b.erstelltAm) - new Date(a.erstelltAm) },
+]
 
 const formatiereRelativeZeit = (datumIso) => {
   const diffMs = Date.now() - new Date(datumIso).getTime()
@@ -177,6 +187,17 @@ export default function Dashboard() {
   const [dialog, setDialog] = useState(null)
   const schliessen = () => setDialog(null)
 
+  const [suchbegriff, setSuchbegriff] = useState('')
+  const [sortierungId, setSortierungId] = useState(SORTIERUNGEN[0].id)
+  const zeigeSteuerung = projekte.length >= MIND_PROJEKTE_FUER_STEUERUNG
+
+  const sichtbareProjekte = useMemo(() => {
+    const suche = suchbegriff.trim().toLowerCase()
+    const gefiltert = suche ? projekte.filter(p => p.name.toLowerCase().includes(suche)) : projekte
+    const vergleiche = SORTIERUNGEN.find(s => s.id === sortierungId).vergleiche
+    return [...gefiltert].sort(vergleiche)
+  }, [projekte, suchbegriff, sortierungId])
+
   return (
     <div style={{ minHeight: '100vh', padding: '40px 48px', fontFamily: "'DM Sans', sans-serif" }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
@@ -194,6 +215,31 @@ export default function Dashboard() {
           + Neues Projekt
         </button>
       </div>
+
+      {zeigeSteuerung && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            value={suchbegriff}
+            onChange={e => setSuchbegriff(e.target.value)}
+            placeholder="Projekt suchen…"
+            style={{
+              flex: '1 1 220px', padding: '9px 14px', fontSize: '13px', border: '1px solid #E8E6E0', borderRadius: '10px',
+              outline: 'none', fontFamily: "'DM Sans', sans-serif", color: '#2C2C2A', background: 'white',
+            }}
+          />
+          <select
+            value={sortierungId}
+            onChange={e => setSortierungId(e.target.value)}
+            style={{
+              padding: '9px 14px', fontSize: '13px', border: '1px solid #E8E6E0', borderRadius: '10px',
+              outline: 'none', fontFamily: "'DM Sans', sans-serif", color: '#444441', background: 'white', cursor: 'pointer',
+            }}
+          >
+            {SORTIERUNGEN.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+          </select>
+        </div>
+      )}
 
       {projekte.length === 0 ? (
         <div style={{
@@ -214,9 +260,22 @@ export default function Dashboard() {
             + Neues Projekt
           </button>
         </div>
+      ) : sichtbareProjekte.length === 0 ? (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '80px 20px', textAlign: 'center',
+        }}>
+          <span style={{ fontSize: '40px', marginBottom: '16px' }}>🔍</span>
+          <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '20px', fontWeight: '500', color: '#2C2C2A', marginBottom: '8px' }}>
+            Kein Projekt gefunden
+          </p>
+          <p style={{ fontSize: '13px', color: '#888780', maxWidth: '360px' }}>
+            Für „{suchbegriff}" gibt es keine Treffer.
+          </p>
+        </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
-          {projekte.map(projekt => (
+          {sichtbareProjekte.map(projekt => (
             <ProjektKachel
               key={projekt.id}
               projekt={projekt}
