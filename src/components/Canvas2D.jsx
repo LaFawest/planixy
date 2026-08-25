@@ -18,17 +18,51 @@ const wandFarbeFuer = (room, index) => room?.wandfarben?.[index] || room?.wandfa
 // ausschließlich aus achsparallelen Kanten, sind also unproblematisch. Erst echte schräge
 // Kanten (freies Zeichnen, noch nicht geplant) würden hier ein falsches Rechteck liefern und
 // eine echte Verallgemeinerung nötig machen.
-const wandStreifenStyle = (segment, wandDicke) => {
+const wandStreifenStyle = (segment, wandDicke, von, bis) => {
   const minX = Math.min(segment.start.x, segment.ende.x)
-  const maxX = Math.max(segment.start.x, segment.ende.x)
   const minY = Math.min(segment.start.y, segment.ende.y)
   const maxY = Math.max(segment.start.y, segment.ende.y)
   if (minY === maxY) {
     const top = segment.normale.y < 0 ? minY : minY - wandDicke
-    return { left: `${minX}px`, top: `${top}px`, width: `${maxX - minX}px`, height: `${wandDicke}px` }
+    return { left: `${minX + von}px`, top: `${top}px`, width: `${bis - von}px`, height: `${wandDicke}px` }
   }
   const left = segment.normale.x < 0 ? minX : minX - wandDicke
-  return { left: `${left}px`, top: `${minY}px`, width: `${wandDicke}px`, height: `${maxY - minY}px` }
+  return { left: `${left}px`, top: `${minY + von}px`, width: `${wandDicke}px`, height: `${bis - von}px` }
+}
+
+// Aufgeteilte Stücke eines Wandstreifens: volle Segmentlänge minus die Spannen der Tür-/Fenster-
+// Elemente, die auf diesem Segment sitzen — sonst würde die Wand durchgehend gezeichnet, obwohl
+// eine Tür eigentlich einen Durchbruch hat. Die Spanne jedes Elements wird aus seiner bereits
+// berechneten Bildschirmposition (left/top/width, canvasInnerRef-lokal) abgeleitet statt separat
+// aus wandSegment/wandPosition neu hergeleitet — so bleibt die Lücke immer deckungsgleich mit dem
+// tatsächlich gerenderten Element, unabhängig davon, dass ein nach innen versetztes Segment
+// (innenEckpunkte) an denselben Ecken kürzer ist als das äußere Segment, auf dem der Wandstreifen
+// selbst gezeichnet wird.
+const wandStreifenStuecke = (segment, wandDicke, elemente) => {
+  const minX = Math.min(segment.start.x, segment.ende.x)
+  const maxX = Math.max(segment.start.x, segment.ende.x)
+  const minY = Math.min(segment.start.y, segment.ende.y)
+  const maxY = Math.max(segment.start.y, segment.ende.y)
+  const horizontal = minY === maxY
+  const laenge = horizontal ? maxX - minX : maxY - minY
+  const achsenStart = horizontal ? minX : minY
+
+  const luecken = elemente
+    .map(el => {
+      const von = (horizontal ? el.left : el.top) + wandDicke - achsenStart
+      return [Math.max(0, Math.min(laenge, von)), Math.max(0, Math.min(laenge, von + el.width))]
+    })
+    .sort((a, b) => a[0] - b[0])
+
+  const stuecke = []
+  let cursor = 0
+  luecken.forEach(([von, bis]) => {
+    if (von > cursor) stuecke.push([cursor, von])
+    cursor = Math.max(cursor, bis)
+  })
+  if (cursor < laenge) stuecke.push([cursor, laenge])
+
+  return stuecke.map(([von, bis]) => wandStreifenStyle(segment, wandDicke, von, bis))
 }
 
 export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, wandSegmente, innenEckpunkte }) {
@@ -78,14 +112,18 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
             outline: '2px solid #B5D4F4',
             boxSizing: 'border-box',
           }}>
-            {/* Wände einzeln einfärbbar — ein Streifen pro Wandsegment */}
-            {wandSegmente.map(segment => (
-              <div key={segment.index} style={{
-                position: 'absolute', ...wandStreifenStyle(segment, wandDicke),
-                background: wandFarbeFuer(activeRoom, segment.index),
-                zIndex: 3,
-              }}></div>
-            ))}
+            {/* Wände einzeln einfärbbar — ein oder mehrere Streifen pro Wandsegment, mit Lücken
+                für die Tür-/Fenster-Elemente, die darauf sitzen */}
+            {wandSegmente.map(segment => {
+              const elemente = furniture.filter(f => f.istWandElement && f.wandSegment === segment.index)
+              return wandStreifenStuecke(segment, wandDicke, elemente).map((style, i) => (
+                <div key={`${segment.index}-${i}`} style={{
+                  position: 'absolute', ...style,
+                  background: wandFarbeFuer(activeRoom, segment.index),
+                  zIndex: 3,
+                }}></div>
+              ))
+            })}
 
             <div ref={canvasInnerRef} className="canvas-wrap" style={{ position: 'absolute', inset: `${wandDicke}px` }}>
             {/* Bodenmuster — eigene Ebene statt Hintergrund auf canvasInnerRef selbst, damit
@@ -170,7 +208,10 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
               return (
               <div key={item.id} style={{
                 position: 'absolute',
-                zIndex: 1,
+                // Tür-/Fenster-Elemente sitzen jetzt zentriert auf der Wanddicke (siehe
+                // raumPolygon.js, platziereAufSegment) und würden sonst teilweise hinter dem
+                // Wandstreifen (zIndex 3) und der Fußleiste (zIndex 2) verschwinden.
+                zIndex: item.istWandElement ? 4 : 1,
                 left: item.left + (() => {
                   const rad = (item.rotation || 0) * Math.PI / 180
                   return (W * Math.abs(Math.cos(rad)) + H * Math.abs(Math.sin(rad))) / 2

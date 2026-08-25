@@ -19,7 +19,7 @@ function klemmeMitSlide(kandidatLinks, kandidatOben, letzteLinks, letzteOben, bo
 
 export function FurnitureProvider({ children }) {
   const { activeRoom, activeRoomId, updateRoom } = useRooms()
-  const { grenzB, grenzT, grenzStart, grenzeEckpunkte, rechteckInPolygon } = useRaumGeometrie()
+  const { grenzB, grenzT, grenzStart, grenzeEckpunkte, innenEckpunkte, wandDicke, rechteckInPolygon } = useRaumGeometrie()
   const [selectedId, setSelectedId] = useState(null)
 
   const furniture = useMemo(() => activeRoom?.furniture || [], [activeRoom])
@@ -60,16 +60,18 @@ export function FurnitureProvider({ children }) {
   // auf das tatsächlich nächstgelegene Segment gesnappt statt Segment 0 hart zu unterstellen —
   // bei einer L-/U-Form ist Segment 0 nicht zwangsläufig die durchgehende Nordwand, sondern kann
   // eine kurze Innenwand der Aussparung sein, auf die weder die feste Wandsegment-Zuordnung noch
-  // die auf grenzB bezogene left-Klemmung gepasst hätten.
+  // die auf grenzB bezogene left-Klemmung gepasst hätten. Gesnappt wird auf innenEckpunkte (die
+  // Wandinnenkante), nicht auf grenzeEckpunkte (die um die Fußleiste verkleinerte Möbelgrenze) —
+  // sonst sitzt das Element sichtbar neben statt in der Wand.
   const addWandElement = useCallback((item) => {
     const cx = grenzStart + 20 + Math.random() * 100
     const cy = grenzStart
-    const { left, top, wandSegment, wandPosition, rotation } = snappeWandElement(cx, cy, item.width, item.height, grenzeEckpunkte)
+    const { left, top, wandSegment, wandPosition, rotation } = snappeWandElement(cx, cy, item.width, item.height, innenEckpunkte, wandDicke)
     updateFurniture([...(activeRoom?.furniture || []), {
       ...item, id: vergibMoebelId(),
       left, top, rotation, istWandElement: true, wandSegment, wandPosition,
     }])
-  }, [updateFurniture, activeRoom, grenzeEckpunkte, grenzStart])
+  }, [updateFurniture, activeRoom, innenEckpunkte, wandDicke, grenzStart])
 
   const removeFurniture = useCallback((id) => {
     updateFurniture((activeRoom?.furniture || []).filter(f => f.id !== id))
@@ -157,13 +159,14 @@ export function FurnitureProvider({ children }) {
       // snappeWandElement (raumPolygon.js) sucht generisch über alle Segmente, nicht mehr auf
       // die vier Rechteckwände beschränkt — bei einer L-/U-Form (Schritt 9b) müssen auch die
       // neuen Segmente der Aussparung erreichbar sein. Dieselbe Funktion nutzt auch die
-      // Nachjustierung nach einer Formänderung (RoomsContext.jsx, Schritt 9b-2).
+      // Nachjustierung nach einer Formänderung (RoomsContext.jsx, Schritt 9b-2). Gesnappt wird
+      // auf innenEckpunkte, siehe addWandElement oben.
       if (item.istWandElement) {
         const w = item.width
         const h = item.height
         const cx = currentLeft + w / 2
         const cy = currentTop  + h / 2
-        const { left, top, wandSegment, wandPosition, rotation } = snappeWandElement(cx, cy, w, h, grenzeEckpunkte)
+        const { left, top, wandSegment, wandPosition, rotation } = snappeWandElement(cx, cy, w, h, innenEckpunkte, wandDicke)
 
         updateFurniture(aktuellesFurniture.map(f => f.id === id
           ? { ...f, left, top, wandSegment, wandPosition, rotation, origWidth: w, origHeight: h }
@@ -250,7 +253,7 @@ export function FurnitureProvider({ children }) {
     window.addEventListener('mouseup', onUp)
     window.addEventListener('touchmove', onMove, { passive: false })
     window.addEventListener('touchend', onUp)
-  }, [activeRoom, updateFurniture, grenzB, grenzT, grenzStart, grenzeEckpunkte, rechteckInPolygon])
+  }, [activeRoom, updateFurniture, grenzB, grenzT, grenzStart, innenEckpunkte, wandDicke, rechteckInPolygon])
 
   const value = useMemo(() => ({
     furniture, selectedId, setSelectedId,

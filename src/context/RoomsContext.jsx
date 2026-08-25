@@ -47,13 +47,14 @@ function moebelReparieren(item, grenzeEckpunkte, grenzStart, grenzB, grenzT) {
 // diese Wand verkürzt hat), wird komplett neu auf die nächstgelegene Kante gesnappt
 // (snappeWandElement) — sonst würde jede Größenänderung Fenster/Türen unnötig auf eine andere
 // Wand springen lassen, nur weil ihre alte Pixelposition zufällig näher an einer anderen Wand
-// der neuen Kontur liegt.
-function wandElementReparieren(item, grenzeEckpunkte) {
-  const beibehalten = platziereAufWandSegment(item.wandSegment, item.wandPosition, item.width, item.height, grenzeEckpunkte)
+// der neuen Kontur liegt. eckpunkte muss innenEckpunkte sein (Wandinnenkante), analog zu
+// FurnitureContext.jsx — sonst landet das Element nach der Reparatur neben statt in der Wand.
+function wandElementReparieren(item, innenEckpunkte, wandDicke) {
+  const beibehalten = platziereAufWandSegment(item.wandSegment, item.wandPosition, item.width, item.height, innenEckpunkte, wandDicke)
   if (beibehalten) return { ...item, ...beibehalten }
   const cx = item.left + item.width / 2
   const cy = item.top + item.height / 2
-  return { ...item, ...snappeWandElement(cx, cy, item.width, item.height, grenzeEckpunkte) }
+  return { ...item, ...snappeWandElement(cx, cy, item.width, item.height, innenEckpunkte, wandDicke) }
 }
 
 // Analog zu moebelReparieren, für Trennwände (Schritt 6) — dieselbe Bounding-Box-Klemmung wie
@@ -137,7 +138,7 @@ export function RoomsProvider({ children }) {
       const { grenzeEckpunkte, innenEckpunkte } = innenPolygone(polygonPx, wandDicke, fussleisteBreite)
 
       const furniture = (raum.furniture || []).map(item => item.istWandElement
-        ? wandElementReparieren(item, grenzeEckpunkte)
+        ? wandElementReparieren(item, innenEckpunkte, wandDicke)
         : moebelReparieren(item, grenzeEckpunkte, grenzStart, grenzB, grenzT))
       const trennwaende = (raum.trennwaende || []).map(wand => trennwandReparieren(wand, innenEckpunkte, innenB, innenT))
 
