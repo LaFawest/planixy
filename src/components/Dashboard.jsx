@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useProjekteListe } from '../context/ProjekteListeContext'
 
 // Suchfeld und Sortierung würden bei ein, zwei Projekten nur unnötig im Weg stehen — sie
@@ -110,7 +110,39 @@ function LoeschenDialog({ projektName, onBestaetigen, onAbbrechen }) {
   )
 }
 
-function KachelMenu({ onUmbenennen, onDuplizieren, onLoeschen }) {
+function FehlerDialog({ titel, meldung, onSchliessen }) {
+  return (
+    <DialogGeruest onAbbrechen={onSchliessen}>
+      <p style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', fontWeight: '500', color: '#2C2C2A', marginBottom: '12px' }}>
+        {titel}
+      </p>
+      <p style={{ fontSize: '13px', color: '#444441', lineHeight: 1.5, marginBottom: '20px' }}>
+        {meldung}
+      </p>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button onClick={onSchliessen} style={{
+          padding: '8px 16px', borderRadius: '10px', border: 'none', background: '#185FA5', color: 'white',
+          fontSize: '13px', fontWeight: '500', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+        }}>
+          OK
+        </button>
+      </div>
+    </DialogGeruest>
+  )
+}
+
+function ImportButton({ onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: '10px 20px', background: 'white', color: '#444441', border: '1px solid #E8E6E0', borderRadius: '10px',
+      cursor: 'pointer', fontSize: '13px', fontWeight: '500', fontFamily: "'DM Sans', sans-serif",
+    }}>
+      Importieren
+    </button>
+  )
+}
+
+function KachelMenu({ onUmbenennen, onDuplizieren, onExportieren, onLoeschen }) {
   const [offen, setOffen] = useState(false)
 
   const eintrag = (label, onClick, gefaehrlich) => (
@@ -143,6 +175,7 @@ function KachelMenu({ onUmbenennen, onDuplizieren, onLoeschen }) {
           }}>
             {eintrag('Umbenennen', onUmbenennen)}
             {eintrag('Duplizieren', onDuplizieren)}
+            {eintrag('Exportieren', onExportieren)}
             {eintrag('Löschen', onLoeschen, true)}
           </div>
         </>
@@ -151,7 +184,7 @@ function KachelMenu({ onUmbenennen, onDuplizieren, onLoeschen }) {
   )
 }
 
-function ProjektKachel({ projekt, onOeffnen, onUmbenennen, onDuplizieren, onLoeschen }) {
+function ProjektKachel({ projekt, onOeffnen, onUmbenennen, onDuplizieren, onExportieren, onLoeschen }) {
   return (
     <div onClick={onOeffnen} style={{
       position: 'relative', background: 'white', border: '1px solid #E8E6E0', borderRadius: '14px', padding: '20px',
@@ -160,7 +193,7 @@ function ProjektKachel({ projekt, onOeffnen, onUmbenennen, onDuplizieren, onLoes
       onMouseEnter={e => { e.currentTarget.style.borderColor = '#185FA5'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(24,95,165,0.12)' }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E6E0'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)' }}
     >
-      <KachelMenu onUmbenennen={onUmbenennen} onDuplizieren={onDuplizieren} onLoeschen={onLoeschen} />
+      <KachelMenu onUmbenennen={onUmbenennen} onDuplizieren={onDuplizieren} onExportieren={onExportieren} onLoeschen={onLoeschen} />
 
       <div style={{
         width: '100%', aspectRatio: '4 / 3', background: '#F7F6F2', borderRadius: '10px', marginBottom: '14px',
@@ -182,14 +215,31 @@ function ProjektKachel({ projekt, onOeffnen, onUmbenennen, onDuplizieren, onLoes
 }
 
 export default function Dashboard() {
-  const { projekte, addProjekt, waehleProjekt, renameProjekt, deleteProjekt, duplicateProjekt } = useProjekteListe()
-  // dialog: null | { typ: 'neu' } | { typ: 'umbenennen', projekt } | { typ: 'loeschen', projekt }
+  const { projekte, addProjekt, waehleProjekt, renameProjekt, deleteProjekt, duplicateProjekt, exportProjekt, importProjekt } = useProjekteListe()
+  // dialog: null | { typ: 'neu' } | { typ: 'umbenennen', projekt } | { typ: 'loeschen', projekt } | { typ: 'importFehler', meldung }
   const [dialog, setDialog] = useState(null)
   const schliessen = () => setDialog(null)
+  const importInputRef = useRef(null)
 
   const [suchbegriff, setSuchbegriff] = useState('')
   const [sortierungId, setSortierungId] = useState(SORTIERUNGEN[0].id)
   const zeigeSteuerung = projekte.length >= MIND_PROJEKTE_FUER_STEUERUNG
+
+  // Sicherheitsnetz gegen Datenverlust (Anlass: versehentlich gelöschtes localStorage beim
+  // Testen) — liest die gewählte Datei ein und importiert sie als neues Projekt. Fängt jeden
+  // Fehler aus parseProjektDatei (kaputtes JSON, fremde/unvollständige Struktur) ab und zeigt ihn
+  // an, statt die App abstürzen zu lassen. e.target.value wird zurückgesetzt, damit dieselbe
+  // Datei danach erneut ausgewählt werden kann (sonst feuert onChange beim zweiten Mal nicht).
+  const importiereDatei = async (e) => {
+    const datei = e.target.files[0]
+    e.target.value = ''
+    if (!datei) return
+    try {
+      importProjekt(await datei.text())
+    } catch (err) {
+      setDialog({ typ: 'importFehler', meldung: err.message })
+    }
+  }
 
   const sichtbareProjekte = useMemo(() => {
     const suche = suchbegriff.trim().toLowerCase()
@@ -200,20 +250,24 @@ export default function Dashboard() {
 
   return (
     <div style={{ minHeight: '100vh', padding: '40px 48px', fontFamily: "'DM Sans', sans-serif" }}>
+      <input ref={importInputRef} type="file" accept=".json,application/json" onChange={importiereDatei} style={{ display: 'none' }} />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
         <div>
           <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '28px', fontWeight: '500', color: '#2C2C2A' }}>Planixy</h1>
           <p style={{ fontSize: '13px', color: '#B4B2A9', marginTop: '2px' }}>Deine Projekte</p>
         </div>
-        <button onClick={() => setDialog({ typ: 'neu' })} style={{
-          padding: '10px 20px', background: '#185FA5', color: 'white', border: 'none', borderRadius: '10px',
-          cursor: 'pointer', fontSize: '13px', fontWeight: '500', fontFamily: "'DM Sans', sans-serif",
-        }}
-          onMouseEnter={e => e.currentTarget.style.background = '#0C447C'}
-          onMouseLeave={e => e.currentTarget.style.background = '#185FA5'}
-        >
-          + Neues Projekt
-        </button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <ImportButton onClick={() => importInputRef.current.click()} />
+          <button onClick={() => setDialog({ typ: 'neu' })} style={{
+            padding: '10px 20px', background: '#185FA5', color: 'white', border: 'none', borderRadius: '10px',
+            cursor: 'pointer', fontSize: '13px', fontWeight: '500', fontFamily: "'DM Sans', sans-serif",
+          }}
+            onMouseEnter={e => e.currentTarget.style.background = '#0C447C'}
+            onMouseLeave={e => e.currentTarget.style.background = '#185FA5'}
+          >
+            + Neues Projekt
+          </button>
+        </div>
       </div>
 
       {zeigeSteuerung && (
@@ -251,14 +305,17 @@ export default function Dashboard() {
             Noch kein Projekt angelegt
           </p>
           <p style={{ fontSize: '13px', color: '#888780', marginBottom: '24px', maxWidth: '360px' }}>
-            Leg dein erstes Projekt an, um mit der Raumplanung zu beginnen.
+            Leg dein erstes Projekt an, um mit der Raumplanung zu beginnen — oder stelle eine zuvor exportierte Sicherung wieder her.
           </p>
-          <button onClick={() => setDialog({ typ: 'neu' })} style={{
-            padding: '10px 20px', background: '#185FA5', color: 'white', border: 'none', borderRadius: '10px',
-            cursor: 'pointer', fontSize: '13px', fontWeight: '500', fontFamily: "'DM Sans', sans-serif",
-          }}>
-            + Neues Projekt
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button onClick={() => setDialog({ typ: 'neu' })} style={{
+              padding: '10px 20px', background: '#185FA5', color: 'white', border: 'none', borderRadius: '10px',
+              cursor: 'pointer', fontSize: '13px', fontWeight: '500', fontFamily: "'DM Sans', sans-serif",
+            }}>
+              + Neues Projekt
+            </button>
+            <ImportButton onClick={() => importInputRef.current.click()} />
+          </div>
         </div>
       ) : sichtbareProjekte.length === 0 ? (
         <div style={{
@@ -282,6 +339,7 @@ export default function Dashboard() {
               onOeffnen={() => waehleProjekt(projekt.id)}
               onUmbenennen={() => setDialog({ typ: 'umbenennen', projekt })}
               onDuplizieren={() => duplicateProjekt(projekt.id)}
+              onExportieren={() => exportProjekt(projekt.id)}
               onLoeschen={() => setDialog({ typ: 'loeschen', projekt })}
             />
           ))}
@@ -312,6 +370,14 @@ export default function Dashboard() {
           projektName={dialog.projekt.name}
           onBestaetigen={() => { deleteProjekt(dialog.projekt.id); schliessen() }}
           onAbbrechen={schliessen}
+        />
+      )}
+
+      {dialog?.typ === 'importFehler' && (
+        <FehlerDialog
+          titel="Import fehlgeschlagen"
+          meldung={dialog.meldung}
+          onSchliessen={schliessen}
         />
       )}
     </div>

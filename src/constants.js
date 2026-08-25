@@ -211,7 +211,8 @@ export const DEFAULT_WIZARD_SCHRITT = WIZARD_SCHRITTE[0].nummer
 const RAUM_PFLICHTFELDER = ['id', 'name']
 const RAUM_OPTIONALE_FELDER = [
   'raumForm', 'breite', 'tiefe', 'aussparungBreite', 'aussparungTiefe', 'ausrichtung',
-  'eckpunkte', 'furniture', 'fussleiste', 'fussleisteFarbe', 'raumHoehe', 'tageszeit', 'wizardSchritt',
+  'eckpunkte', 'furniture', 'trennwaende', 'boden', 'wandfarbe', 'wandfarben',
+  'fussleiste', 'fussleisteFarbe', 'raumHoehe', 'tageszeit', 'wizardSchritt',
 ]
 const RAUM_FELDER = new Set([...RAUM_PFLICHTFELDER, ...RAUM_OPTIONALE_FELDER])
 
@@ -233,6 +234,7 @@ export function erzeugeRaum(felder = {}) {
     breite: 5,
     tiefe: 4,
     furniture: [],
+    trennwaende: [],
     ...DEFAULT_RAUM_DESIGN,
     wizardSchritt: DEFAULT_WIZARD_SCHRITT,
     ...felder,

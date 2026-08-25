@@ -3,7 +3,7 @@ import { migriereRaum } from './roomsStorage'
 import { rechteckPolygon } from '../raumPolygon'
 
 const STORAGE_KEY = 'planixy-rooms'
-const SCHEMA_VERSION = 7
+export const SCHEMA_VERSION = 7
 const STANDARD_PROJEKT_NAME = 'Mein Zuhause'
 
 const SEGMENT_JE_HIMMELSRICHTUNG = Object.fromEntries(
@@ -114,15 +114,20 @@ const migriereV6ZuV7 = (v6Daten) => ({
   })),
 })
 
-export const loadProjekte = () => {
-  const saved = localStorage.getItem(STORAGE_KEY)
-  if (!saved) return [neuesProjektObjekt(1, initialRooms)]
-
-  let daten = JSON.parse(saved)
-
-  // Migrationskette darf keine Version überspringen: v0 -> v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7
+// Wendet die vollständige Migrationskette (v0 -> v1 -> ... -> SCHEMA_VERSION) auf rohe Daten an,
+// egal ob sie aus localStorage oder einer importierten Datei stammen (siehe projektExport.js,
+// parseProjektDatei) — reine Funktion, kein localStorage-Zugriff, damit eine ältere exportierte
+// Datei genau denselben Weg durchläuft wie alte localStorage-Daten. undefined, wenn die Daten
+// weder ein rohes v0-Array noch ein Objekt mit erkennbarer schemaVersion sind, oder die Kette
+// nicht bei SCHEMA_VERSION ankommt (unbekannte/zukünftige Version) — der Aufrufer entscheidet
+// selbst über den Notfall (loadProjekte fällt auf Default-Räume zurück, der Import wirft
+// stattdessen einen klaren Fehler statt still ein fremdes Projekt zu verwerfen).
+export const migriereProjekteDaten = (rohDaten) => {
+  let daten = rohDaten
   if (Array.isArray(daten)) {
     daten = migriereV0ZuV1(daten)
+  } else if (daten === null || typeof daten !== 'object') {
+    return undefined
   }
   if (daten.schemaVersion === 1) {
     daten = migriereV1ZuV2(daten)
@@ -142,12 +147,15 @@ export const loadProjekte = () => {
   if (daten.schemaVersion === 6) {
     daten = migriereV6ZuV7(daten)
   }
-  if (daten.schemaVersion === SCHEMA_VERSION) {
-    return daten.projekte
-  }
+  return daten.schemaVersion === SCHEMA_VERSION ? daten.projekte : undefined
+}
 
-  // Unbekannte/zukünftige Version oder unvollständige Hülle: defensiv zurückfallen
-  return daten.projekte || [neuesProjektObjekt(1, initialRooms)]
+export const loadProjekte = () => {
+  const saved = localStorage.getItem(STORAGE_KEY)
+  if (!saved) return [neuesProjektObjekt(1, initialRooms)]
+
+  // Unbekannte/zukünftige Version oder unvollständige Hülle: defensiv auf Default-Räume zurückfallen
+  return migriereProjekteDaten(JSON.parse(saved)) || [neuesProjektObjekt(1, initialRooms)]
 }
 
 export const saveProjekte = (projekte) => {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { loadProjekte, saveProjekte } from './projekteStorage'
 import { vergibProjektId, vergibRaumId, vergibMoebelId, vergibWandId } from './idZaehler'
 import { erzeugeRaum } from '../constants'
+import { serialisiereProjekt, parseProjektDatei, eindeutigerProjektname } from './projektExport'
 
 const ProjekteListeContext = createContext(null)
 
@@ -64,9 +65,40 @@ export function ProjekteListeProvider({ children }) {
     setProjekte(prev => [...prev, kopie])
   }, [projekte])
 
+  // Löst einen Browser-Download der Export-Datei aus (Blob + unsichtbarer <a download>-Klick,
+  // Standardmuster ohne Server-Roundtrip) — Sicherheitsnetz gegen Datenverlust, siehe
+  // projektExport.js für das Dateiformat.
+  const exportProjekt = useCallback((id) => {
+    const projekt = projekte.find(p => p.id === id)
+    if (!projekt) return
+    const { dateiname, json } = serialisiereProjekt(projekt)
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = dateiname
+    link.click()
+    URL.revokeObjectURL(url)
+  }, [projekte])
+
+  // Liest eine zuvor exportierte Projektdatei ein und legt sie als NEUES Projekt an — überschreibt
+  // nie ein bestehendes. parseProjektDatei prüft/migriert und vergibt bereits frische IDs (wie
+  // duplicateProjekt oben); hier bleibt nur noch die Namenskollision mit der aktuellen Projektliste
+  // zu klären, die parseProjektDatei (ohne Kenntnis der Liste) nicht selbst entscheiden kann.
+  // Wirft weiter, wenn `text` kein gültiges Planixy-Projekt ist — der Aufrufer (Dashboard.jsx)
+  // fängt das ab und zeigt die Fehlermeldung an.
+  const importProjekt = useCallback((text) => {
+    const importiert = parseProjektDatei(text)
+    const name = eindeutigerProjektname(importiert.name, projekte.map(p => p.name))
+    setProjekte(prev => [...prev, { ...importiert, name }])
+  }, [projekte])
+
   const value = useMemo(() => ({
     projekte, updateProjekt, addProjekt, deleteProjekt, renameProjekt, waehleProjekt, duplicateProjekt,
-  }), [projekte, updateProjekt, addProjekt, deleteProjekt, renameProjekt, waehleProjekt, duplicateProjekt])
+    exportProjekt, importProjekt,
+  }), [
+    projekte, updateProjekt, addProjekt, deleteProjekt, renameProjekt, waehleProjekt, duplicateProjekt,
+    exportProjekt, importProjekt,
+  ])
 
   return <ProjekteListeContext.Provider value={value}>{children}</ProjekteListeContext.Provider>
 }
