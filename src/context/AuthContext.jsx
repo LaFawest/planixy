@@ -22,13 +22,20 @@ export function AuthProvider({ children }) {
 
   const signUp = useCallback((email, password) => supabase.auth.signUp({ email, password }), [])
   const signIn = useCallback((email, password) => supabase.auth.signInWithPassword({ email, password }), [])
+  // redirectTo: aktuelle Seite statt fest der Startroute, damit sich Google-Login genauso verhält
+  // wie E-Mail/Passwort-Login (Nutzer bleibt auf der Seite, von der aus er sich angemeldet hat) —
+  // eine dort inzwischen fehlende Gast-Projekt-ID leitet ProjectsContext ohnehin schon zum Dashboard um.
+  const signInWithGoogle = useCallback(() => supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.href },
+  }), [])
   const signOut = useCallback(() => supabase.auth.signOut(), [])
 
   const value = useMemo(() => ({
     user: session?.user ?? null,
     ladeStatus,
-    signUp, signIn, signOut,
-  }), [session, ladeStatus, signUp, signIn, signOut])
+    signUp, signIn, signInWithGoogle, signOut,
+  }), [session, ladeStatus, signUp, signIn, signInWithGoogle, signOut])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
