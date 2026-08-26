@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { useProjekteListe } from '../context/ProjekteListeContext'
-import { loadProjekte, clearProjekte } from '../context/projekteStorage'
+import { loadProjekte, clearProjekte, MIGRATION_ABLEHNUNG_KEY as ABLEHNUNG_KEY } from '../context/projekteStorage'
 import { erstelleProjektSupabase } from '../context/projekteSupabaseStorage'
 import { serialisiereProjekt, parseProjektDatei, eindeutigerProjektname } from '../context/projektExport'
-
-const ABLEHNUNG_KEY = 'planixy-migration-abgelehnt'
 
 // Default-Projekt ("Mein Zuhause" ohne jede Änderung) hat erstelltAm === geaendertAm, weil jede
 // echte Änderung (auch nur ein Wizard-Schritt-Wechsel) über updateProjekt geaendertAm neu setzt —

@@ -6,6 +6,16 @@ const STORAGE_KEY = 'planixy-rooms'
 export const SCHEMA_VERSION = 7
 const STANDARD_PROJEKT_NAME = 'Mein Zuhause'
 
+// Auch hier (statt lokal in MigrationsDialog.jsx), weil die Aufräum-Logik unten diesen Key mit
+// entfernen muss, sobald er sich auf jetzt gelöschte Gast-Daten bezieht.
+export const MIGRATION_ABLEHNUNG_KEY = 'planixy-migration-abgelehnt'
+
+// Gast-Projekte sind nie "gespeichert" im eigentlichen Sinn gedacht — liegen sie länger als diese
+// Schwelle unangetastet (auch ein nie berührtes Default-Projekt zählt, siehe sindAlleProjekteAlt),
+// gelten sie als Datenmüll und werden beim nächsten Laden kommentarlos verworfen.
+const AUFRAEUM_SCHWELLE_TAGE = 30
+const AUFRAEUM_SCHWELLE_MS = AUFRAEUM_SCHWELLE_TAGE * 24 * 60 * 60 * 1000
+
 const SEGMENT_JE_HIMMELSRICHTUNG = Object.fromEntries(
   HIMMELSRICHTUNG_JE_SEGMENT.map((seite, i) => [seite, i])
 )
@@ -150,23 +160,45 @@ export const migriereProjekteDaten = (rohDaten) => {
   return daten.schemaVersion === SCHEMA_VERSION ? daten.projekte : undefined
 }
 
+// Entfernt den Key komplett statt ihn leer zu speichern, damit loadProjekte() beim nächsten
+// Gast-Start wieder den normalen "frisches Gerät"-Weg nimmt (neuer Default "Mein Zuhause") statt
+// eine leere Projektliste zu sehen — genutzt nach erfolgreicher Übernahme ins Konto (MigrationsDialog.jsx)
+// und von der Aufräum-Logik unten.
+export const clearProjekte = () => {
+  localStorage.removeItem(STORAGE_KEY)
+}
+
+// true, wenn seit der letzten Änderung an JEDEM lokalen Projekt mehr als AUFRAEUM_SCHWELLE_TAGE
+// vergangen sind — ein einziges kürzlich angefasstes Projekt reicht, um die ganze Liste zu behalten.
+// Für ein nie geändertes Projekt ist geaendertAm === erstelltAm (siehe neuesProjektObjekt), zählt
+// also genauso als "alt", wenn seitdem die Schwelle verstrichen ist: unbenutzt seit einem Monat ist
+// ebenso Datenmüll wie benutzt-und-liegengelassen, eine Unterscheidung bräuchte ein Signal, das gar
+// nicht getrackt wird.
+const sindAlleProjekteAlt = (projekte) =>
+  projekte.length > 0 && projekte.every(p => Date.now() - new Date(p.geaendertAm).getTime() > AUFRAEUM_SCHWELLE_MS)
+
 export const loadProjekte = () => {
   const saved = localStorage.getItem(STORAGE_KEY)
   if (!saved) return [neuesProjektObjekt(1, initialRooms)]
 
   // Unbekannte/zukünftige Version oder unvollständige Hülle: defensiv auf Default-Räume zurückfallen
-  return migriereProjekteDaten(JSON.parse(saved)) || [neuesProjektObjekt(1, initialRooms)]
+  const projekte = migriereProjekteDaten(JSON.parse(saved)) || [neuesProjektObjekt(1, initialRooms)]
+
+  // Kein Hinweis/Dialog nötig — Gast-Daten galten nie als "gespeichert" im eigentlichen Sinn.
+  // Die Ablehnung-Markierung aus dem Migrations-Dialog bezieht sich auf jetzt gelöschte Daten und
+  // muss mit weg, sonst würde eine spätere, wirklich neue Gast-Aktivität mit derselben Projekt-ID
+  // fälschlich als "schon mal abgelehnt" gelten.
+  if (sindAlleProjekteAlt(projekte)) {
+    clearProjekte()
+    localStorage.removeItem(MIGRATION_ABLEHNUNG_KEY)
+    return [neuesProjektObjekt(1, initialRooms)]
+  }
+
+  return projekte
 }
 
 export const saveProjekte = (projekte) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ schemaVersion: SCHEMA_VERSION, projekte }))
-}
-
-// Entfernt den Key komplett statt ihn leer zu speichern, damit loadProjekte() beim nächsten
-// Gast-Start wieder den normalen "frisches Gerät"-Weg nimmt (neuer Default "Mein Zuhause") statt
-// eine leere Projektliste zu sehen — genutzt nach erfolgreicher Übernahme ins Konto (MigrationsDialog.jsx).
-export const clearProjekte = () => {
-  localStorage.removeItem(STORAGE_KEY)
 }
 
 export const alleRaeume = (projekte) => projekte.flatMap(p => p.raeume || [])
