@@ -30,12 +30,22 @@ export function AuthProvider({ children }) {
     options: { redirectTo: window.location.href },
   }), [])
   const signOut = useCallback(() => supabase.auth.signOut(), [])
+  const updateEmail = useCallback((email) => supabase.auth.updateUser({ email }), [])
+  const updatePassword = useCallback((password) => supabase.auth.updateUser({ password }), [])
+  // Löscht das Konto serverseitig (Edge Function delete-account, braucht den Service-Role-Key —
+  // ein Client kann sich nicht selbst per auth.admin löschen). password nur relevant, wenn der
+  // Nutzer eine E-Mail/Passwort-Identity hat; die Function prüft das selbst.
+  const deleteAccount = useCallback(async ({ password } = {}) => {
+    const { data, error } = await supabase.functions.invoke('delete-account', { body: { password } })
+    if (error) return { error }
+    return { data }
+  }, [])
 
   const value = useMemo(() => ({
     user: session?.user ?? null,
     ladeStatus,
-    signUp, signIn, signInWithGoogle, signOut,
-  }), [session, ladeStatus, signUp, signIn, signInWithGoogle, signOut])
+    signUp, signIn, signInWithGoogle, signOut, updateEmail, updatePassword, deleteAccount,
+  }), [session, ladeStatus, signUp, signIn, signInWithGoogle, signOut, updateEmail, updatePassword, deleteAccount])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

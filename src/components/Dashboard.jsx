@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useProjekteListe } from '../context/ProjekteListeContext'
+import { useAuth } from '../context/AuthContext'
 import { PlanixyIcon } from './PlanixyLogo'
 import GastBanner from './GastBanner'
 
@@ -162,6 +164,55 @@ function ImportButton({ onClick }) {
     }}>
       Importieren
     </button>
+  )
+}
+
+function KontoMenu({ user }) {
+  const navigate = useNavigate()
+  const { signOut } = useAuth()
+  const [offen, setOffen] = useState(false)
+  const kuerzel = user.email?.slice(0, 2).toUpperCase()
+
+  return (
+    <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
+      <button onClick={() => setOffen(o => !o)} title={user.email} style={{
+        width: '36px', height: '36px', borderRadius: '50%', border: '1px solid #E4DED0', background: '#EDF1EC',
+        color: '#2F4B39', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
+      }}>
+        {kuerzel}
+      </button>
+      {offen && (
+        <>
+          <div onClick={() => setOffen(false)} style={{ position: 'fixed', inset: 0, zIndex: 5 }} />
+          <div style={{
+            position: 'absolute', top: '44px', right: 0, background: 'white', border: '1px solid #E4DED0',
+            borderRadius: '12px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 6, overflow: 'hidden', width: '220px',
+          }}>
+            <div style={{ padding: '12px 14px', borderBottom: '1px solid #F2EFE7' }}>
+              <p style={{ fontSize: '11px', color: '#B4B2A9', marginBottom: '2px' }}>Angemeldet als</p>
+              <p style={{ fontSize: '13px', color: '#2C2C2A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</p>
+            </div>
+            <div
+              onClick={() => { setOffen(false); navigate('/einstellungen') }}
+              style={{ padding: '10px 14px', fontSize: '13px', cursor: 'pointer', color: '#444441', fontFamily: "'DM Sans', sans-serif" }}
+              onMouseEnter={e => e.currentTarget.style.background = '#F7F6F2'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              Einstellungen
+            </div>
+            <div
+              onClick={() => { setOffen(false); signOut() }}
+              style={{ padding: '10px 14px', fontSize: '13px', cursor: 'pointer', color: '#E24B4A', fontFamily: "'DM Sans', sans-serif" }}
+              onMouseEnter={e => e.currentTarget.style.background = '#FCEBEB'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              Abmelden
+            </div>
+          </div>
+        </>
+      )}
+    </div>
   )
 }
 
@@ -341,6 +392,7 @@ function ProjektKachel({ projekt, kartenRef, gruppen, onOeffnen, onUmbenennen, o
 
 export default function Dashboard() {
   const { projekte, projekteLadeStatus, addProjekt, waehleProjekt, renameProjekt, deleteProjekt, duplicateProjekt, exportProjekt, importProjekt, updateProjekt } = useProjekteListe()
+  const { user } = useAuth()
   // dialog: null | { typ: 'neu' } | { typ: 'umbenennen', projekt } | { typ: 'loeschen', projekt } | { typ: 'importFehler', meldung }
   const [dialog, setDialog] = useState(null)
   const schliessen = () => setDialog(null)
@@ -502,6 +554,7 @@ export default function Dashboard() {
           >
             + Neues Projekt
           </button>
+          {user && <KontoMenu user={user} />}
         </div>
       </div>
 

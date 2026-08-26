@@ -11,6 +11,7 @@ import { TrennwandProvider } from './context/TrennwandContext'
 import { KatalogProvider } from './context/KatalogContext'
 import { useRaumGeometrie } from './context/useRaumGeometrie'
 import Dashboard from './components/Dashboard'
+import Einstellungen from './components/Einstellungen'
 import MigrationsDialog from './components/MigrationsDialog'
 import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
@@ -28,6 +29,7 @@ export default function App() {
           <MigrationsDialog />
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/einstellungen" element={<Einstellungen />} />
             <Route path="/projekt/:id" element={<ProjektRoute />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

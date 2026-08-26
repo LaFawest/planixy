@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase CLI cache (not project config, machine-local)
+supabase/.temp
