@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useProjekteListe } from '../context/ProjekteListeContext'
 import { PlanixyIcon } from './PlanixyLogo'
 import GastBanner from './GastBanner'
@@ -12,6 +12,27 @@ const SORTIERUNGEN = [
   { id: 'name', label: 'Name', vergleiche: (a, b) => a.name.localeCompare(b.name, 'de', { sensitivity: 'base' }) },
   { id: 'erstellt', label: 'Erstellungsdatum', vergleiche: (a, b) => new Date(b.erstelltAm) - new Date(a.erstelltAm) },
 ]
+
+const tageSeit = (datumIso) => (Date.now() - new Date(datumIso).getTime()) / 86400000
+
+// Zeitraum- und Raum-Filter fürs Dashboard (zusätzlich zur bestehenden Suche/Sortierung).
+// Beide Gruppen sind je Einfachauswahl mit "Alle" als Grundzustand, kombinierbar miteinander.
+const ZEITRAUM_FILTER = [
+  { id: 'alle', label: 'Alle', passt: () => true },
+  { id: 'heute', label: 'Heute', passt: p => tageSeit(p.geaendertAm) < 1 },
+  { id: 'woche', label: 'Diese Woche', passt: p => tageSeit(p.geaendertAm) < 7 },
+  { id: 'monat', label: 'Dieser Monat', passt: p => tageSeit(p.geaendertAm) < 30 },
+  { id: 'aelter', label: 'Älter', passt: p => tageSeit(p.geaendertAm) >= 30 },
+]
+
+const RAUM_FILTER = [
+  { id: 'alle', label: 'Alle', passt: () => true },
+  { id: '1', label: '1', passt: p => p.raeume.length === 1 },
+  { id: '2-3', label: '2–3', passt: p => p.raeume.length >= 2 && p.raeume.length <= 3 },
+  { id: '4+', label: '4+', passt: p => p.raeume.length >= 4 },
+]
+
+const ALLE_BUCHSTABEN = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
 const formatiereRelativeZeit = (datumIso) => {
   const diffMs = Date.now() - new Date(datumIso).getTime()
@@ -186,9 +207,9 @@ function KachelMenu({ onUmbenennen, onDuplizieren, onExportieren, onLoeschen }) 
   )
 }
 
-function ProjektKachel({ projekt, onOeffnen, onUmbenennen, onDuplizieren, onExportieren, onLoeschen }) {
+function ProjektKachel({ projekt, kartenRef, onOeffnen, onUmbenennen, onDuplizieren, onExportieren, onLoeschen }) {
   return (
-    <div onClick={onOeffnen} style={{
+    <div ref={kartenRef} onClick={onOeffnen} style={{
       position: 'relative', background: 'white', border: '1px solid #E4DED0', borderRadius: '14px', padding: '20px',
       cursor: 'pointer', transition: 'all 0.15s', boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
     }}
@@ -227,6 +248,16 @@ export default function Dashboard() {
   const [sortierungId, setSortierungId] = useState(SORTIERUNGEN[0].id)
   const zeigeSteuerung = projekte.length >= MIND_PROJEKTE_FUER_STEUERUNG
 
+  const [filterOffen, setFilterOffen] = useState(false)
+  const [zeitraumFilterId, setZeitraumFilterId] = useState(ZEITRAUM_FILTER[0].id)
+  const [raumFilterId, setRaumFilterId] = useState(RAUM_FILTER[0].id)
+  const filterAktiv = zeitraumFilterId !== 'alle' || raumFilterId !== 'alle'
+
+  // A-Z-Sprungleiste: merkt sich Karten-DOM-Knoten je Projekt-ID, um beim Klick auf einen
+  // Buchstaben dorthin zu scrollen. gewaehlterBuchstabe steuert nur die optische Markierung.
+  const kartenRefs = useRef({})
+  const [gewaehlterBuchstabe, setGewaehlterBuchstabe] = useState(null)
+
   // Sicherheitsnetz gegen Datenverlust (Anlass: versehentlich gelöschtes localStorage beim
   // Testen) — liest die gewählte Datei ein und importiert sie als neues Projekt. Fängt jeden
   // Fehler aus parseProjektDatei (kaputtes JSON, fremde/unvollständige Struktur) ab und zeigt ihn
@@ -245,10 +276,37 @@ export default function Dashboard() {
 
   const sichtbareProjekte = useMemo(() => {
     const suche = suchbegriff.trim().toLowerCase()
-    const gefiltert = suche ? projekte.filter(p => p.name.toLowerCase().includes(suche)) : projekte
+    let gefiltert = suche ? projekte.filter(p => p.name.toLowerCase().includes(suche)) : projekte
+    const zeitraumPasst = ZEITRAUM_FILTER.find(z => z.id === zeitraumFilterId).passt
+    const raumPasst = RAUM_FILTER.find(r => r.id === raumFilterId).passt
+    gefiltert = gefiltert.filter(p => zeitraumPasst(p) && raumPasst(p))
     const vergleiche = SORTIERUNGEN.find(s => s.id === sortierungId).vergleiche
     return [...gefiltert].sort(vergleiche)
-  }, [projekte, suchbegriff, sortierungId])
+  }, [projekte, suchbegriff, sortierungId, zeitraumFilterId, raumFilterId])
+
+  // Nur Anfangsbuchstaben, zu denen es gerade (nach Suche/Filter) auch eine Karte gibt, sind in
+  // der Sprungleiste anklickbar — der Rest wird ausgegraut dargestellt.
+  const vorhandeneBuchstaben = useMemo(() => {
+    const menge = new Set()
+    sichtbareProjekte.forEach(p => {
+      const buchstabe = p.name.trim()[0]
+      if (buchstabe) menge.add(buchstabe.toUpperCase())
+    })
+    return menge
+  }, [sichtbareProjekte])
+
+  const springeZuBuchstabe = (buchstabe) => {
+    setGewaehlterBuchstabe(buchstabe)
+    // Springen ergibt nur alphabetisch sortiert einen Sinn — sonst läge das Ziel ggf. weiter
+    // unten als erwartet. Der Scroll selbst passiert im Effekt unten, sobald neu sortiert ist.
+    if (sortierungId !== 'name') setSortierungId('name')
+  }
+
+  useEffect(() => {
+    if (!gewaehlterBuchstabe) return
+    const treffer = sichtbareProjekte.find(p => p.name.trim()[0]?.toUpperCase() === gewaehlterBuchstabe)
+    kartenRefs.current[treffer?.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [gewaehlterBuchstabe, sichtbareProjekte])
 
   return (
     <div style={{ minHeight: '100vh', padding: '40px 48px', fontFamily: "'DM Sans', sans-serif" }}>
@@ -278,7 +336,7 @@ export default function Dashboard() {
       <GastBanner />
 
       {zeigeSteuerung && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
           <input
             type="text"
             value={suchbegriff}
@@ -299,6 +357,68 @@ export default function Dashboard() {
           >
             {SORTIERUNGEN.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
+          <button onClick={() => setFilterOffen(o => !o)} style={{
+            display: 'flex', alignItems: 'center', gap: '7px', padding: '9px 14px', fontSize: '13px', fontWeight: '500',
+            borderRadius: '10px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", position: 'relative',
+            background: filterOffen ? '#2F4B39' : 'white', color: filterOffen ? 'white' : '#444441',
+            border: `1px solid ${filterOffen ? '#2F4B39' : '#E4DED0'}`,
+          }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={filterOffen ? 'white' : '#444441'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="4 4 20 4 14 13 14 20 10 20 10 13 4 4" />
+            </svg>
+            Filter
+            {filterAktiv && (
+              <span style={{
+                width: '6px', height: '6px', borderRadius: '50%', background: '#C9A66B', position: 'absolute', top: '7px', right: '7px',
+                boxShadow: `0 0 0 2px ${filterOffen ? '#2F4B39' : 'white'}`,
+              }} />
+            )}
+          </button>
+        </div>
+      )}
+
+      {zeigeSteuerung && filterOffen && (
+        <div style={{
+          display: 'flex', alignItems: 'flex-start', gap: '28px', padding: '16px 18px', marginBottom: '24px',
+          background: 'white', border: '1px solid #E4DED0', borderRadius: '12px', flexWrap: 'wrap',
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ fontSize: '10px', letterSpacing: '.06em', textTransform: 'uppercase', color: '#B4B2A9', fontWeight: '600' }}>
+              Zeitraum
+            </div>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {ZEITRAUM_FILTER.map(z => (
+                <div key={z.id} onClick={() => setZeitraumFilterId(z.id)} style={{
+                  padding: '6px 13px', fontSize: '12px', borderRadius: '20px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+                  border: `1px solid ${z.id === zeitraumFilterId ? '#2F4B39' : '#E4DED0'}`,
+                  background: z.id === zeitraumFilterId ? '#2F4B39' : 'white',
+                  color: z.id === zeitraumFilterId ? 'white' : '#444441',
+                  fontWeight: z.id === zeitraumFilterId ? '500' : '400',
+                }}>
+                  {z.label}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ width: '1px', alignSelf: 'stretch', background: '#EDE9DD' }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ fontSize: '10px', letterSpacing: '.06em', textTransform: 'uppercase', color: '#B4B2A9', fontWeight: '600' }}>
+              Räume
+            </div>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {RAUM_FILTER.map(r => (
+                <div key={r.id} onClick={() => setRaumFilterId(r.id)} style={{
+                  padding: '6px 13px', fontSize: '12px', borderRadius: '20px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+                  border: `1px solid ${r.id === raumFilterId ? '#2F4B39' : '#E4DED0'}`,
+                  background: r.id === raumFilterId ? '#2F4B39' : 'white',
+                  color: r.id === raumFilterId ? 'white' : '#444441',
+                  fontWeight: r.id === raumFilterId ? '500' : '400',
+                }}>
+                  {r.label}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -340,22 +460,49 @@ export default function Dashboard() {
             Kein Projekt gefunden
           </p>
           <p style={{ fontSize: '13px', color: '#888780', maxWidth: '360px' }}>
-            Für „{suchbegriff}" gibt es keine Treffer.
+            {suchbegriff ? `Für „${suchbegriff}" gibt es keine Treffer.` : 'Für diese Filter gibt es keine Treffer.'}
           </p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px' }}>
-          {sichtbareProjekte.map(projekt => (
-            <ProjektKachel
-              key={projekt.id}
-              projekt={projekt}
-              onOeffnen={() => waehleProjekt(projekt.id)}
-              onUmbenennen={() => setDialog({ typ: 'umbenennen', projekt })}
-              onDuplizieren={() => duplicateProjekt(projekt.id)}
-              onExportieren={() => exportProjekt(projekt.id)}
-              onLoeschen={() => setDialog({ typ: 'loeschen', projekt })}
-            />
-          ))}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px' }}>
+          <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '20px', alignContent: 'start' }}>
+            {sichtbareProjekte.map(projekt => (
+              <ProjektKachel
+                key={projekt.id}
+                projekt={projekt}
+                kartenRef={el => { kartenRefs.current[projekt.id] = el }}
+                onOeffnen={() => waehleProjekt(projekt.id)}
+                onUmbenennen={() => setDialog({ typ: 'umbenennen', projekt })}
+                onDuplizieren={() => duplicateProjekt(projekt.id)}
+                onExportieren={() => exportProjekt(projekt.id)}
+                onLoeschen={() => setDialog({ typ: 'loeschen', projekt })}
+              />
+            ))}
+          </div>
+
+          {zeigeSteuerung && (
+            <div style={{ flexShrink: 0, width: '26px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', paddingTop: '4px' }}>
+              {ALLE_BUCHSTABEN.map(buchstabe => {
+                const aktiv = vorhandeneBuchstaben.has(buchstabe)
+                const gewaehlt = gewaehlterBuchstabe === buchstabe
+                return (
+                  <div
+                    key={buchstabe}
+                    onClick={aktiv ? () => springeZuBuchstabe(buchstabe) : undefined}
+                    style={{
+                      fontSize: '10px', fontWeight: '600', width: '20px', height: '17px', lineHeight: '17px',
+                      textAlign: 'center', borderRadius: '5px',
+                      color: gewaehlt ? 'white' : aktiv ? '#2F4B39' : '#DCD8CB',
+                      background: gewaehlt ? '#2F4B39' : 'transparent',
+                      cursor: aktiv ? 'pointer' : 'default',
+                    }}
+                  >
+                    {buchstabe}
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
