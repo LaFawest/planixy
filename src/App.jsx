@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
 import { UIProvider } from './context/UIContext'
 import { ProjekteListeProvider } from './context/ProjekteListeContext'
 import { ProjectsProvider } from './context/ProjectsContext'
@@ -20,15 +21,17 @@ import ErrorBoundary from './components/ErrorBoundary'
 
 export default function App() {
   return (
-    <UIProvider>
-      <ProjekteListeProvider>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/projekt/:id" element={<ProjektRoute />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </ProjekteListeProvider>
-    </UIProvider>
+    <AuthProvider>
+      <UIProvider>
+        <ProjekteListeProvider>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/projekt/:id" element={<ProjektRoute />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </ProjekteListeProvider>
+      </UIProvider>
+    </AuthProvider>
   )
 }
 

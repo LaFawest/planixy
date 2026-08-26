@@ -274,3 +274,15 @@ input[type=number]::-webkit-outer-spin-button { opacity: 1; }
     justify-content: center;
   }
 }
+
+/* Anmelden/Konto-Bereich in der Topbar: volle E-Mail-Adresse auf Desktop, auf mobil weicht sie
+   dem Kürzel (Platzgrund), Anmelden/Abmelden bekommen wie der Home-Knopf eine 44px-Antippfläche */
+.topbar-auth-kuerzel { display: none; }
+@media (max-width: 680px) {
+  .topbar-auth-email { display: none; }
+  .topbar-auth-kuerzel { display: flex !important; }
+  .topbar-auth-knopf, .topbar-auth-knopf button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
