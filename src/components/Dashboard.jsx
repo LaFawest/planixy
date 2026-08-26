@@ -169,6 +169,11 @@ function KachelMenu({ gruppen, gruppeAktuell, onGruppeAendern, onUmbenennen, onD
   const [offen, setOffen] = useState(false)
   const [gruppenUntermenuOffen, setGruppenUntermenuOffen] = useState(false)
   const [neueGruppeName, setNeueGruppeName] = useState('')
+  // Das Untermenü öffnet standardmäßig nach links (neben dem Hauptmenü). Bei Kacheln ganz links im
+  // Raster (z.B. hinter der Sidebar) reicht der Platz dafür nicht — dann stattdessen nach rechts
+  // öffnen. Wird beim Öffnen anhand der tatsächlichen Position auf dem Bildschirm entschieden.
+  const [untermenuRechts, setUntermenuRechts] = useState(false)
+  const wrapperRef = useRef(null)
 
   const schliesseAlles = () => { setOffen(false); setGruppenUntermenuOffen(false); setNeueGruppeName('') }
 
@@ -192,7 +197,7 @@ function KachelMenu({ gruppen, gruppeAktuell, onGruppeAendern, onUmbenennen, onD
   }
 
   return (
-    <div style={{ position: 'absolute', top: '10px', right: '10px' }} onClick={e => e.stopPropagation()}>
+    <div ref={wrapperRef} style={{ position: 'absolute', top: '10px', right: '10px' }} onClick={e => e.stopPropagation()}>
       <button onClick={() => setOffen(o => !o)} style={{
         width: '26px', height: '26px', borderRadius: '8px', border: 'none', background: offen ? 'white' : 'transparent',
         color: '#888780', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -209,7 +214,22 @@ function KachelMenu({ gruppen, gruppeAktuell, onGruppeAendern, onUmbenennen, onD
           }}>
             {eintrag('Umbenennen', onUmbenennen)}
             <div
-              onClick={e => { e.stopPropagation(); setGruppenUntermenuOffen(o => !o) }}
+              onClick={e => {
+                e.stopPropagation()
+                setGruppenUntermenuOffen(o => {
+                  const wirdGeoeffnet = !o
+                  if (wirdGeoeffnet) {
+                    // In der Standard-Position (links vom Hauptmenü) läge die linke Kante des
+                    // Untermenüs bei wrapper.right minus beide Menübreiten (je ~190px) — dazu noch
+                    // etwas Sicherheitsabstand (deckt z.B. die Gruppen-Sidebar links im Dashboard
+                    // ab). Reicht der Platz nicht, öffnet das Untermenü stattdessen nach rechts.
+                    const NOETIGER_PLATZ_LINKS = 190 + 190 + 280
+                    const wrapperRechts = wrapperRef.current?.getBoundingClientRect().right ?? NOETIGER_PLATZ_LINKS
+                    setUntermenuRechts(wrapperRechts < NOETIGER_PLATZ_LINKS)
+                  }
+                  return wirdGeoeffnet
+                })
+              }}
               style={{
                 padding: '9px 14px', fontSize: '13px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
                 whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
@@ -229,8 +249,11 @@ function KachelMenu({ gruppen, gruppeAktuell, onGruppeAendern, onUmbenennen, onD
 
           {gruppenUntermenuOffen && (
             <div onClick={e => e.stopPropagation()} style={{
-              position: 'absolute', top: '30px', right: '190px', background: 'white', border: '1px solid #E8E6E0',
+              position: 'absolute', top: '30px', background: 'white', border: '1px solid #E8E6E0',
               borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 6, overflow: 'hidden', width: '190px', padding: '6px 0',
+              // Rechts öffnen: an der (schmalen, nur button-breiten) Wrapper-Kante direkt anschließen
+              // (100% statt fixem 190px, da das Hauptmenü hier links liegt statt rechts).
+              ...(untermenuRechts ? { left: '100%' } : { right: '190px' }),
             }}>
               <div style={{ fontSize: '10px', letterSpacing: '.06em', textTransform: 'uppercase', color: '#B4B2A9', fontWeight: '600', padding: '8px 14px 4px' }}>
                 Gruppe wählen
