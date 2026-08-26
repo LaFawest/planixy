@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { useProjekteListe } from '../context/ProjekteListeContext'
+import { PlanixyIcon } from './PlanixyLogo'
+import GastBanner from './GastBanner'
 
 // Suchfeld und Sortierung würden bei ein, zwei Projekten nur unnötig im Weg stehen — sie
 // erscheinen erst ab dieser Anzahl, wenn Scannen der Kacheln allein umständlicher wird.
@@ -134,7 +136,7 @@ function FehlerDialog({ titel, meldung, onSchliessen }) {
 function ImportButton({ onClick }) {
   return (
     <button onClick={onClick} style={{
-      padding: '10px 20px', background: 'white', color: '#444441', border: '1px solid #E8E6E0', borderRadius: '10px',
+      padding: '10px 20px', background: 'white', color: '#444441', border: '1px solid #E4DED0', borderRadius: '10px',
       cursor: 'pointer', fontSize: '13px', fontWeight: '500', fontFamily: "'DM Sans', sans-serif",
     }}>
       Importieren
@@ -187,16 +189,16 @@ function KachelMenu({ onUmbenennen, onDuplizieren, onExportieren, onLoeschen }) 
 function ProjektKachel({ projekt, onOeffnen, onUmbenennen, onDuplizieren, onExportieren, onLoeschen }) {
   return (
     <div onClick={onOeffnen} style={{
-      position: 'relative', background: 'white', border: '1px solid #E8E6E0', borderRadius: '14px', padding: '20px',
+      position: 'relative', background: 'white', border: '1px solid #E4DED0', borderRadius: '14px', padding: '20px',
       cursor: 'pointer', transition: 'all 0.15s', boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
     }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = '#185FA5'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(24,95,165,0.12)' }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E6E0'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)' }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = '#2F4B39'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(47,75,57,0.14)' }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = '#E4DED0'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)' }}
     >
       <KachelMenu onUmbenennen={onUmbenennen} onDuplizieren={onDuplizieren} onExportieren={onExportieren} onLoeschen={onLoeschen} />
 
       <div style={{
-        width: '100%', aspectRatio: '4 / 3', background: '#F7F6F2', borderRadius: '10px', marginBottom: '14px',
+        width: '100%', aspectRatio: '4 / 3', background: '#F2E9D8', borderRadius: '10px', marginBottom: '14px',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <span style={{ fontSize: '28px', opacity: 0.35 }}>🏠</span>
@@ -253,22 +255,27 @@ export default function Dashboard() {
       <input ref={importInputRef} type="file" accept=".json,application/json" onChange={importiereDatei} style={{ display: 'none' }} />
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
         <div>
-          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '28px', fontWeight: '500', color: '#2C2C2A' }}>Planixy</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <PlanixyIcon size={30} />
+            <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '28px', fontWeight: '500', color: '#1F3327' }}>Planixy</h1>
+          </div>
           <p style={{ fontSize: '13px', color: '#B4B2A9', marginTop: '2px' }}>Deine Projekte</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <ImportButton onClick={() => importInputRef.current.click()} />
           <button onClick={() => setDialog({ typ: 'neu' })} style={{
-            padding: '10px 20px', background: '#185FA5', color: 'white', border: 'none', borderRadius: '10px',
+            padding: '10px 20px', background: '#2F4B39', color: 'white', border: 'none', borderRadius: '10px',
             cursor: 'pointer', fontSize: '13px', fontWeight: '500', fontFamily: "'DM Sans', sans-serif",
           }}
-            onMouseEnter={e => e.currentTarget.style.background = '#0C447C'}
-            onMouseLeave={e => e.currentTarget.style.background = '#185FA5'}
+            onMouseEnter={e => e.currentTarget.style.background = '#1F3327'}
+            onMouseLeave={e => e.currentTarget.style.background = '#2F4B39'}
           >
             + Neues Projekt
           </button>
         </div>
       </div>
+
+      <GastBanner />
 
       {zeigeSteuerung && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
@@ -278,7 +285,7 @@ export default function Dashboard() {
             onChange={e => setSuchbegriff(e.target.value)}
             placeholder="Projekt suchen…"
             style={{
-              flex: '1 1 220px', padding: '9px 14px', fontSize: '13px', border: '1px solid #E8E6E0', borderRadius: '10px',
+              flex: '1 1 220px', padding: '9px 14px', fontSize: '13px', border: '1px solid #E4DED0', borderRadius: '10px',
               outline: 'none', fontFamily: "'DM Sans', sans-serif", color: '#2C2C2A', background: 'white',
             }}
           />
@@ -286,7 +293,7 @@ export default function Dashboard() {
             value={sortierungId}
             onChange={e => setSortierungId(e.target.value)}
             style={{
-              padding: '9px 14px', fontSize: '13px', border: '1px solid #E8E6E0', borderRadius: '10px',
+              padding: '9px 14px', fontSize: '13px', border: '1px solid #E4DED0', borderRadius: '10px',
               outline: 'none', fontFamily: "'DM Sans', sans-serif", color: '#444441', background: 'white', cursor: 'pointer',
             }}
           >
@@ -315,7 +322,7 @@ export default function Dashboard() {
           </p>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button onClick={() => setDialog({ typ: 'neu' })} style={{
-              padding: '10px 20px', background: '#185FA5', color: 'white', border: 'none', borderRadius: '10px',
+              padding: '10px 20px', background: '#2F4B39', color: 'white', border: 'none', borderRadius: '10px',
               cursor: 'pointer', fontSize: '13px', fontWeight: '500', fontFamily: "'DM Sans', sans-serif",
             }}>
               + Neues Projekt
