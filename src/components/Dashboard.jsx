@@ -165,11 +165,15 @@ function ImportButton({ onClick }) {
   )
 }
 
-function KachelMenu({ onUmbenennen, onDuplizieren, onExportieren, onLoeschen }) {
+function KachelMenu({ gruppen, gruppeAktuell, onGruppeAendern, onUmbenennen, onDuplizieren, onExportieren, onLoeschen }) {
   const [offen, setOffen] = useState(false)
+  const [gruppenUntermenuOffen, setGruppenUntermenuOffen] = useState(false)
+  const [neueGruppeName, setNeueGruppeName] = useState('')
+
+  const schliesseAlles = () => { setOffen(false); setGruppenUntermenuOffen(false); setNeueGruppeName('') }
 
   const eintrag = (label, onClick, gefaehrlich) => (
-    <div onClick={e => { e.stopPropagation(); setOffen(false); onClick() }} style={{
+    <div onClick={e => { e.stopPropagation(); schliesseAlles(); onClick() }} style={{
       padding: '9px 14px', fontSize: '13px', cursor: 'pointer', color: gefaehrlich ? '#E24B4A' : '#444441',
       fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap',
     }}
@@ -179,6 +183,13 @@ function KachelMenu({ onUmbenennen, onDuplizieren, onExportieren, onLoeschen }) 
       {label}
     </div>
   )
+
+  const gruppeWaehlen = (neueGruppe) => { schliesseAlles(); onGruppeAendern(neueGruppe) }
+
+  const neueGruppeAnlegen = () => {
+    const name = neueGruppeName.trim()
+    if (name) gruppeWaehlen(name)
+  }
 
   return (
     <div style={{ position: 'absolute', top: '10px', right: '10px' }} onClick={e => e.stopPropagation()}>
@@ -191,23 +202,83 @@ function KachelMenu({ onUmbenennen, onDuplizieren, onExportieren, onLoeschen }) 
       </button>
       {offen && (
         <>
-          <div onClick={() => setOffen(false)} style={{ position: 'fixed', inset: 0, zIndex: 5 }} />
+          <div onClick={schliesseAlles} style={{ position: 'fixed', inset: 0, zIndex: 5 }} />
           <div style={{
             position: 'absolute', top: '30px', right: 0, background: 'white', border: '1px solid #E8E6E0',
             borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 6, overflow: 'hidden',
           }}>
             {eintrag('Umbenennen', onUmbenennen)}
+            <div
+              onClick={e => { e.stopPropagation(); setGruppenUntermenuOffen(o => !o) }}
+              style={{
+                padding: '9px 14px', fontSize: '13px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
+                whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
+                background: gruppenUntermenuOffen ? '#F7F6F2' : 'transparent', fontWeight: gruppenUntermenuOffen ? '500' : '400',
+                color: gruppenUntermenuOffen ? '#1F3327' : '#444441',
+              }}
+              onMouseEnter={e => { if (!gruppenUntermenuOffen) e.currentTarget.style.background = '#F7F6F2' }}
+              onMouseLeave={e => { if (!gruppenUntermenuOffen) e.currentTarget.style.background = 'transparent' }}
+            >
+              Gruppe zuweisen ›
+            </div>
             {eintrag('Duplizieren', onDuplizieren)}
             {eintrag('Exportieren', onExportieren)}
+            <div style={{ height: '1px', background: '#EDEBE3', margin: '4px 0' }} />
             {eintrag('Löschen', onLoeschen, true)}
           </div>
+
+          {gruppenUntermenuOffen && (
+            <div onClick={e => e.stopPropagation()} style={{
+              position: 'absolute', top: '30px', right: '190px', background: 'white', border: '1px solid #E8E6E0',
+              borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', zIndex: 6, overflow: 'hidden', width: '190px', padding: '6px 0',
+            }}>
+              <div style={{ fontSize: '10px', letterSpacing: '.06em', textTransform: 'uppercase', color: '#B4B2A9', fontWeight: '600', padding: '8px 14px 4px' }}>
+                Gruppe wählen
+              </div>
+              {[{ id: null, label: 'Ohne Gruppe' }, ...gruppen.map(g => ({ id: g, label: g }))].map(({ id, label }) => {
+                const gewaehlt = (gruppeAktuell || null) === id
+                return (
+                  <div key={label} onClick={() => gruppeWaehlen(id)} style={{
+                    display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 14px', fontSize: '13px', cursor: 'pointer',
+                    color: gewaehlt ? '#1F3327' : '#444441', fontWeight: gewaehlt ? '500' : '400', fontFamily: "'DM Sans', sans-serif",
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#F7F6F2'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{
+                      width: '14px', height: '14px', borderRadius: '50%', flexShrink: 0, position: 'relative',
+                      border: `1.6px solid ${gewaehlt ? '#2F4B39' : '#C7C3B6'}`,
+                    }}>
+                      {gewaehlt && <div style={{ position: 'absolute', inset: '2.5px', borderRadius: '50%', background: '#2F4B39' }} />}
+                    </div>
+                    {label}
+                  </div>
+                )
+              })}
+              <div style={{ height: '1px', background: '#EDEBE3', margin: '6px 0' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px 8px' }}>
+                <span style={{ color: '#2F4B39', fontSize: '15px', fontWeight: '700' }}>+</span>
+                <input
+                  value={neueGruppeName}
+                  onChange={e => setNeueGruppeName(e.target.value)}
+                  onClick={e => e.stopPropagation()}
+                  onKeyDown={e => { if (e.key === 'Enter') neueGruppeAnlegen(); if (e.key === 'Escape') schliesseAlles() }}
+                  placeholder="Neue Gruppe, z. B. Haus 3"
+                  style={{
+                    flex: 1, border: '1px solid #E4DED0', borderRadius: '7px', padding: '6px 9px', fontSize: '12px',
+                    fontFamily: "'DM Sans', sans-serif", color: '#2C2C2A', outline: 'none',
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
   )
 }
 
-function ProjektKachel({ projekt, kartenRef, onOeffnen, onUmbenennen, onDuplizieren, onExportieren, onLoeschen }) {
+function ProjektKachel({ projekt, kartenRef, gruppen, onOeffnen, onUmbenennen, onDuplizieren, onExportieren, onLoeschen, onGruppeAendern }) {
   return (
     <div ref={kartenRef} onClick={onOeffnen} style={{
       position: 'relative', background: 'white', border: '1px solid #E4DED0', borderRadius: '14px', padding: '20px',
@@ -216,7 +287,15 @@ function ProjektKachel({ projekt, kartenRef, onOeffnen, onUmbenennen, onDuplizie
       onMouseEnter={e => { e.currentTarget.style.borderColor = '#2F4B39'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(47,75,57,0.14)' }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = '#E4DED0'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)' }}
     >
-      <KachelMenu onUmbenennen={onUmbenennen} onDuplizieren={onDuplizieren} onExportieren={onExportieren} onLoeschen={onLoeschen} />
+      <KachelMenu
+        gruppen={gruppen}
+        gruppeAktuell={projekt.gruppe}
+        onGruppeAendern={onGruppeAendern}
+        onUmbenennen={onUmbenennen}
+        onDuplizieren={onDuplizieren}
+        onExportieren={onExportieren}
+        onLoeschen={onLoeschen}
+      />
 
       <div style={{
         width: '100%', aspectRatio: '4 / 3', background: '#F2E9D8', borderRadius: '10px', marginBottom: '14px',
@@ -238,7 +317,7 @@ function ProjektKachel({ projekt, kartenRef, onOeffnen, onUmbenennen, onDuplizie
 }
 
 export default function Dashboard() {
-  const { projekte, projekteLadeStatus, addProjekt, waehleProjekt, renameProjekt, deleteProjekt, duplicateProjekt, exportProjekt, importProjekt } = useProjekteListe()
+  const { projekte, projekteLadeStatus, addProjekt, waehleProjekt, renameProjekt, deleteProjekt, duplicateProjekt, exportProjekt, importProjekt, updateProjekt } = useProjekteListe()
   // dialog: null | { typ: 'neu' } | { typ: 'umbenennen', projekt } | { typ: 'loeschen', projekt } | { typ: 'importFehler', meldung }
   const [dialog, setDialog] = useState(null)
   const schliessen = () => setDialog(null)
@@ -252,6 +331,27 @@ export default function Dashboard() {
   const [zeitraumFilterId, setZeitraumFilterId] = useState(ZEITRAUM_FILTER[0].id)
   const [raumFilterId, setRaumFilterId] = useState(RAUM_FILTER[0].id)
   const filterAktiv = zeitraumFilterId !== 'alle' || raumFilterId !== 'alle'
+
+  // Gruppen: reines Textfeld am Projekt (projekt.gruppe), keine eigene Tabelle/Liste — die
+  // Gruppenliste in der Sidebar ergibt sich einfach aus den tatsächlich vergebenen Namen.
+  // aktiveGruppeRoh: null = "Alle Projekte", '__ohne__' = Sentinel für "Ohne Gruppe", sonst der Gruppenname.
+  const [aktiveGruppeRoh, setAktiveGruppe] = useState(null)
+  const gruppen = useMemo(() => {
+    const menge = new Set()
+    projekte.forEach(p => { if (p.gruppe) menge.add(p.gruppe) })
+    return [...menge].sort((a, b) => a.localeCompare(b, 'de', { sensitivity: 'base' }))
+  }, [projekte])
+  const hatUngruppierte = projekte.some(p => !p.gruppe)
+  const zeigeSidebar = gruppen.length > 0
+
+  // Fällt auf "Alle Projekte" zurück, sobald die gewählte Gruppe verschwindet (letztes Projekt
+  // umgehängt/gelöscht) — als Ableitung statt als Effekt, sonst bliebe die Ansicht für einen
+  // Render-Zyklus auf einer Gruppe hängen, die es in der Sidebar gar nicht mehr gibt.
+  const aktiveGruppe = useMemo(() => {
+    if (aktiveGruppeRoh === '__ohne__') return hatUngruppierte ? aktiveGruppeRoh : null
+    if (aktiveGruppeRoh && !gruppen.includes(aktiveGruppeRoh)) return null
+    return aktiveGruppeRoh
+  }, [aktiveGruppeRoh, gruppen, hatUngruppierte])
 
   // A-Z-Sprungleiste: merkt sich Karten-DOM-Knoten je Projekt-ID, um beim Klick auf einen
   // Buchstaben dorthin zu scrollen. gewaehlterBuchstabe steuert nur die optische Markierung.
@@ -277,12 +377,14 @@ export default function Dashboard() {
   const sichtbareProjekte = useMemo(() => {
     const suche = suchbegriff.trim().toLowerCase()
     let gefiltert = suche ? projekte.filter(p => p.name.toLowerCase().includes(suche)) : projekte
+    if (aktiveGruppe === '__ohne__') gefiltert = gefiltert.filter(p => !p.gruppe)
+    else if (aktiveGruppe) gefiltert = gefiltert.filter(p => p.gruppe === aktiveGruppe)
     const zeitraumPasst = ZEITRAUM_FILTER.find(z => z.id === zeitraumFilterId).passt
     const raumPasst = RAUM_FILTER.find(r => r.id === raumFilterId).passt
     gefiltert = gefiltert.filter(p => zeitraumPasst(p) && raumPasst(p))
     const vergleiche = SORTIERUNGEN.find(s => s.id === sortierungId).vergleiche
     return [...gefiltert].sort(vergleiche)
-  }, [projekte, suchbegriff, sortierungId, zeitraumFilterId, raumFilterId])
+  }, [projekte, suchbegriff, sortierungId, zeitraumFilterId, raumFilterId, aktiveGruppe])
 
   // Nur Anfangsbuchstaben, zu denen es gerade (nach Suche/Filter) auch eine Karte gibt, sind in
   // der Sprungleiste anklickbar — der Rest wird ausgegraut dargestellt.
@@ -308,16 +410,63 @@ export default function Dashboard() {
     kartenRefs.current[treffer?.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }, [gewaehlterBuchstabe, sichtbareProjekte])
 
+  const gruppenTitel = aktiveGruppe === '__ohne__' ? 'Ohne Gruppe' : aktiveGruppe
+  const gruppenUntertitel = aktiveGruppe ? `${sichtbareProjekte.length} ${sichtbareProjekte.length === 1 ? 'Projekt' : 'Projekte'} in dieser Gruppe` : 'Deine Projekte'
+
   return (
-    <div style={{ minHeight: '100vh', padding: '40px 48px', fontFamily: "'DM Sans', sans-serif" }}>
+    <div style={{ minHeight: '100vh', display: 'flex', fontFamily: "'DM Sans', sans-serif" }}>
       <input ref={importInputRef} type="file" accept=".json,application/json" onChange={importiereDatei} style={{ display: 'none' }} />
+
+      {zeigeSidebar && (
+        <div style={{ width: '200px', flexShrink: 0, background: 'white', borderRight: '1px solid #E4DED0', padding: '40px 14px' }}>
+          <div style={{ fontSize: '10px', letterSpacing: '.06em', textTransform: 'uppercase', color: '#B4B2A9', fontWeight: '600', padding: '0 12px 6px' }}>
+            Projekte
+          </div>
+          <div onClick={() => setAktiveGruppe(null)} style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '9px 12px',
+            borderRadius: '8px', fontSize: '13px', cursor: 'pointer', marginBottom: '2px',
+            background: aktiveGruppe === null ? '#EDF1EC' : 'transparent',
+            color: aktiveGruppe === null ? '#1F3327' : '#444441', fontWeight: aktiveGruppe === null ? '500' : '400',
+          }}>
+            <span>Alle Projekte</span>
+            <span style={{ fontSize: '11px', color: aktiveGruppe === null ? '#2F4B39' : '#B4B2A9' }}>{projekte.length}</span>
+          </div>
+          <div style={{ fontSize: '10px', letterSpacing: '.06em', textTransform: 'uppercase', color: '#B4B2A9', fontWeight: '600', padding: '18px 12px 6px' }}>
+            Gruppen
+          </div>
+          {gruppen.map(g => (
+            <div key={g} onClick={() => setAktiveGruppe(g)} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '9px 12px',
+              borderRadius: '8px', fontSize: '13px', cursor: 'pointer', marginBottom: '2px',
+              background: aktiveGruppe === g ? '#EDF1EC' : 'transparent',
+              color: aktiveGruppe === g ? '#1F3327' : '#444441', fontWeight: aktiveGruppe === g ? '500' : '400',
+            }}>
+              <span>{g}</span>
+              <span style={{ fontSize: '11px', color: aktiveGruppe === g ? '#2F4B39' : '#B4B2A9' }}>{projekte.filter(p => p.gruppe === g).length}</span>
+            </div>
+          ))}
+          {hatUngruppierte && (
+            <div onClick={() => setAktiveGruppe('__ohne__')} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '9px 12px',
+              borderRadius: '8px', fontSize: '13px', cursor: 'pointer', marginBottom: '2px',
+              background: aktiveGruppe === '__ohne__' ? '#EDF1EC' : 'transparent',
+              color: aktiveGruppe === '__ohne__' ? '#1F3327' : '#444441', fontWeight: aktiveGruppe === '__ohne__' ? '500' : '400',
+            }}>
+              <span>Ohne Gruppe</span>
+              <span style={{ fontSize: '11px', color: aktiveGruppe === '__ohne__' ? '#2F4B39' : '#B4B2A9' }}>{projekte.filter(p => !p.gruppe).length}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={{ flex: 1, minWidth: 0, padding: '40px 48px' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <PlanixyIcon size={30} />
-            <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '28px', fontWeight: '500', color: '#1F3327' }}>Planixy</h1>
+            <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '28px', fontWeight: '500', color: '#1F3327' }}>{gruppenTitel || 'Planixy'}</h1>
           </div>
-          <p style={{ fontSize: '13px', color: '#B4B2A9', marginTop: '2px' }}>Deine Projekte</p>
+          <p style={{ fontSize: '13px', color: '#B4B2A9', marginTop: '2px' }}>{gruppenUntertitel}</p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <ImportButton onClick={() => importInputRef.current.click()} />
@@ -460,7 +609,10 @@ export default function Dashboard() {
             Kein Projekt gefunden
           </p>
           <p style={{ fontSize: '13px', color: '#888780', maxWidth: '360px' }}>
-            {suchbegriff ? `Für „${suchbegriff}" gibt es keine Treffer.` : 'Für diese Filter gibt es keine Treffer.'}
+            {suchbegriff ? `Für „${suchbegriff}" gibt es keine Treffer.`
+              : filterAktiv ? 'Für diese Filter gibt es keine Treffer.'
+              : aktiveGruppe ? 'Diese Gruppe enthält aktuell keine Projekte.'
+              : 'Für diese Filter gibt es keine Treffer.'}
           </p>
         </div>
       ) : (
@@ -471,11 +623,13 @@ export default function Dashboard() {
                 key={projekt.id}
                 projekt={projekt}
                 kartenRef={el => { kartenRefs.current[projekt.id] = el }}
+                gruppen={gruppen}
                 onOeffnen={() => waehleProjekt(projekt.id)}
                 onUmbenennen={() => setDialog({ typ: 'umbenennen', projekt })}
                 onDuplizieren={() => duplicateProjekt(projekt.id)}
                 onExportieren={() => exportProjekt(projekt.id)}
                 onLoeschen={() => setDialog({ typ: 'loeschen', projekt })}
+                onGruppeAendern={(neueGruppe) => updateProjekt(projekt.id, { gruppe: neueGruppe })}
               />
             ))}
           </div>
@@ -540,6 +694,7 @@ export default function Dashboard() {
           onSchliessen={schliessen}
         />
       )}
+      </div>
     </div>
   )
 }

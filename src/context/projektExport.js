@@ -62,6 +62,9 @@ export function parseProjektDatei(text) {
     erstelltAm: jetzt,
     geaendertAm: jetzt,
     raeume,
+    // Gruppe ist nur ein Textfeld ohne eigene Tabelle (siehe Dashboard.jsx) — bleibt beim Import
+    // erhalten, eine gleichnamige Gruppe existiert danach einfach automatisch mit.
+    gruppe: projektRoh.gruppe || null,
   }
 }
 
