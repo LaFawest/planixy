@@ -12,7 +12,7 @@ export function ProjectsProvider({ children }) {
   // beide Fälle typtolerant, ohne id in eine Zahl zu zwingen (das würde bei einer UUID zu NaN
   // und damit zu einem permanenten Redirect auf "/" führen).
   const activeProjectId = id
-  const { projekte, updateProjekt, addProjekt, deleteProjekt, renameProjekt, waehleProjekt } = useProjekteListe()
+  const { projekte, projekteLadeStatus, updateProjekt, addProjekt, deleteProjekt, renameProjekt, waehleProjekt } = useProjekteListe()
 
   const activeProject = projekte.find(p => String(p.id) === activeProjectId)
 
@@ -21,8 +21,18 @@ export function ProjectsProvider({ children }) {
     updateProjekt, addProjekt, deleteProjekt, renameProjekt, waehleProjekt,
   }), [projekte, activeProjectId, activeProject, updateProjekt, addProjekt, deleteProjekt, renameProjekt, waehleProjekt])
 
-  // Unbekannte oder gelöschte Projekt-ID: nicht abstürzen, zurück auf die Startroute
   if (!activeProject) {
+    // Projekte werden noch geladen (Auth-Status bzw. Supabase-Fetch, siehe ProjekteListeContext.jsx)
+    // — noch nicht redirecten, sonst würde ein Reload auf einer Projektseite eines eingeloggten
+    // Nutzers ihn fälschlich zurück aufs Dashboard schicken, bevor seine Supabase-Projekte da sind.
+    if (projekteLadeStatus) {
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", color: '#B4B2A9', fontSize: '13px' }}>
+          Lädt…
+        </div>
+      )
+    }
+    // Unbekannte oder gelöschte Projekt-ID: nicht abstürzen, zurück auf die Startroute
     return <Navigate to="/" replace />
   }
 

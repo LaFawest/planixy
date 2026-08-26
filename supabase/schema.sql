@@ -28,3 +28,8 @@ create policy "Nutzer aktualisieren eigene Projekte"
 create policy "Nutzer loeschen eigene Projekte"
   on projekte for delete
   using (auth.uid() = user_id);
+
+-- RLS-Policies allein reichen nicht: ohne dieses GRANT verweigert Postgres jeden Zugriff schon auf
+-- Tabellenebene, bevor die Policies überhaupt greifen (anders als beim Anlegen über den Table
+-- Editor, der das GRANT automatisch mit setzt).
+grant select, insert, update, delete on projekte to authenticated;

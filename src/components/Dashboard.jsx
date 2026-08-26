@@ -215,7 +215,7 @@ function ProjektKachel({ projekt, onOeffnen, onUmbenennen, onDuplizieren, onExpo
 }
 
 export default function Dashboard() {
-  const { projekte, addProjekt, waehleProjekt, renameProjekt, deleteProjekt, duplicateProjekt, exportProjekt, importProjekt } = useProjekteListe()
+  const { projekte, projekteLadeStatus, addProjekt, waehleProjekt, renameProjekt, deleteProjekt, duplicateProjekt, exportProjekt, importProjekt } = useProjekteListe()
   // dialog: null | { typ: 'neu' } | { typ: 'umbenennen', projekt } | { typ: 'loeschen', projekt } | { typ: 'importFehler', meldung }
   const [dialog, setDialog] = useState(null)
   const schliessen = () => setDialog(null)
@@ -295,7 +295,13 @@ export default function Dashboard() {
         </div>
       )}
 
-      {projekte.length === 0 ? (
+      {projekteLadeStatus && projekte.length === 0 ? (
+        // Kurzes Ladefenster (Auth-Status bzw. Supabase-Fetch) — sonst würde hier kurz "Noch kein
+        // Projekt angelegt" aufblitzen, bevor die echten Projekte eines eingeloggten Nutzers da sind.
+        <div style={{ padding: '80px 20px', textAlign: 'center' }}>
+          <p style={{ fontSize: '13px', color: '#B4B2A9' }}>Lädt…</p>
+        </div>
+      ) : projekte.length === 0 ? (
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           padding: '80px 20px', textAlign: 'center',
