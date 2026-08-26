@@ -11,6 +11,7 @@ import { TrennwandProvider } from './context/TrennwandContext'
 import { KatalogProvider } from './context/KatalogContext'
 import { useRaumGeometrie } from './context/useRaumGeometrie'
 import Dashboard from './components/Dashboard'
+import MigrationsDialog from './components/MigrationsDialog'
 import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
 import SchrittLeiste from './components/SchrittLeiste'
@@ -24,6 +25,7 @@ export default function App() {
     <AuthProvider>
       <UIProvider>
         <ProjekteListeProvider>
+          <MigrationsDialog />
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/projekt/:id" element={<ProjektRoute />} />

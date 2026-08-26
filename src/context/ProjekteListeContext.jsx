@@ -87,6 +87,18 @@ export function ProjekteListeProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- bewusst nur an user/authLadeStatus gekoppelt; flushAlle ist über seine eigenen Deps stabil
   }, [user, authLadeStatus])
 
+  // Für Fälle, in denen Supabase-Zeilen außerhalb der normalen Mutatoren hier entstehen (aktuell:
+  // MigrationsDialog.jsx legt Projekte direkt über erstelleProjektSupabase an) — ohne das würde die
+  // Projektliste erst nach einem manuellen Reload die neu übernommenen Projekte zeigen.
+  const aktualisiereProjekte = useCallback(async () => {
+    if (!user) return
+    try {
+      setProjekte(await ladeProjekteSupabase(user.id))
+    } catch (err) {
+      console.error('Projekte konnten nicht neu geladen werden', err)
+    }
+  }, [user])
+
   // Gast-Pfad: unverändert wie bisher bei jeder Änderung das komplette Array zurückschreiben.
   // Eingeloggter Pfad: Persistenz läuft granular über die einzelnen Mutatoren unten (debounceSpeichern
   // / erstelleProjektSupabase / loescheProjektSupabase) — kein Blanket-Save hier, sonst würde bei
@@ -186,10 +198,10 @@ export function ProjekteListeProvider({ children }) {
 
   const value = useMemo(() => ({
     projekte, projekteLadeStatus, updateProjekt, addProjekt, deleteProjekt, renameProjekt, waehleProjekt, duplicateProjekt,
-    exportProjekt, importProjekt,
+    exportProjekt, importProjekt, aktualisiereProjekte,
   }), [
     projekte, projekteLadeStatus, updateProjekt, addProjekt, deleteProjekt, renameProjekt, waehleProjekt, duplicateProjekt,
-    exportProjekt, importProjekt,
+    exportProjekt, importProjekt, aktualisiereProjekte,
   ])
 
   return <ProjekteListeContext.Provider value={value}>{children}</ProjekteListeContext.Provider>

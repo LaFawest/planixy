@@ -162,4 +162,11 @@ export const saveProjekte = (projekte) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ schemaVersion: SCHEMA_VERSION, projekte }))
 }
 
+// Entfernt den Key komplett statt ihn leer zu speichern, damit loadProjekte() beim nächsten
+// Gast-Start wieder den normalen "frisches Gerät"-Weg nimmt (neuer Default "Mein Zuhause") statt
+// eine leere Projektliste zu sehen — genutzt nach erfolgreicher Übernahme ins Konto (MigrationsDialog.jsx).
+export const clearProjekte = () => {
+  localStorage.removeItem(STORAGE_KEY)
+}
+
 export const alleRaeume = (projekte) => projekte.flatMap(p => p.raeume || [])
