@@ -10,7 +10,7 @@ const SPEICHER_SCHLUESSEL = 'planixy_gastbanner_ausgeblendet'
 // sieht). Verschwindet automatisch sobald jemand eingeloggt ist. Manuelles Wegklicken wird in
 // localStorage gemerkt (an den Browser gebunden, wie die übrigen Gast-Daten auch) — der Banner
 // bleibt danach dauerhaft weg, bis localStorage geleert wird.
-export default function GastBanner() {
+export default function GastBanner({ bestaetigt = false }) {
   const { user } = useAuth()
   const [ausgeblendet, setAusgeblendet] = useState(() => {
     try {
@@ -49,10 +49,12 @@ export default function GastBanner() {
         <PlanixyIcon size={44} />
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '16px', fontWeight: 500, color: '#1F3327', marginBottom: '4px' }}>
-            Noch nicht angemeldet
+            {bestaetigt ? 'E-Mail bestätigt' : 'Noch nicht angemeldet'}
           </div>
           <div style={{ fontSize: '13px', color: '#5b5a4d', lineHeight: 1.5, maxWidth: '620px' }}>
-            Deine Projekte werden aktuell nur in diesem Browser gespeichert. Registriere dich, damit sie dauerhaft erhalten bleiben und auf jedem Gerät verfügbar sind.
+            {bestaetigt
+              ? 'Deine E-Mail-Adresse wurde bestätigt. Melde dich jetzt an, um loszulegen.'
+              : 'Deine Projekte werden aktuell nur in diesem Browser gespeichert. Registriere dich, damit sie dauerhaft erhalten bleiben und auf jedem Gerät verfügbar sind.'}
           </div>
         </div>
         <button onClick={() => setAuthModalOffen(true)} style={{

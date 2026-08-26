@@ -392,7 +392,21 @@ function ProjektKachel({ projekt, kartenRef, gruppen, onOeffnen, onUmbenennen, o
 
 export default function Dashboard() {
   const { projekte, projekteLadeStatus, addProjekt, waehleProjekt, renameProjekt, deleteProjekt, duplicateProjekt, exportProjekt, importProjekt, updateProjekt } = useProjekteListe()
-  const { user } = useAuth()
+  const { user, ladeStatus, signOut } = useAuth()
+
+  // Supabase meldet einen Nutzer über den Bestätigungslink in der Registrierungs-Mail technisch
+  // automatisch an (Session steckt im URL-Fragment, #access_token=...&type=signup...) — das ist
+  // bewusst NICHT gewünscht, der Nutzer soll sich danach aktiv mit E-Mail/Passwort einloggen.
+  // Lazy-Initializer statt useEffect: muss den Hash VOR der automatischen Verarbeitung durch den
+  // Supabase-Client lesen (der ihn danach selbst leert, siehe GoTrueClient _getSessionFromURL).
+  const [geradeBestaetigt] = useState(() => typeof window !== 'undefined' && window.location.hash.includes('type=signup'))
+
+  // Erst ausloggen, sobald die Auth-Initialisierung (inkl. des automatischen Logins aus obigem
+  // Hash) durchgelaufen ist — vorher gäbe es noch gar keine Session zum Entfernen.
+  useEffect(() => {
+    if (geradeBestaetigt && !ladeStatus) signOut()
+  }, [geradeBestaetigt, ladeStatus, signOut])
+
   // dialog: null | { typ: 'neu' } | { typ: 'umbenennen', projekt } | { typ: 'loeschen', projekt } | { typ: 'importFehler', meldung }
   const [dialog, setDialog] = useState(null)
   const schliessen = () => setDialog(null)
@@ -558,7 +572,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <GastBanner />
+      <GastBanner bestaetigt={geradeBestaetigt} />
 
       {zeigeSteuerung && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
