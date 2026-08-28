@@ -123,7 +123,7 @@ export default function AuthModal({ onSchliessen }) {
           />
 
           {fehler && <p style={{ fontSize: '12px', color: '#E24B4A', marginBottom: '14px', lineHeight: 1.4 }}>{fehler}</p>}
-          {hinweis && <p style={{ fontSize: '12px', color: '#185FA5', marginBottom: '14px', lineHeight: 1.4 }}>{hinweis}</p>}
+          {hinweis && <p style={{ fontSize: '12px', color: '#2F4B39', marginBottom: '14px', lineHeight: 1.4 }}>{hinweis}</p>}
 
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
             <button type="button" onClick={onSchliessen} style={{
@@ -134,7 +134,7 @@ export default function AuthModal({ onSchliessen }) {
             </button>
             <button type="submit" disabled={ladeStatus} style={{
               padding: '8px 16px', borderRadius: '10px', border: 'none',
-              background: ladeStatus ? '#D3D1C7' : '#185FA5', color: 'white', fontSize: '13px', fontWeight: '500',
+              background: ladeStatus ? '#D3D1C7' : '#2F4B39', color: 'white', fontSize: '13px', fontWeight: '500',
               cursor: ladeStatus ? 'default' : 'pointer', fontFamily: "'DM Sans', sans-serif",
             }}>
               {ladeStatus ? '…' : modus === 'login' ? 'Anmelden' : 'Registrieren'}
@@ -144,7 +144,7 @@ export default function AuthModal({ onSchliessen }) {
 
         <p style={{ fontSize: '12px', color: '#888780', marginTop: '16px', textAlign: 'center' }}>
           {modus === 'login' ? 'Noch kein Konto?' : 'Schon ein Konto?'}{' '}
-          <span onClick={wechsleModus} style={{ color: '#185FA5', cursor: 'pointer', fontWeight: '500' }}>
+          <span onClick={wechsleModus} style={{ color: '#2F4B39', cursor: 'pointer', fontWeight: '500' }}>
             {modus === 'login' ? 'Registrieren' : 'Anmelden'}
           </span>
         </p>

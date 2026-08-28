@@ -98,7 +98,7 @@ function NamensDialog({ titel, anfangswert = '', bestaetigenLabel, onBestaetigen
         </button>
         <button onClick={bestaetigen} disabled={!name.trim()} style={{
           padding: '8px 16px', borderRadius: '10px', border: 'none',
-          background: name.trim() ? '#185FA5' : '#D3D1C7', color: 'white', fontSize: '13px', fontWeight: '500',
+          background: name.trim() ? '#2F4B39' : '#D3D1C7', color: 'white', fontSize: '13px', fontWeight: '500',
           cursor: name.trim() ? 'pointer' : 'default', fontFamily: "'DM Sans', sans-serif",
         }}>
           {bestaetigenLabel}
@@ -146,7 +146,7 @@ function FehlerDialog({ titel, meldung, onSchliessen }) {
       </p>
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <button onClick={onSchliessen} style={{
-          padding: '8px 16px', borderRadius: '10px', border: 'none', background: '#185FA5', color: 'white',
+          padding: '8px 16px', borderRadius: '10px', border: 'none', background: '#2F4B39', color: 'white',
           fontSize: '13px', fontWeight: '500', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
         }}>
           OK

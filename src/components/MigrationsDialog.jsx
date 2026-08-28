@@ -117,7 +117,7 @@ export default function MigrationsDialog() {
           </button>
           <button onClick={uebernehmen} disabled={laeuft} style={{
             padding: '8px 16px', borderRadius: '10px', border: 'none',
-            background: laeuft ? '#D3D1C7' : '#185FA5', color: 'white', fontSize: '13px', fontWeight: '500',
+            background: laeuft ? '#D3D1C7' : '#2F4B39', color: 'white', fontSize: '13px', fontWeight: '500',
             cursor: laeuft ? 'default' : 'pointer', fontFamily: "'DM Sans', sans-serif",
           }}>
             {laeuft ? 'Übernehme…' : 'Ins Konto übernehmen'}
