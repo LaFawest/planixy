@@ -1,3 +1,4 @@
+import { useNavigate, useParams } from 'react-router-dom'
 import { WIZARD_SCHRITTE } from '../constants'
 import { useWizard } from '../context/WizardContext'
 import { useUI } from '../context/UIContext'
@@ -14,6 +15,8 @@ const navButtonStyle = (deaktiviert) => ({
 export default function SchrittLeiste() {
   const { schritt, setSchritt, vorherigerSchritt, naechsterSchritt } = useWizard()
   const { setAktiverTab } = useUI()
+  const navigate = useNavigate()
+  const { id } = useParams()
 
   const aktuellerSchritt = WIZARD_SCHRITTE.find(s => s.nummer === schritt)
 
@@ -60,9 +63,18 @@ export default function SchrittLeiste() {
           ))}
         </div>
 
-        <button onClick={naechsterSchritt} disabled={schritt === LETZTER_SCHRITT} style={navButtonStyle(schritt === LETZTER_SCHRITT)}>
-          Weiter →
-        </button>
+        {schritt === LETZTER_SCHRITT ? (
+          <button onClick={() => navigate(`/projekt/${id}/zusammenfassung`)} style={{
+            padding: '6px 12px', borderRadius: '8px', border: 'none', background: '#2F4B39',
+            color: 'white', fontSize: '12px', fontFamily: "'DM Sans', sans-serif", cursor: 'pointer', flexShrink: 0,
+          }}>
+            Zusammenfassung →
+          </button>
+        ) : (
+          <button onClick={naechsterSchritt} disabled={schritt === LETZTER_SCHRITT} style={navButtonStyle(schritt === LETZTER_SCHRITT)}>
+            Weiter →
+          </button>
+        )}
       </div>
 
       {/* Mobil: fest sichtbare Schritt-Beschriftung + kompakte Punkte-Leiste mit 44×44px Antippflächen */}

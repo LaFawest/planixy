@@ -20,6 +20,7 @@ import MobileNav from './components/MobileNav'
 import Canvas2D from './components/Canvas2D'
 import PanelRechts from './components/PanelRechts'
 import ErrorBoundary from './components/ErrorBoundary'
+import ZusammenfassungSeite from './components/ZusammenfassungSeite'
 
 export default function App() {
   return (
@@ -30,7 +31,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/einstellungen" element={<Einstellungen />} />
-            <Route path="/projekt/:id" element={<ProjektRoute />} />
+            <Route path="/projekt/:id/*" element={<ProjektRoute />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </ProjekteListeProvider>
@@ -49,7 +50,10 @@ function ProjektRoute() {
               <FurnitureProvider>
                 <TrennwandProvider>
                   <KatalogProvider>
-                    <AppContent />
+                    <Routes>
+                      <Route index element={<AppContent />} />
+                      <Route path="zusammenfassung" element={<ZusammenfassungSeite />} />
+                    </Routes>
                   </KatalogProvider>
                 </TrennwandProvider>
               </FurnitureProvider>
