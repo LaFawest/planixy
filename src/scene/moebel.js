@@ -534,6 +534,35 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
     bulb.position.set(0, -kabelLaenge - radius * 0.35, 0)
     gruppe.add(bulb)
 
+  } else if (name.includes('wandleuchte')) {
+    // Wandlampe: kompakte Rückplatte + kurzer Arm + Schirm, bewusst ohne Bodenfuß/Stange (im
+    // Unterschied zum generischen Steh-/Tischlampen-Zweig unten) — muss deshalb VOR diesem
+    // stehen, sonst matcht 'wandleuchte' bereits dessen 'leuchte'-Check und wird nie erreicht.
+    const radius = Math.min(moebelBreite, moebelTiefe) / 2
+    const mitteHoehe = moebelHoehe * 0.6
+    const glowMat = baueGluehlampe(gruppe, borderMat, 0.8, null,
+      { intensitaet: 0.4, reichweite: Math.max(raumBreite, raumTiefe) * 0.4, y: mitteHoehe },
+      lichtAn, lichtFarbe)
+
+    const rueckplatte = new THREE.Mesh(new THREE.BoxGeometry(radius * 0.7, radius, 0.02), borderMat)
+    rueckplatte.position.set(0, mitteHoehe, -moebelTiefe / 2 + 0.01)
+    gruppe.add(rueckplatte)
+
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, moebelTiefe * 0.4, 8), borderMat)
+    arm.rotation.x = Math.PI / 2
+    arm.position.set(0, mitteHoehe, -moebelTiefe / 2 + moebelTiefe * 0.2 + 0.01)
+    gruppe.add(arm)
+
+    const schirm = new THREE.Mesh(new THREE.ConeGeometry(radius * 0.55, radius * 0.65, 16, 1, true), mat)
+    schirm.rotation.x = Math.PI / 2
+    schirm.position.set(0, mitteHoehe, -moebelTiefe / 2 + moebelTiefe * 0.42)
+    schirm.castShadow = true
+    gruppe.add(schirm)
+
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.16, 10, 8), glowMat)
+    bulb.position.copy(schirm.position)
+    gruppe.add(bulb)
+
   } else if (name.includes('lampe') || name.includes('leuchte')) {
     // Steh-/Tisch-/Wandlampe: Fuß, Stange, Lampenschirm
     const radius = Math.min(moebelBreite, moebelTiefe) / 2
@@ -558,6 +587,342 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
     const bulb = new THREE.Mesh(new THREE.SphereGeometry(radius * 0.22, 12, 10), glowMat)
     bulb.position.set(0, moebelHoehe - radius * 0.6, 0)
     gruppe.add(bulb)
+
+  } else if (name.includes('badewanne')) {
+    const wannenRadius = Math.min(moebelHoehe, moebelTiefe) * 0.35
+    const wannenMat = new THREE.MeshStandardMaterial({ color: '#FFFFFF', roughness: 0.3, metalness: 0.05 })
+    const wanne = new THREE.Mesh(new RoundedBoxGeometry(moebelBreite, moebelHoehe, moebelTiefe, 4, wannenRadius), wannenMat)
+    wanne.position.set(0, moebelHoehe / 2, 0)
+    wanne.castShadow = true
+    gruppe.add(wanne)
+
+    const wasserMat = new THREE.MeshStandardMaterial({ color: '#B7DDF4', roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.85 })
+    const wasser = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.82, 0.02, moebelTiefe * 0.72), wasserMat)
+    wasser.position.set(0, moebelHoehe * 0.82, 0)
+    gruppe.add(wasser)
+
+  } else if (name.includes('dusche') || name.includes('duschkabine')) {
+    // Dusche und Duschkabine Eck teilen sich dieselbe Grundform (Glaswände + Duschkopf + Bodenwanne)
+    const glasMat = new THREE.MeshStandardMaterial({ color: '#CFE8F0', roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.35 })
+    const chromMat = new THREE.MeshStandardMaterial({ color: '#B0AFA8', roughness: 0.3, metalness: 0.7 })
+    const wannenHoehe = 0.06
+
+    const wanne = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite - 0.02, wannenHoehe, moebelTiefe - 0.02),
+      new THREE.MeshStandardMaterial({ color: '#F0F0F0', roughness: 0.4 }))
+    wanne.position.set(0, wannenHoehe / 2, 0)
+    wanne.castShadow = true
+    gruppe.add(wanne)
+
+    const glasHoehe = moebelHoehe - wannenHoehe
+    const glasDicke = 0.015
+    const rueckwand = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, glasHoehe, glasDicke), glasMat)
+    rueckwand.position.set(0, wannenHoehe + glasHoehe / 2, -moebelTiefe / 2 + glasDicke / 2)
+    gruppe.add(rueckwand)
+    const seitenwand = new THREE.Mesh(new THREE.BoxGeometry(glasDicke, glasHoehe, moebelTiefe), glasMat)
+    seitenwand.position.set(-moebelBreite / 2 + glasDicke / 2, wannenHoehe + glasHoehe / 2, 0)
+    gruppe.add(seitenwand)
+
+    const duschkopfArm = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, moebelTiefe * 0.25, 8), chromMat)
+    duschkopfArm.rotation.x = Math.PI / 2
+    duschkopfArm.position.set(0, moebelHoehe - 0.15, -moebelTiefe / 2 + moebelTiefe * 0.13)
+    gruppe.add(duschkopfArm)
+    const duschkopf = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.03, 16), chromMat)
+    duschkopf.position.set(0, moebelHoehe - 0.19, -moebelTiefe / 2 + moebelTiefe * 0.25)
+    gruppe.add(duschkopf)
+
+  } else if (name.includes('wc') || name.includes('bidet')) {
+    const istBidet = name.includes('bidet')
+    const minSeite = Math.min(moebelBreite, moebelTiefe)
+    const beckenHoehe = istBidet ? moebelHoehe * 0.5 : moebelHoehe * 0.55
+    const beckenZ = moebelTiefe / 2 - minSeite * 0.42
+
+    const becken = new THREE.Mesh(new THREE.CylinderGeometry(minSeite * 0.4, minSeite * 0.22, beckenHoehe, 20), mat)
+    becken.position.set(0, beckenHoehe / 2, beckenZ)
+    becken.castShadow = true
+    gruppe.add(becken)
+
+    const deckel = new THREE.Mesh(new THREE.CylinderGeometry(minSeite * 0.42, minSeite * 0.42, 0.03, 20), borderMat)
+    deckel.position.set(0, beckenHoehe + 0.015, beckenZ)
+    gruppe.add(deckel)
+
+    if (!istBidet) {
+      const spuelkastenHoehe = moebelHoehe * 0.55
+      const spuelkasten = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.75, spuelkastenHoehe, 0.12), mat)
+      spuelkasten.position.set(0, moebelHoehe - spuelkastenHoehe / 2, -moebelTiefe / 2 + 0.06)
+      spuelkasten.castShadow = true
+      gruppe.add(spuelkasten)
+    }
+
+  } else if (name.includes('waschbecken')) {
+    const minSeite = Math.min(moebelBreite, moebelTiefe)
+    const beckenOberkante = moebelHoehe - 0.06
+
+    const stand = new THREE.Mesh(new THREE.CylinderGeometry(minSeite * 0.12, minSeite * 0.16, beckenOberkante, 12), mat)
+    stand.position.set(0, beckenOberkante / 2, 0)
+    gruppe.add(stand)
+
+    const becken = new THREE.Mesh(new RoundedBoxGeometry(moebelBreite * 0.92, 0.12, moebelTiefe * 0.9, 2, 0.05), mat)
+    becken.position.set(0, beckenOberkante, 0)
+    becken.castShadow = true
+    gruppe.add(becken)
+
+    const armatur = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.15, 10), borderMat)
+    armatur.position.set(0, beckenOberkante + 0.135, -moebelTiefe * 0.28)
+    gruppe.add(armatur)
+
+  } else if (name.includes('handtuchhalter')) {
+    // Bewusst schlicht: nur Stange + zwei Halter, kein Handtuch-Mesh
+    const barY = moebelHoehe * 0.55
+    const stangenLaenge = moebelBreite * 0.85
+    const stange = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, stangenLaenge, 10), borderMat)
+    stange.rotation.z = Math.PI / 2
+    stange.position.set(0, barY, 0)
+    gruppe.add(stange)
+
+    const halterMat = new THREE.MeshStandardMaterial({ color: '#8A8680', roughness: 0.3, metalness: 0.6 })
+    const halterSeiten = [-1, 1]
+    halterSeiten.forEach(s => {
+      const halter = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.03), halterMat)
+      halter.position.set(s * stangenLaenge / 2, barY, 0)
+      gruppe.add(halter)
+    })
+
+  } else if (name.includes('waschmaschine')) {
+    const minSeite = Math.min(moebelBreite, moebelTiefe)
+    baueGeraeteBox(gruppe, moebelBreite, moebelHoehe, moebelTiefe, mat)
+
+    const ringMat = new THREE.MeshStandardMaterial({ color: '#8A8680', roughness: 0.3, metalness: 0.6 })
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(minSeite * 0.28, 0.015, 10, 24), ringMat)
+    ring.position.set(0, moebelHoehe * 0.42, moebelTiefe / 2 + 0.005)
+    gruppe.add(ring)
+
+    const glasMat = new THREE.MeshStandardMaterial({ color: '#1A1A1A', roughness: 0.2, metalness: 0.2, transparent: true, opacity: 0.85 })
+    const glas = new THREE.Mesh(new THREE.CircleGeometry(minSeite * 0.24, 24), glasMat)
+    glas.position.set(0, moebelHoehe * 0.42, moebelTiefe / 2 + 0.002)
+    gruppe.add(glas)
+
+    const bedienfeld = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.85, 0.02, moebelTiefe * 0.15), borderMat)
+    bedienfeld.position.set(0, moebelHoehe + 0.01, -moebelTiefe * 0.35)
+    gruppe.add(bedienfeld)
+
+  } else if (name.includes('pflanze')) {
+    // Pflanze und Großpflanze teilen sich dieselbe Grundform (Topf + überlappende Blattklumpen)
+    const minSeite = Math.min(moebelBreite, moebelTiefe)
+    const topfMat = new THREE.MeshStandardMaterial({ color: '#B5651D', roughness: 0.85 })
+    const topfHoehe = moebelHoehe * 0.22
+    const topf = new THREE.Mesh(new THREE.CylinderGeometry(minSeite * 0.4, minSeite * 0.3, topfHoehe, 14), topfMat)
+    topf.position.set(0, topfHoehe / 2, 0)
+    topf.castShadow = true
+    gruppe.add(topf)
+
+    const blattMat = new THREE.MeshStandardMaterial({ color: item.color, roughness: 0.8 })
+    // [ox, oy, oz, größe] je Klumpen — unregelmäßig versetzt für den "Low-Poly-Pflanze"-Look
+    const klumpen = [
+      [0, 0.55, 0, 0.42],
+      [0.12, 0.72, -0.06, 0.3],
+      [-0.14, 0.68, 0.08, 0.32],
+      [0.02, 0.9, 0.05, 0.26],
+      [-0.08, 0.85, -0.1, 0.24],
+    ]
+    klumpen.forEach(([ox, oy, oz, groesse]) => {
+      const blatt = new THREE.Mesh(new THREE.IcosahedronGeometry(minSeite * groesse, 0), blattMat)
+      blatt.position.set(ox * minSeite, topfHoehe + oy * (moebelHoehe - topfHoehe), oz * minSeite)
+      blatt.castShadow = true
+      gruppe.add(blatt)
+    })
+
+  } else if (name.includes('teppich')) {
+    baueStandardBox(gruppe, moebelBreite, moebelHoehe, moebelTiefe, mat, item.border)
+    // Eingezogene zweite Outline knapp innerhalb des Rands als einfache "Fransen"-Andeutung
+    const randGeo = new THREE.EdgesGeometry(new THREE.BoxGeometry(moebelBreite - 0.12, moebelHoehe, moebelTiefe - 0.12))
+    const rand = new THREE.LineSegments(randGeo, new THREE.LineBasicMaterial({ color: item.border }))
+    rand.position.set(0, moebelHoehe, 0)
+    gruppe.add(rand)
+
+  } else if (name.includes('bild')) {
+    const rahmen = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe), borderMat)
+    rahmen.position.set(0, moebelHoehe / 2, 0)
+    rahmen.castShadow = true
+    gruppe.add(rahmen)
+
+    const leinwandHoehe = moebelHoehe * 0.55
+    const leinwand = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.82, leinwandHoehe, moebelTiefe * 0.78), mat)
+    leinwand.position.set(0, moebelHoehe * 0.6, 0)
+    gruppe.add(leinwand)
+
+  } else if (name.includes('kamin')) {
+    const ummauerung = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe), mat)
+    ummauerung.position.set(0, moebelHoehe / 2, 0)
+    ummauerung.castShadow = true
+    gruppe.add(ummauerung)
+
+    const feuerHoehe = moebelHoehe * 0.55
+    const feuerBreite = moebelBreite * 0.5
+    const feuerTiefe = moebelTiefe * 0.5
+    const feuerMat = new THREE.MeshStandardMaterial({ color: '#2A1410', roughness: 0.6, emissive: '#FF6A1F', emissiveIntensity: lichtAn ? 0.5 : 0 })
+    const feuer = new THREE.Mesh(new THREE.BoxGeometry(feuerBreite, feuerHoehe, feuerTiefe), feuerMat)
+    feuer.position.set(0, feuerHoehe / 2 + 0.03, moebelTiefe / 2 - feuerTiefe / 2 - 0.02)
+    gruppe.add(feuer)
+
+    if (lichtAn) {
+      const glut = new THREE.PointLight('#FF8A3D', 0.5, Math.max(raumBreite, raumTiefe) * 0.3)
+      glut.position.set(0, feuerHoehe * 0.4, moebelTiefe / 2 - feuerTiefe / 2)
+      gruppe.add(glut)
+    }
+
+    const sims = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 1.08, 0.04, moebelTiefe * 0.55), borderMat)
+    sims.position.set(0, moebelHoehe * 0.62, 0)
+    gruppe.add(sims)
+
+  } else if (name.includes('vase')) {
+    const minSeite = Math.min(moebelBreite, moebelTiefe)
+    const h = moebelHoehe
+    const rBase = minSeite * 0.16
+    const rBauch = minSeite * 0.46
+    const rHals = minSeite * 0.16
+    const rLippe = minSeite * 0.22
+    // Vasen-Silhouette als Rotationskörper: schmaler Fuß, bauchige Mitte, verjüngter Hals, Lippe
+    const profil = [
+      new THREE.Vector2(rBase * 0.5, 0),
+      new THREE.Vector2(rBase, h * 0.06),
+      new THREE.Vector2(rBauch, h * 0.45),
+      new THREE.Vector2(rBauch * 0.8, h * 0.68),
+      new THREE.Vector2(rHals, h * 0.85),
+      new THREE.Vector2(rLippe, h * 0.95),
+      new THREE.Vector2(rLippe * 0.88, h),
+    ]
+    const vase = new THREE.Mesh(new THREE.LatheGeometry(profil, 16), mat)
+    vase.castShadow = true
+    gruppe.add(vase)
+
+  } else if (name.includes('kerzenst')) {
+    const fussHoehe = moebelHoehe * 0.85
+    const fuss = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.022, fussHoehe, 12), borderMat)
+    fuss.position.set(0, fussHoehe / 2, 0)
+    fuss.castShadow = true
+    gruppe.add(fuss)
+
+    const flammeMat = baueGluehlampe(gruppe, borderMat, 1.0, null, null, lichtAn, '#FF8A3D')
+    const flamme = new THREE.Mesh(new THREE.ConeGeometry(0.012, 0.03, 8), flammeMat)
+    flamme.position.set(0, fussHoehe + 0.02, 0)
+    gruppe.add(flamme)
+
+  } else if (name.includes('wanduhr')) {
+    const radius = moebelBreite / 2
+    const gehaeuseHoehe = Math.max(0.02, moebelHoehe * 0.5)
+    const gehaeuse = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, gehaeuseHoehe, 24), borderMat)
+    gehaeuse.position.set(0, gehaeuseHoehe / 2, 0)
+    gruppe.add(gehaeuse)
+
+    const zifferblattHoehe = Math.max(0.01, moebelHoehe - gehaeuseHoehe)
+    const zifferblatt = new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.85, radius * 0.85, zifferblattHoehe, 24), mat)
+    zifferblatt.position.set(0, gehaeuseHoehe + zifferblattHoehe / 2, 0)
+    gruppe.add(zifferblatt)
+
+    // Zeiger-Geometrie per translate() so verschoben, dass ein Ende im Zifferblatt-Mittelpunkt
+    // liegt — dadurch dreht rotation.y korrekt um die Uhrmitte statt um die Boxmitte
+    const zeigerMat = new THREE.MeshStandardMaterial({ color: '#2C2C2A', roughness: 0.5 })
+    const zeigerY = gehaeuseHoehe + zifferblattHoehe
+    const stundeGeo = new THREE.BoxGeometry(0.012, 0.006, radius * 0.4)
+    stundeGeo.translate(0, 0, radius * 0.2)
+    const stunde = new THREE.Mesh(stundeGeo, zeigerMat)
+    stunde.position.set(0, zeigerY, 0)
+    gruppe.add(stunde)
+    const minuteGeo = new THREE.BoxGeometry(0.008, 0.006, radius * 0.62)
+    minuteGeo.translate(0, 0, radius * 0.31)
+    const minute = new THREE.Mesh(minuteGeo, zeigerMat)
+    minute.position.set(0, zeigerY, 0)
+    minute.rotation.y = Math.PI / 3
+    gruppe.add(minute)
+
+  } else if (name.includes('kissen')) {
+    const radius = Math.min(moebelBreite, moebelTiefe, moebelHoehe) * 0.18
+    const kissen = new THREE.Mesh(new RoundedBoxGeometry(moebelBreite, moebelHoehe, moebelTiefe, 3, radius), stoffMat)
+    kissen.position.set(0, moebelHoehe / 2, 0)
+    kissen.castShadow = true
+    gruppe.add(kissen)
+
+  } else if (name.includes('globus')) {
+    const minSeite = Math.min(moebelBreite, moebelTiefe)
+    const kugelRadius = minSeite * 0.4
+    const fussHoehe = Math.max(0.02, moebelHoehe - kugelRadius * 2)
+
+    const stange = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, fussHoehe, 10), borderMat)
+    stange.position.set(0, fussHoehe / 2, 0)
+    gruppe.add(stange)
+    const fuss = new THREE.Mesh(new THREE.CylinderGeometry(kugelRadius * 0.55, kugelRadius * 0.65, 0.02, 16), borderMat)
+    fuss.position.set(0, 0.01, 0)
+    gruppe.add(fuss)
+
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(kugelRadius * 1.05, 0.008, 8, 24), borderMat)
+    ring.position.set(0, fussHoehe + kugelRadius, 0)
+    gruppe.add(ring)
+
+    const kugel = new THREE.Mesh(new THREE.SphereGeometry(kugelRadius, 20, 16), mat)
+    kugel.position.set(0, fussHoehe + kugelRadius, 0)
+    kugel.castShadow = true
+    gruppe.add(kugel)
+
+  } else if (name.includes('kaktus')) {
+    const minSeite = Math.min(moebelBreite, moebelTiefe)
+    const topfHoehe = moebelHoehe * 0.25
+    const topfMat = new THREE.MeshStandardMaterial({ color: '#B5651D', roughness: 0.85 })
+    const topf = new THREE.Mesh(new THREE.CylinderGeometry(minSeite * 0.38, minSeite * 0.28, topfHoehe, 12), topfMat)
+    topf.position.set(0, topfHoehe / 2, 0)
+    topf.castShadow = true
+    gruppe.add(topf)
+
+    const kaktusMat = new THREE.MeshStandardMaterial({ color: item.color, roughness: 0.75 })
+    const koerperRadius = minSeite * 0.22
+    const koerperLaenge = Math.max(0.02, moebelHoehe - topfHoehe - koerperRadius * 2)
+    const koerper = new THREE.Mesh(new THREE.CapsuleGeometry(koerperRadius, koerperLaenge, 6, 12), kaktusMat)
+    koerper.position.set(0, topfHoehe + koerperLaenge / 2 + koerperRadius, 0)
+    koerper.castShadow = true
+    gruppe.add(koerper)
+
+    const armRadius = koerperRadius * 0.55
+    const armLaenge = koerperLaenge * 0.4
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(armRadius, armLaenge, 4, 10), kaktusMat)
+    arm.position.set(minSeite * 0.22, topfHoehe + koerperLaenge * 0.55, 0)
+    arm.rotation.z = Math.PI / 2.2
+    gruppe.add(arm)
+
+  } else if (name.includes('skulptur')) {
+    const minSeite = Math.min(moebelBreite, moebelTiefe)
+    const sockelHoehe = moebelHoehe * 0.3
+    const sockel = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.7, sockelHoehe, moebelTiefe * 0.7), mat)
+    sockel.position.set(0, sockelHoehe / 2, 0)
+    sockel.castShadow = true
+    gruppe.add(sockel)
+
+    const formRadius = minSeite * 0.35
+    const form = new THREE.Mesh(new THREE.IcosahedronGeometry(formRadius, 0), mat)
+    form.position.set(0, sockelHoehe + formRadius * 0.85, 0)
+    form.rotation.set(0.4, 0.6, 0.2)
+    form.castShadow = true
+    gruppe.add(form)
+
+  } else if (name.includes('lichterkette')) {
+    const punkte = []
+    const segmente = 4
+    for (let i = 0; i <= segmente; i++) {
+      const t = i / segmente
+      punkte.push(new THREE.Vector3(-moebelBreite / 2 + moebelBreite * t, moebelHoehe * 0.4 + Math.sin(t * Math.PI) * moebelHoehe * 0.5, 0))
+    }
+    const kurve = new THREE.CatmullRomCurve3(punkte)
+    const drahtMat = new THREE.MeshStandardMaterial({ color: '#4A4A46', roughness: 0.6 })
+    const draht = new THREE.Mesh(new THREE.TubeGeometry(kurve, 24, 0.006, 6, false), drahtMat)
+    gruppe.add(draht)
+
+    const lichtMat = new THREE.MeshStandardMaterial({ color: '#FFF3D0', emissive: lichtFarbe, emissiveIntensity: lichtAn ? 0.9 : 0 })
+    const anzahlLichter = 6
+    for (let i = 0; i <= anzahlLichter; i++) {
+      const punkt = kurve.getPoint(i / anzahlLichter)
+      const licht = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 8), lichtMat)
+      licht.position.copy(punkt)
+      licht.position.y -= 0.02
+      gruppe.add(licht)
+    }
 
   } else {
     // Standard Box für alle anderen
