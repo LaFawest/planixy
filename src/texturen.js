@@ -175,6 +175,8 @@ export function getMoebelHoehe(name) {
     'Vase': 0.3, 'Kerzenständer': 0.25, 'Wanduhr': 0.03, 'Kissen': 0.15,
     'Globus': 0.4, 'Skulptur': 0.5, 'Kaktus': 0.6, 'Lichterkette': 0.05,
     'Deckenlampe': 0.3, 'Pendelleuchte': 0.35, 'Wandleuchte': 0.2, 'Kronleuchter': 0.45, 'Tischlampe': 0.45,
+    'Monitor': 0.35, 'Spiegel': 0.7, 'Kücheninsel': 0.9, 'Geschirrspüler': 0.82,
+    'Mikrowelle': 0.3, 'Drucker': 0.3,
   }
   return hoehen[name] || 0.75
 }

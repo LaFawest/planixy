@@ -924,6 +924,239 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       gruppe.add(licht)
     }
 
+  } else if (name.includes('monitor')) {
+    // Kompakter als der TV-Zweig: dünnerer Bildschirm auf kleinem Standfuß statt Bodenfuß
+    const bildschirmHoehe = moebelHoehe * 0.85
+    const standHoehe = moebelHoehe - bildschirmHoehe
+
+    const fuss = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.35, 0.015, moebelTiefe * 0.6), borderMat)
+    fuss.position.set(0, 0.0075, 0)
+    gruppe.add(fuss)
+    const hals = new THREE.Mesh(new THREE.BoxGeometry(0.03, standHoehe, 0.03), borderMat)
+    hals.position.set(0, standHoehe / 2, 0)
+    gruppe.add(hals)
+
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, bildschirmHoehe, 0.025), mat)
+    screen.position.set(0, standHoehe + bildschirmHoehe / 2, 0)
+    screen.castShadow = true
+    gruppe.add(screen)
+    const rand = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite + 0.02, bildschirmHoehe + 0.02, 0.015), borderMat)
+    rand.position.set(0, standHoehe + bildschirmHoehe / 2, -0.008)
+    gruppe.add(rand)
+
+  } else if (name.includes('rollcontainer')) {
+    const korpus = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelHoehe, moebelTiefe), holzMat)
+    korpus.position.set(0, moebelHoehe / 2, 0)
+    korpus.castShadow = true
+    gruppe.add(korpus)
+
+    // Waagerechte Schubladen-Linien + Griffe statt der Tür/Griff-Optik des Schrank-Zweigs
+    const schubladenAnzahl = 3
+    const griffMat = new THREE.MeshStandardMaterial({ color: '#8A8680', roughness: 0.3, metalness: 0.7 })
+    const linienMat = new THREE.MeshStandardMaterial({ color: item.border, roughness: 0.6 })
+    const fachHoehe = moebelHoehe / schubladenAnzahl
+    for (let i = 0; i < schubladenAnzahl; i++) {
+      if (i > 0) {
+        const linie = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite - 0.02, 0.008, 0.01), linienMat)
+        linie.position.set(0, fachHoehe * i, moebelTiefe / 2 + 0.005)
+        gruppe.add(linie)
+      }
+      const griff = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.3, 0.014, 0.02), griffMat)
+      griff.position.set(0, fachHoehe * (i + 0.5), moebelTiefe / 2 + 0.02)
+      gruppe.add(griff)
+    }
+
+    const rollenRadius = 0.02
+    const rollenMat = new THREE.MeshStandardMaterial({ color: '#2C2C2A', roughness: 0.5 })
+    const rollenPositionen = [[-1, -1], [1, -1], [-1, 1], [1, 1]]
+    rollenPositionen.forEach(([sx, sz]) => {
+      const rolle = new THREE.Mesh(new THREE.SphereGeometry(rollenRadius, 10, 8), rollenMat)
+      rolle.position.set(sx * (moebelBreite / 2 - 0.03), rollenRadius, sz * (moebelTiefe / 2 - 0.03))
+      gruppe.add(rolle)
+    })
+
+  } else if (name.includes('drucker')) {
+    baueGeraeteBox(gruppe, moebelBreite, moebelHoehe, moebelTiefe, mat)
+    const dunkelMat = new THREE.MeshStandardMaterial({ color: '#2C2C2A', roughness: 0.5, metalness: 0.2 })
+    const einzugsschlitz = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.7, 0.01, moebelTiefe * 0.08), dunkelMat)
+    einzugsschlitz.position.set(0, moebelHoehe + 0.005, -moebelTiefe * 0.2)
+    gruppe.add(einzugsschlitz)
+    const ausgabefach = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.75, 0.02, moebelTiefe * 0.25), mat)
+    ausgabefach.position.set(0, moebelHoehe * 0.55, moebelTiefe / 2 + moebelTiefe * 0.1)
+    gruppe.add(ausgabefach)
+
+  } else if (name.includes('bank')) {
+    // Sitzbank und Bettbank teilen sich dieselbe schlichte Form (keine Rückenlehne)
+    const sitzDicke = 0.08
+    const sitz = new THREE.Mesh(new RoundedBoxGeometry(moebelBreite, sitzDicke, moebelTiefe, 2, 0.03), stoffMat)
+    sitz.position.set(0, moebelHoehe - sitzDicke / 2, 0)
+    sitz.castShadow = true
+    gruppe.add(sitz)
+
+    const beinHoehe = moebelHoehe - sitzDicke
+    baueBeine(gruppe, [
+      [-moebelBreite / 2 + 0.06, moebelTiefe / 2 - 0.06],
+      [moebelBreite / 2 - 0.06, moebelTiefe / 2 - 0.06],
+      [-moebelBreite / 2 + 0.06, -moebelTiefe / 2 + 0.06],
+      [moebelBreite / 2 - 0.06, -moebelTiefe / 2 + 0.06],
+    ], [0.02, 0.026], beinHoehe, item.border, holzTextur, { roughness: 0.5 })
+
+  } else if (name.includes('spiegel')) {
+    // Freistehender Spiegel: dünner Rahmen wie beim Bild-Zweig, aber echt hochkant (moebelHoehe
+    // ist hier eine reale Standhöhe, die Rahmentiefe kommt bewusst aus einem festen Wert statt aus
+    // moebelTiefe — sonst würde der Rahmen so tief wie sein 2D-Platzbedarf und wirkt klobig).
+    const rahmenDicke = 0.04
+    const rahmen = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, moebelHoehe, rahmenDicke), borderMat)
+    rahmen.position.set(0, moebelHoehe / 2, 0)
+    rahmen.castShadow = true
+    gruppe.add(rahmen)
+
+    const spiegelMat = new THREE.MeshStandardMaterial({ color: '#DCE8EC', roughness: 0.08, metalness: 0.6 })
+    const glas = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.82, moebelHoehe * 0.85, rahmenDicke * 0.4), spiegelMat)
+    glas.position.set(0, moebelHoehe / 2, rahmenDicke * 0.35)
+    gruppe.add(glas)
+
+  } else if (name.includes('kücheninsel')) {
+    const plintheHoehe = Math.min(0.06, moebelHoehe * 0.1)
+    const platteHoehe = 0.04
+    const korpusHoehe = moebelHoehe - plintheHoehe - platteHoehe
+
+    const plinthe = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite - 0.04, plintheHoehe, moebelTiefe - 0.04),
+      new THREE.MeshStandardMaterial({ color: '#3A3A38', roughness: 0.7 }))
+    plinthe.position.set(0, plintheHoehe / 2, 0)
+    gruppe.add(plinthe)
+
+    const korpus = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, korpusHoehe, moebelTiefe), holzMat)
+    korpus.position.set(0, plintheHoehe + korpusHoehe / 2, 0)
+    korpus.castShadow = true
+    gruppe.add(korpus)
+
+    const anzahlTueren = Math.max(2, Math.round(moebelBreite / 0.55))
+    const tuerBreite = moebelBreite / anzahlTueren
+    const griffMat = new THREE.MeshStandardMaterial({ color: '#8A8680', roughness: 0.3, metalness: 0.7 })
+    for (let i = 0; i < anzahlTueren; i++) {
+      const tx = -moebelBreite / 2 + tuerBreite * (i + 0.5)
+      const panel = new THREE.Mesh(new THREE.BoxGeometry(tuerBreite - 0.03, korpusHoehe - 0.06, 0.015), holzMat)
+      panel.position.set(tx, plintheHoehe + korpusHoehe / 2, moebelTiefe / 2 + 0.008)
+      gruppe.add(panel)
+      const griff = new THREE.Mesh(new THREE.BoxGeometry(0.014, korpusHoehe * 0.18, 0.02), griffMat)
+      griff.position.set(tx + tuerBreite * 0.3, plintheHoehe + korpusHoehe / 2, moebelTiefe / 2 + 0.02)
+      gruppe.add(griff)
+    }
+
+    // Arbeitsplatte übersteht den Korpus an allen Seiten, analog zur Tischplatten-Kante
+    const platte = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite + 0.06, platteHoehe, moebelTiefe + 0.06), mat)
+    platte.position.set(0, moebelHoehe - platteHoehe / 2, 0)
+    platte.castShadow = true
+    gruppe.add(platte)
+
+  } else if (name.includes('herd') || name.includes('backofen')) {
+    // Herd und Backofen teilen sich dieselbe Backofentür-Form — nur der Herd bekommt zusätzlich
+    // die vier Kochfelder obenauf
+    const istHerd = name.includes('herd')
+    const minSeite = Math.min(moebelBreite, moebelTiefe)
+    baueGeraeteBox(gruppe, moebelBreite, moebelHoehe, moebelTiefe, mat)
+
+    const dunkelMat = new THREE.MeshStandardMaterial({ color: '#1A1A1A', roughness: 0.4, metalness: 0.3 })
+    const tuerBreite = moebelBreite * 0.8
+    const tuerHoehe = moebelHoehe * 0.65
+    const tuer = new THREE.Mesh(new THREE.BoxGeometry(tuerBreite, tuerHoehe, 0.02), dunkelMat)
+    tuer.position.set(0, moebelHoehe * 0.4, moebelTiefe / 2 - 0.005)
+    gruppe.add(tuer)
+    const sichtfensterMat = new THREE.MeshStandardMaterial({ color: '#333333', roughness: 0.2, metalness: 0.4, transparent: true, opacity: 0.8 })
+    const sichtfenster = new THREE.Mesh(new THREE.BoxGeometry(tuerBreite * 0.7, tuerHoehe * 0.55, 0.01), sichtfensterMat)
+    sichtfenster.position.set(0, moebelHoehe * 0.44, moebelTiefe / 2 + 0.005)
+    gruppe.add(sichtfenster)
+
+    const bedienMat = new THREE.MeshStandardMaterial({ color: '#8A8680', roughness: 0.3, metalness: 0.6 })
+    const knopfAnzahl = 4
+    for (let i = 0; i < knopfAnzahl; i++) {
+      const kx = -moebelBreite / 2 + (moebelBreite / knopfAnzahl) * (i + 0.5)
+      const knopf = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.012, 12), bedienMat)
+      knopf.rotation.x = Math.PI / 2
+      knopf.position.set(kx, moebelHoehe * 0.78, moebelTiefe / 2 + 0.006)
+      gruppe.add(knopf)
+    }
+
+    if (istHerd) {
+      const ringPositionen = [[-1, -1], [1, -1], [-1, 1], [1, 1]]
+      ringPositionen.forEach(([sx, sz]) => {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(minSeite * 0.16, 0.008, 8, 20), dunkelMat)
+        ring.position.set(sx * moebelBreite * 0.22, moebelHoehe + 0.005, sz * moebelTiefe * 0.22)
+        gruppe.add(ring)
+      })
+    }
+
+  } else if (name.includes('geschirrspüler')) {
+    // Muss vor dem 'spüle'-Zweig stehen: "Geschirrspüler" enthält "spüle" als Teilstring
+    baueGeraeteBox(gruppe, moebelBreite, moebelHoehe, moebelTiefe, mat)
+    const bedienfeld = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.9, 0.02, moebelTiefe * 0.1), borderMat)
+    bedienfeld.position.set(0, moebelHoehe + 0.01, -moebelTiefe * 0.35)
+    gruppe.add(bedienfeld)
+    const griffMat = new THREE.MeshStandardMaterial({ color: '#8A8680', roughness: 0.3, metalness: 0.7 })
+    const griff = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.85, 0.02, 0.02), griffMat)
+    griff.position.set(0, moebelHoehe * 0.85, moebelTiefe / 2 + 0.01)
+    gruppe.add(griff)
+
+  } else if (name.includes('spüle')) {
+    const platteHoehe = 0.05
+    const platte = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, platteHoehe, moebelTiefe), mat)
+    platte.position.set(0, moebelHoehe - platteHoehe / 2, 0)
+    platte.castShadow = true
+    gruppe.add(platte)
+
+    const beckenMat = new THREE.MeshStandardMaterial({ color: item.border, roughness: 0.3, metalness: 0.4 })
+    const becken = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.6, platteHoehe * 0.6, moebelTiefe * 0.6), beckenMat)
+    becken.position.set(0, moebelHoehe - platteHoehe * 0.7, 0)
+    gruppe.add(becken)
+
+    const hahnMat = new THREE.MeshStandardMaterial({ color: '#B0AFA8', roughness: 0.3, metalness: 0.7 })
+    const hahn = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.012, 8, 16, Math.PI), hahnMat)
+    hahn.rotation.z = Math.PI / 2
+    hahn.rotation.y = Math.PI / 2
+    hahn.position.set(0, moebelHoehe + 0.02, -moebelTiefe * 0.3)
+    gruppe.add(hahn)
+
+  } else if (name.includes('mikrowelle')) {
+    baueGeraeteBox(gruppe, moebelBreite, moebelHoehe, moebelTiefe, mat)
+    const glasMat = new THREE.MeshStandardMaterial({ color: '#1A1A1A', roughness: 0.15, metalness: 0.2, transparent: true, opacity: 0.55 })
+    const fenster = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.55, moebelHoehe * 0.6, 0.01), glasMat)
+    fenster.position.set(-moebelBreite * 0.08, moebelHoehe * 0.5, moebelTiefe / 2 + 0.005)
+    gruppe.add(fenster)
+
+    const bedienfeld = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.2, moebelHoehe * 0.7, 0.01), borderMat)
+    bedienfeld.position.set(moebelBreite * 0.38, moebelHoehe * 0.5, moebelTiefe / 2 + 0.005)
+    gruppe.add(bedienfeld)
+
+    const griffMat = new THREE.MeshStandardMaterial({ color: '#8A8680', roughness: 0.3, metalness: 0.7 })
+    const griff = new THREE.Mesh(new THREE.BoxGeometry(0.015, moebelHoehe * 0.6, 0.02), griffMat)
+    griff.position.set(moebelBreite * 0.24, moebelHoehe * 0.5, moebelTiefe / 2 + 0.01)
+    gruppe.add(griff)
+
+  } else if (name.includes('dunstabzugshaube')) {
+    const hauteMat = new THREE.MeshStandardMaterial({ color: item.color, roughness: 0.3, metalness: 0.5 })
+    const untenHoehe = moebelHoehe * 0.35
+    const mitteHoehe = moebelHoehe * 0.35
+    const kaminHoehe = moebelHoehe - untenHoehe - mitteHoehe
+
+    const unten = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite, untenHoehe, moebelTiefe), hauteMat)
+    unten.position.set(0, untenHoehe / 2, 0)
+    unten.castShadow = true
+    gruppe.add(unten)
+
+    const mitte = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.6, mitteHoehe, moebelTiefe * 0.6), hauteMat)
+    mitte.position.set(0, untenHoehe + mitteHoehe / 2, 0)
+    gruppe.add(mitte)
+
+    const kamin = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.25, kaminHoehe, moebelTiefe * 0.25), hauteMat)
+    kamin.position.set(0, untenHoehe + mitteHoehe + kaminHoehe / 2, 0)
+    gruppe.add(kamin)
+
+    const leuchtstreifenMat = new THREE.MeshStandardMaterial({ color: '#FFF3D0', emissive: '#FFDA88', emissiveIntensity: lichtAn ? 0.6 : 0 })
+    const leuchtstreifen = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 0.8, 0.01, 0.02), leuchtstreifenMat)
+    leuchtstreifen.position.set(0, untenHoehe - 0.01, moebelTiefe / 2 - 0.03)
+    gruppe.add(leuchtstreifen)
+
   } else {
     // Standard Box für alle anderen
     baueStandardBox(gruppe, moebelBreite, moebelHoehe, moebelTiefe, mat, item.border)
