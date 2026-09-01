@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur } from './texturen'
 import { baueTrennwaende } from './scene/trennwaende'
 import { baueWandElement } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
 import { baueBeleuchtung } from './scene/beleuchtung'
-import { rechteckPolygon, boundingBox, wandSegmente } from './raumPolygon'
+import { rechteckPolygon, boundingBox, wandSegmente, punktInPolygon, versetztesPolygon, punktSicherImPolygon } from './raumPolygon'
 import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
@@ -15,6 +15,22 @@ export default function RoomView3D() {
   const { furniture } = useFurniture()
   const { fussleiste, fussleisteFarbe, raumHoehe, tageszeit } = useDesign()
   const mountRef = useRef(null)
+
+  // Kameramodus + Rundgang-Position leben unabhängig vom schweren Szenen-Effekt unten (der bei
+  // jeder room/furniture/... Änderung die komplette Szene neu aufbaut) — ein Moduswechsel per
+  // Button soll keinen Neuaufbau auslösen. kameraModusRef ist die von den Event-Handlern im
+  // Effekt gelesene "Quelle der Wahrheit", kameraModus (State) dient nur der Button-Optik.
+  const kameraModusRef = useRef('rundumblick')
+  const [kameraModus, setKameraModus] = useState('rundumblick')
+  const rundgangRef = useRef(null)
+  const updateCameraRef = useRef(() => {})
+
+  const waehleKameraModus = (modus) => {
+    if (modus === kameraModusRef.current) return
+    kameraModusRef.current = modus
+    setKameraModus(modus)
+    updateCameraRef.current()
+  }
 
   useEffect(() => {
     const mount = mountRef.current
@@ -147,11 +163,54 @@ export default function RoomView3D() {
     })
 
     // === KAMERA STEUERUNG ===
+    // Zwei Modi: "rundumblick" (bestehende Orbit-Kamera, Standard) und "rundgang" (freie Kamera
+    // auf Augenhöhe). Der aktuelle Modus wird bei jedem Handler-Aufruf frisch aus kameraModusRef
+    // gelesen (siehe Komponentenkopf) statt hier als Dependency zu landen — ein Moduswechsel per
+    // Button darf keinen Neuaufbau dieses (teuren) Effekts auslösen.
+    const AUGENHOEHE = 1.65
+    const RUNDGANG_SICHERHEITSABSTAND = 0.3
+    const PITCH_LIMIT = 1.4
+
+    // Nach innen versetztes Polygon als Lauf-Grenze (Sicherheitsabstand zu den Wänden). Kann bei
+    // einem zu schmalen L-/U-Form-Schenkel werfen (siehe versetztesPolygon) — dann ohne
+    // Sicherheitsabstand gegen die reine Raumkontur prüfen, statt das Laufen ganz zu blockieren.
+    let sicherheitsPolygon = eckpunkte
+    try {
+      sicherheitsPolygon = versetztesPolygon(eckpunkte, RUNDGANG_SICHERHEITSABSTAND)
+    } catch {
+      sicherheitsPolygon = eckpunkte
+    }
+
+    // Startpunkt für den Rundgang-Modus: derselbe "garantiert im Raum liegende Punkt" wie bei der
+    // Default-Möbelplatzierung (punktSicherImPolygon), Blickrichtung von dort zum 3D-Ursprung
+    // (Raummitte der Bounding-Box).
+    const berechneRundgangStart = () => {
+      const punkt = punktSicherImPolygon(eckpunkte)
+      const startX = punkt.x - mitteX
+      const startZ = mitteZ - punkt.y
+      const laenge = Math.hypot(startX, startZ) || 1
+      const yaw = Math.atan2(-startX / laenge, -startZ / laenge)
+      return { x: startX, z: startZ, yaw, pitch: 0 }
+    }
+
+    // rundgangRef lebt außerhalb dieses Effekts (siehe Komponentenkopf) und überlebt damit einen
+    // Szenen-Neuaufbau (room/furniture-Änderung während eines laufenden Rundgangs). Nur wenn die
+    // gespeicherte Position in der (evtl. neuen) Raumform nicht mehr gültig ist, neu berechnen.
+    if (!rundgangRef.current) {
+      rundgangRef.current = berechneRundgangStart()
+    } else {
+      const raumPunktAktuell = { x: rundgangRef.current.x + mitteX, y: mitteZ - rundgangRef.current.z }
+      if (!punktInPolygon(raumPunktAktuell, sicherheitsPolygon)) {
+        Object.assign(rundgangRef.current, berechneRundgangStart())
+      }
+    }
+    const rundgang = rundgangRef.current
+
     let isDragging = false
     let previousMouse = { x: 0, y: 0 }
     let spherical = { theta: Math.PI / 4, phi: Math.PI / 3, radius: 18 }
 
-    const updateCamera = () => {
+    const updateOrbitCamera = () => {
       camera.position.x = spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta)
       camera.position.y = spherical.radius * Math.cos(spherical.phi)
       camera.position.z = spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta)
@@ -173,11 +232,94 @@ export default function RoomView3D() {
         mesh.material.transparent = versteckt
       })
     }
-    updateCamera()
 
-    const onMouseDown = (e) => { isDragging = true; previousMouse = { x: e.clientX, y: e.clientY } }
-    const onMouseUp   = () => { isDragging = false }
+    // Kamera steht innerhalb des Raums — die Ausblend-Logik der Orbit-Kamera (für eine Kamera
+    // außerhalb des Raums gedacht) passt hier nicht: Wände und Decke bleiben immer voll sichtbar.
+    const updateRundgangCamera = () => {
+      camera.position.set(rundgang.x, AUGENHOEHE, rundgang.z)
+      const zielX = rundgang.x + Math.sin(rundgang.yaw) * Math.cos(rundgang.pitch)
+      const zielY = AUGENHOEHE + Math.sin(rundgang.pitch)
+      const zielZ = rundgang.z + Math.cos(rundgang.yaw) * Math.cos(rundgang.pitch)
+      camera.lookAt(zielX, zielY, zielZ)
+
+      decke.material.opacity = 1
+      decke.material.transparent = false
+      wandMeshe.forEach(({ mesh }) => {
+        mesh.material.opacity = 1
+        mesh.material.transparent = false
+      })
+    }
+
+    const updateCamera = () => {
+      if (kameraModusRef.current === 'rundgang') updateRundgangCamera()
+      else updateOrbitCamera()
+    }
+    updateCamera()
+    updateCameraRef.current = updateCamera
+
+    // Boden + Wände als gemeinsame Raycast-Ziele fürs Laufen: trifft der Klick-Strahl zuerst eine
+    // Wand statt den Boden, wurde auf/durch eine Wand geklickt — kein Laufbefehl, sonst könnte die
+    // Kamera durch eine Wand "hindurchlaufen" (siehe versucheLaufenZu).
+    const laufZiele = [boden, ...wandMeshe.map(w => w.mesh)]
+    const raycaster = new THREE.Raycaster()
+    const zeigerNDC = new THREE.Vector2()
+
+    let laufAnimation = null // { startX, startZ, zielX, zielZ, startZeit, dauer }
+    const easeOut = (t) => 1 - Math.pow(1 - t, 3)
+
+    const versucheLaufenZu = (clientX, clientY) => {
+      const rect = mount.getBoundingClientRect()
+      zeigerNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1
+      zeigerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1
+      raycaster.setFromCamera(zeigerNDC, camera)
+      const treffer = raycaster.intersectObjects(laufZiele, false)
+      if (treffer.length === 0 || treffer[0].object !== boden) return
+      const punkt = treffer[0].point
+      const raumPunkt = { x: punkt.x + mitteX, y: mitteZ - punkt.z }
+      if (!punktInPolygon(raumPunkt, sicherheitsPolygon)) return
+      laufAnimation = { startX: rundgang.x, startZ: rundgang.z, zielX: punkt.x, zielZ: punkt.z, startZeit: performance.now(), dauer: 700 }
+    }
+
+    // Klick/Tap-vs-Drag-Unterscheidung im Rundgang-Modus (analog zum Muster aus Kartenanwendungen):
+    // kaum Bewegung + kurze Zeit zwischen Down- und Up-Event = Laufbefehl, sonst nur Umsehen.
+    const KLICK_MAX_BEWEGUNG_PX = 6
+    const KLICK_MAX_DAUER_MS = 400
+    let rundgangZeiger = null // { startX, startY, letzteX, letzteY, bewegung, startZeit }
+
+    const onMouseDown = (e) => {
+      if (kameraModusRef.current === 'rundgang') {
+        rundgangZeiger = { startX: e.clientX, startY: e.clientY, letzteX: e.clientX, letzteY: e.clientY, bewegung: 0, startZeit: performance.now() }
+        return
+      }
+      isDragging = true
+      previousMouse = { x: e.clientX, y: e.clientY }
+    }
+    const onMouseUp = () => {
+      if (kameraModusRef.current === 'rundgang') {
+        if (rundgangZeiger) {
+          const dauer = performance.now() - rundgangZeiger.startZeit
+          if (rundgangZeiger.bewegung < KLICK_MAX_BEWEGUNG_PX && dauer < KLICK_MAX_DAUER_MS) {
+            versucheLaufenZu(rundgangZeiger.startX, rundgangZeiger.startY)
+          }
+        }
+        rundgangZeiger = null
+        return
+      }
+      isDragging = false
+    }
     const onMouseMove = (e) => {
+      if (kameraModusRef.current === 'rundgang') {
+        if (!rundgangZeiger) return
+        const dx = e.clientX - rundgangZeiger.letzteX
+        const dy = e.clientY - rundgangZeiger.letzteY
+        rundgangZeiger.bewegung += Math.abs(dx) + Math.abs(dy)
+        rundgang.yaw -= dx * 0.01
+        rundgang.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, rundgang.pitch - dy * 0.01))
+        rundgangZeiger.letzteX = e.clientX
+        rundgangZeiger.letzteY = e.clientY
+        updateCamera()
+        return
+      }
       if (!isDragging) return
       const dx = e.clientX - previousMouse.x
       const dy = e.clientY - previousMouse.y
@@ -187,13 +329,34 @@ export default function RoomView3D() {
       updateCamera()
     }
     const onWheel = (e) => {
+      if (kameraModusRef.current === 'rundgang') return
       spherical.radius = Math.max(4, Math.min(30, spherical.radius + e.deltaY * 0.05))
       updateCamera()
     }
 
     let lastTouch = null
-    const onTouchStart = (e) => { lastTouch = e.touches[0]; isDragging = true }
+    const onTouchStart = (e) => {
+      if (kameraModusRef.current === 'rundgang') {
+        const t = e.touches[0]
+        rundgangZeiger = { startX: t.clientX, startY: t.clientY, letzteX: t.clientX, letzteY: t.clientY, bewegung: 0, startZeit: performance.now() }
+        return
+      }
+      lastTouch = e.touches[0]; isDragging = true
+    }
     const onTouchMove  = (e) => {
+      if (kameraModusRef.current === 'rundgang') {
+        if (!rundgangZeiger) return
+        const t = e.touches[0]
+        const dx = t.clientX - rundgangZeiger.letzteX
+        const dy = t.clientY - rundgangZeiger.letzteY
+        rundgangZeiger.bewegung += Math.abs(dx) + Math.abs(dy)
+        rundgang.yaw -= dx * 0.01
+        rundgang.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, rundgang.pitch - dy * 0.01))
+        rundgangZeiger.letzteX = t.clientX
+        rundgangZeiger.letzteY = t.clientY
+        updateCamera()
+        return
+      }
       if (!isDragging || !lastTouch) return
       const dx = e.touches[0].clientX - lastTouch.clientX
       const dy = e.touches[0].clientY - lastTouch.clientY
@@ -202,7 +365,19 @@ export default function RoomView3D() {
       lastTouch = e.touches[0]
       updateCamera()
     }
-    const onTouchEnd = () => { isDragging = false; lastTouch = null }
+    const onTouchEnd = () => {
+      if (kameraModusRef.current === 'rundgang') {
+        if (rundgangZeiger) {
+          const dauer = performance.now() - rundgangZeiger.startZeit
+          if (rundgangZeiger.bewegung < KLICK_MAX_BEWEGUNG_PX && dauer < KLICK_MAX_DAUER_MS) {
+            versucheLaufenZu(rundgangZeiger.startX, rundgangZeiger.startY)
+          }
+        }
+        rundgangZeiger = null
+        return
+      }
+      isDragging = false; lastTouch = null
+    }
 
 mount.addEventListener('mousedown', onMouseDown)
 mount.addEventListener('touchstart', onTouchStart)
@@ -227,6 +402,14 @@ resizeObserver.observe(mount)
 let frameId
 const animate = () => {
   frameId = requestAnimationFrame(animate)
+  if (laufAnimation) {
+    const t = Math.min(1, (performance.now() - laufAnimation.startZeit) / laufAnimation.dauer)
+    const fortschritt = easeOut(t)
+    rundgang.x = laufAnimation.startX + (laufAnimation.zielX - laufAnimation.startX) * fortschritt
+    rundgang.z = laufAnimation.startZ + (laufAnimation.zielZ - laufAnimation.startZ) * fortschritt
+    updateCamera()
+    if (t >= 1) laufAnimation = null
+  }
   renderer.render(scene, camera)
 }
 animate()
@@ -262,7 +445,20 @@ return () => {
   }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit])
 
   return (
-    <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: 'grab' }} />
+    <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: 'grab', position: 'relative' }}>
+      <div style={{ position: 'absolute', top: '12px', left: '12px', zIndex: 10, display: 'flex', border: '1px solid #E8E6E0', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+        {[
+          { key: 'rundumblick', label: 'Rundumblick' },
+          { key: 'rundgang', label: 'Rundgang' },
+        ].map(({ key, label }) => (
+          <button key={key} onClick={() => waehleKameraModus(key)} style={{
+            padding: '6px 14px', fontSize: '12px', fontFamily: "'DM Sans', sans-serif",
+            background: kameraModus === key ? '#2F4B39' : 'white', color: kameraModus === key ? 'white' : '#888780',
+            border: 'none', cursor: 'pointer', fontWeight: kameraModus === key ? '500' : '400',
+          }}>{label}</button>
+        ))}
+      </div>
+    </div>
   )
 }
 
