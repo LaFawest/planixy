@@ -24,21 +24,30 @@ const navButtonStyle = (deaktiviert) => ({
 })
 
 export default function SchrittTab() {
-  const { schritt, vorherigerSchritt, naechsterSchritt } = useWizard()
+  const { schritt } = useWizard()
   const SchrittInhalt = SCHRITT_KOMPONENTEN[schritt]
 
   return (
     <div style={{ padding: '0 16px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
       <SchrittInhalt />
+    </div>
+  )
+}
 
-      <div style={{ display: 'flex', gap: '8px' }}>
-        <button onClick={vorherigerSchritt} disabled={schritt === ERSTER_SCHRITT} style={navButtonStyle(schritt === ERSTER_SCHRITT)}>
-          ← Zurück
-        </button>
-        <button onClick={naechsterSchritt} disabled={schritt === LETZTER_SCHRITT} style={navButtonStyle(schritt === LETZTER_SCHRITT)}>
-          Weiter →
-        </button>
-      </div>
+// Eigene Komponente statt Teil von SchrittTab: muss im Drawer AUSSERHALB des scrollbaren
+// Bereichs sitzen (siehe MobileNav.jsx), damit "Zurück"/"Weiter" bei vielen Einträgen im
+// mittleren Bereich (z.B. Bodenbelag-Grid) nicht mit aus dem sichtbaren Bereich scrollen.
+export function SchrittTabFooter() {
+  const { schritt, vorherigerSchritt, naechsterSchritt } = useWizard()
+
+  return (
+    <div className="drawer-footer">
+      <button onClick={vorherigerSchritt} disabled={schritt === ERSTER_SCHRITT} style={navButtonStyle(schritt === ERSTER_SCHRITT)}>
+        ← Zurück
+      </button>
+      <button onClick={naechsterSchritt} disabled={schritt === LETZTER_SCHRITT} style={navButtonStyle(schritt === LETZTER_SCHRITT)}>
+        Weiter →
+      </button>
     </div>
   )
 }

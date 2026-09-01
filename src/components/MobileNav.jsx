@@ -1,14 +1,59 @@
+import { useEffect, useRef, useState } from 'react'
 import RaeumeTab from './RaeumeTab'
 import MoebelTab from './MoebelTab'
-import SchrittTab from './SchrittTab'
+import SchrittTab, { SchrittTabFooter } from './SchrittTab'
 import { useUI } from '../context/UIContext'
 import { useWizard } from '../context/WizardContext'
 import { WIZARD_SCHRITTE } from '../constants'
+
+// Ab dieser Zieh-Distanz (px) gilt der Wisch-nach-unten-Griff als "Sheet schließen" statt als
+// unbeabsichtigtes Antippen/Zittern.
+const ZIEH_SCHWELLE = 80
 
 export default function MobileNav() {
   const { aktiverTab, setAktiverTab } = useUI()
   const { schritt } = useWizard()
   const aktuellerSchrittLabel = WIZARD_SCHRITTE.find(s => s.nummer === schritt)?.label
+
+  const griffRef = useRef(null)
+  const ziehOffsetRef = useRef(0)
+  const [ziehOffset, setZiehOffset] = useState(0)
+
+  // Nativer touchmove-Listener statt onTouchMove-Prop: React hängt Touch-Handler standardmäßig
+  // passiv ein, wodurch preventDefault() dort wirkungslos bliebe und Safari die Geste weiterhin
+  // als Seiten-Scroll/Pull-to-Refresh interpretieren würde.
+  useEffect(() => {
+    const griff = griffRef.current
+    if (!griff) return
+    let startY = 0
+    let ziehend = false
+
+    const onTouchStart = (e) => { startY = e.touches[0].clientY; ziehend = true }
+    const onTouchMove = (e) => {
+      if (!ziehend) return
+      const deltaY = e.touches[0].clientY - startY
+      if (deltaY > 0) {
+        e.preventDefault()
+        ziehOffsetRef.current = deltaY
+        setZiehOffset(deltaY)
+      }
+    }
+    const onTouchEnd = () => {
+      ziehend = false
+      if (ziehOffsetRef.current > ZIEH_SCHWELLE) setAktiverTab(null)
+      ziehOffsetRef.current = 0
+      setZiehOffset(0)
+    }
+
+    griff.addEventListener('touchstart', onTouchStart, { passive: true })
+    griff.addEventListener('touchmove', onTouchMove, { passive: false })
+    griff.addEventListener('touchend', onTouchEnd)
+    return () => {
+      griff.removeEventListener('touchstart', onTouchStart)
+      griff.removeEventListener('touchmove', onTouchMove)
+      griff.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [setAktiverTab])
 
   return (
     <>
@@ -16,13 +61,19 @@ export default function MobileNav() {
       <div className={`drawer-overlay ${aktiverTab ? 'open' : ''}`} onClick={() => setAktiverTab(null)} />
 
       {/* Mobile Drawer */}
-      <div className={`drawer ${aktiverTab ? 'open' : ''}`}>
-        <div style={{ padding: '12px 16px 0' }}>
+      <div
+        className={`drawer ${aktiverTab ? 'open' : ''}`}
+        style={ziehOffset ? { transform: `translateY(${ziehOffset}px)`, transition: 'none' } : undefined}
+      >
+        <div ref={griffRef} className="drawer-griff-zeile" style={{ padding: '12px 16px 0' }}>
           <div style={{ width: '40px', height: '4px', background: '#E8E6E0', borderRadius: '2px', margin: '0 auto 16px' }}></div>
         </div>
-        {aktiverTab === 'raeume' && <RaeumeTab />}
-        {aktiverTab === 'moebel' && <MoebelTab />}
-        {aktiverTab === 'schritt' && <SchrittTab />}
+        <div className="drawer-scroll">
+          {aktiverTab === 'raeume' && <RaeumeTab />}
+          {aktiverTab === 'moebel' && <MoebelTab />}
+          {aktiverTab === 'schritt' && <SchrittTab />}
+        </div>
+        {aktiverTab === 'schritt' && <SchrittTabFooter />}
       </div>
 
       {/* Mobile Tab Bar */}
