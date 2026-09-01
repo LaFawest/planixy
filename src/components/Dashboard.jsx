@@ -548,8 +548,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div style={{ flex: 1, minWidth: 0, padding: '40px 48px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
+      <div className="dashboard-content" style={{ flex: 1, minWidth: 0, padding: '40px 48px' }}>
+      <div className="dashboard-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <PlanixyIcon size={30} />
@@ -557,7 +557,7 @@ export default function Dashboard() {
           </div>
           <p style={{ fontSize: '13px', color: '#B4B2A9', marginTop: '2px' }}>{gruppenUntertitel}</p>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div className="dashboard-header-actions" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <ImportButton onClick={() => importInputRef.current.click()} />
           <button onClick={() => setDialog({ typ: 'neu' })} style={{
             padding: '10px 20px', background: '#2F4B39', color: 'white', border: 'none', borderRadius: '10px',

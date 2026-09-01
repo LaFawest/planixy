@@ -286,3 +286,20 @@ input[type=number]::-webkit-outer-spin-button { opacity: 1; }
     min-width: 44px;
   }
 }
+
+/* Dashboard-Header (Projektübersicht): Logo+Titel-Block und Buttons rücken auf schmalen
+   Screens sonst so eng zusammen, dass sie sich überlappen — bricht deshalb unterhalb von
+   640px auf zwei Zeilen um (Logo oben, Buttons darunter über die volle Breite). */
+@media (max-width: 640px) {
+  .dashboard-content {
+    padding: 24px 16px !important;
+  }
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 16px;
+  }
+  .dashboard-header-actions {
+    width: 100%;
+  }
+}
