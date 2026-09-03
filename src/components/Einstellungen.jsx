@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import LegalLinks from './LegalLinks'
 
 // Rohe GoTrue-Fehlermeldungen (Englisch) auf verständliche deutsche Hinweise abbilden — analog zu
 // FEHLER_TEXTE in AuthModal.jsx, aber um die hier relevanten Fälle (E-Mail-/Passwort-Änderung)
@@ -349,6 +350,8 @@ export default function Einstellungen() {
         </div>
 
         <AppKarte />
+
+        <LegalLinks style={{ marginTop: '32px' }} />
       </div>
 
       {loeschenOffen && <LoeschenDialog user={user} onAbbrechen={() => setLoeschenOffen(false)} />}

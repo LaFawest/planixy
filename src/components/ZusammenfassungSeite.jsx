@@ -2,6 +2,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useRooms } from '../context/RoomsContext'
 import { produktEmpfehlungen } from '../data/produktempfehlungen'
 import PlanixyLogo from './PlanixyLogo'
+import LegalLinks from './LegalLinks'
 
 function formatPreis(preis) {
   return preis.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
@@ -80,9 +81,12 @@ export default function ZusammenfassungSeite() {
                         {g.name} {g.anzahl > 1 && <span style={{ color: '#B4B2A9' }}>× {g.anzahl}</span>}
                       </div>
                       {g.produkt ? (
-                        <a href={g.produkt.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#185FA5', textDecoration: 'none' }}>
-                          {g.produkt.name} →
-                        </a>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <a href={g.produkt.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#185FA5', textDecoration: 'none' }}>
+                            {g.produkt.name} →
+                          </a>
+                          <span style={{ fontSize: '10px', color: '#B4B2A9' }}>Anzeige</span>
+                        </div>
                       ) : (
                         <div style={{ fontSize: '11px', color: '#B4B2A9' }}>Noch kein Produktvorschlag</div>
                       )}
@@ -106,6 +110,8 @@ export default function ZusammenfassungSeite() {
             {formatPreis(gesamtpreis)}
           </div>
         </div>
+
+        <LegalLinks style={{ marginTop: '28px', justifyContent: 'center' }} />
       </div>
     </div>
   )

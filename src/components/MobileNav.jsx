@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import RaeumeTab from './RaeumeTab'
 import MoebelTab from './MoebelTab'
 import SchrittTab, { SchrittTabFooter } from './SchrittTab'
+import LegalLinks from './LegalLinks'
 import { useUI } from '../context/UIContext'
 import { useWizard } from '../context/WizardContext'
 import { WIZARD_SCHRITTE } from '../constants'
@@ -74,6 +75,9 @@ export default function MobileNav() {
           {aktiverTab === 'schritt' && <SchrittTab />}
         </div>
         {aktiverTab === 'schritt' && <SchrittTabFooter />}
+        <div style={{ flexShrink: 0, padding: '8px 16px calc(8px + env(safe-area-inset-bottom, 0px))', borderTop: '1px solid #F2EFE7' }}>
+          <LegalLinks />
+        </div>
       </div>
 
       {/* Mobile Tab Bar */}

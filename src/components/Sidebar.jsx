@@ -1,4 +1,5 @@
 import KatalogPanel from './KatalogPanel'
+import LegalLinks from './LegalLinks'
 import { useUI } from '../context/UIContext'
 import { useRooms } from '../context/RoomsContext'
 
@@ -11,6 +12,7 @@ export default function Sidebar() {
         <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', fontWeight: '500', color: '#2C2C2A' }}>Planixy</h2>
         <p style={{ fontSize: '11px', color: '#B4B2A9', marginTop: '2px' }}>Intelligente Raumplanung</p>
       </div>
+      <LegalLinks style={{ padding: '0 8px', marginBottom: '20px' }} />
       <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '8px', letterSpacing: '0.08em', padding: '0 8px' }}>MEINE RÄUME</p>
       <div>
         {rooms.map(room => (

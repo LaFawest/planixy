@@ -68,8 +68,11 @@ export default function ProduktPanel() {
                 <div style={{ fontSize: '11px', color: '#444441', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                   {produkt.name}
                 </div>
-                <div style={{ fontSize: '12px', fontWeight: '600', color: '#185FA5', marginTop: '3px' }}>
-                  {formatPreis(produkt.preis)}
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '3px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#185FA5' }}>
+                    {formatPreis(produkt.preis)}
+                  </div>
+                  <span style={{ fontSize: '10px', color: '#B4B2A9' }}>Anzeige</span>
                 </div>
               </div>
               <a href={produkt.link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}

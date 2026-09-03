@@ -4,6 +4,7 @@ import { useProjekteListe } from '../context/ProjekteListeContext'
 import { useAuth } from '../context/AuthContext'
 import { PlanixyIcon } from './PlanixyLogo'
 import GastBanner from './GastBanner'
+import LegalLinks from './LegalLinks'
 
 // Suchfeld und Sortierung würden bei ein, zwei Projekten nur unnötig im Weg stehen — sie
 // erscheinen erst ab dieser Anzahl, wenn Scannen der Kacheln allein umständlicher wird.
@@ -784,6 +785,8 @@ export default function Dashboard() {
           onSchliessen={schliessen}
         />
       )}
+
+      <LegalLinks style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #F2EFE7' }} />
       </div>
     </div>
   )
