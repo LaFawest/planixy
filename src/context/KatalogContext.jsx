@@ -1,5 +1,6 @@
 import { createContext, useContext, useCallback, useMemo, useState } from 'react'
 import { alleKatalogItems, kategorien, WIZARD_SCHRITTE } from '../constants'
+import { ersterVorschlag, produktAufKatalogItemAnwenden } from '../data/produktAuswahl'
 import { useFurniture } from './FurnitureContext'
 import { useWizard } from './WizardContext'
 
@@ -58,8 +59,14 @@ export function KatalogProvider({ children }) {
 
   const kategorienFuerAuswahl = useMemo(() => kategorien.filter(kat => kat !== FENSTER_TUEREN_KATEGORIE && kat !== LICHT_KATEGORIE), [])
 
+  // Beim Platzieren bekommt ein Möbelstück sofort Farbe/Maße seines ersten passenden echten
+  // Amazon-Produkts (falls vorhanden) statt der rein generischen Katalogwerte — auch bei nur
+  // einer Produktoption. Wandelemente (Tür/Fenster) haben keine Produktdaten und bleiben
+  // unverändert.
   const katalogItemHinzufuegen = useCallback((item) => {
-    item.typ ? addWandElement(item) : addFurniture(item)
+    if (item.typ) { addWandElement(item); return }
+    const produkt = ersterVorschlag(item.name)
+    addFurniture(produkt ? { ...item, ...produktAufKatalogItemAnwenden(item, produkt) } : item)
   }, [addFurniture, addWandElement])
 
   const value = useMemo(() => ({

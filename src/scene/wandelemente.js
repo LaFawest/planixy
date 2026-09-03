@@ -2,7 +2,9 @@ import * as THREE from 'three'
 import { wandSegmente, rechteckPolygon } from '../raumPolygon'
 
 // === WANDELEMENTE (Tür/Fenster) ===
-export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte) {
+// holzTextur (erzeugeHolzTextur aus texturen.js, wie schon bei Möbel-Holzbeinen in moebel.js)
+// ersetzt die bisherigen flachen Farben an Tür/Rahmen/Fensterrahmen durch eine Holzmaserung.
+export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur) {
   const elBreite = item.width / 60
   const gruppe = new THREE.Group()
 
@@ -36,7 +38,7 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
     const elHoehe = 1.2
     const yPos = wandHoehe * 0.55
 
-    const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, metalness: 0.1 })
+    const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, metalness: 0.1, map: holzTextur })
     const rahmen = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.1), rahmenMat)
     rahmen.position.set(0, yPos, 0)
     rahmen.castShadow = true
@@ -50,7 +52,7 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
     glas.position.set(0, yPos, 0)
     gruppe.add(glas)
 
-    const strebeMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6 })
+    const strebeMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
     const strebeH = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.06, 0.04, 0.06), strebeMat)
     strebeH.position.set(0, yPos, 0.02)
     gruppe.add(strebeH)
@@ -66,14 +68,14 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
 
   } else {
     const elHoehe = 2.1
-    const tuerMat = new THREE.MeshStandardMaterial({ color: '#C8A97A', roughness: 0.7, metalness: 0.0 })
+    const tuerMat = new THREE.MeshStandardMaterial({ color: '#C8A97A', roughness: 0.7, metalness: 0.0, map: holzTextur })
 
     const tuer = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.06), tuerMat)
     tuer.position.set(0, elHoehe / 2, 0.03)
     tuer.castShadow = true
     gruppe.add(tuer)
 
-    const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6 })
+    const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
     const rahmenL = new THREE.Mesh(new THREE.BoxGeometry(0.08, elHoehe + 0.1, 0.15), rahmenMat)
     rahmenL.position.set(-elBreite/2 - 0.04, elHoehe/2, 0)
     gruppe.add(rahmenL)
@@ -86,7 +88,7 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
     rahmenO.position.set(0, elHoehe + 0.04, 0)
     gruppe.add(rahmenO)
 
-    const fuellungMat = new THREE.MeshStandardMaterial({ color: '#B8956A', roughness: 0.8 })
+    const fuellungMat = new THREE.MeshStandardMaterial({ color: '#B8956A', roughness: 0.8, map: holzTextur })
     const fuellung1 = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.2, elHoehe * 0.4, 0.02), fuellungMat)
     fuellung1.position.set(0, elHoehe * 0.65, 0.06)
     gruppe.add(fuellung1)

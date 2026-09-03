@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur } from './texturen'
+import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandputzTextur } from './texturen'
 import { baueTrennwaende } from './scene/trennwaende'
 import { baueWandElement } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
@@ -72,6 +72,7 @@ export default function RoomView3D() {
     // === TEXTUREN (einmal pro Szene erzeugt, mehrfach verwendet) ===
     const holzTextur = erzeugeHolzTextur()
     const stoffTextur = erzeugeStoffTextur()
+    const wandputzTextur = erzeugeWandputzTextur()
     scene.environment = erzeugeUmgebungsTextur()
 
     // === BELEUCHTUNG ===
@@ -114,7 +115,10 @@ export default function RoomView3D() {
     // Himmelsrichtung) — funktioniert damit für jede Segmentanzahl/-form, nicht nur für die vier
     // festen Rechteckwände.
     const wandFarbeFuer = (index) => room?.wandfarben?.[index] || room?.wandfarbe || '#FFFFFF'
-    const wandMatFuer = (index) => new THREE.MeshStandardMaterial({ color: wandFarbeFuer(index), roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1 })
+    // map + color: MeshStandardMaterial multipliziert beide miteinander, die Putzstruktur bleibt
+    // dadurch mit jeder der 27 Wandfarben einfärbbar, ohne dass die Farbwahl selbst hier angefasst
+    // werden muss.
+    const wandMatFuer = (index) => new THREE.MeshStandardMaterial({ color: wandFarbeFuer(index), map: wandputzTextur, roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1 })
 
     const segmente = wandSegmente(eckpunkte)
     // Für updateCamera unten: pro Wand Mesh + 3D-Normale (2D-Normale direkt auf X/Z übernommen,
@@ -156,7 +160,7 @@ export default function RoomView3D() {
 
     furniture.forEach(item => {
       if (item.istWandElement) {
-        baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte)
+        baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur)
       } else {
         baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur)
       }
@@ -429,12 +433,15 @@ return () => {
   // Materialien/Texturen direkt in `scene` ab, ohne Referenzen nach außen zu geben — bei
   // jeder Änderung von room/furniture baut dieser Effekt die komplette Szene neu auf, daher
   // hier eine vollständige Traversierung statt einzeln benannter Handles.
+  // Foto-Texturen (texturen.js, ladeFotoTextur) sind davon ausgenommen (userData.persistenteTextur)
+  // — die leben im modulweiten Cache über diesen Neuaufbau hinaus, ein hier ausgelöstes dispose()
+  // würde beim nächsten Szenenaufbau eine bereits GPU-seitig freigegebene (leere) Textur liefern.
   scene.environment?.dispose()
   scene.traverse(obj => {
     obj.geometry?.dispose()
     const materials = Array.isArray(obj.material) ? obj.material : (obj.material ? [obj.material] : [])
     materials.forEach(mat => {
-      Object.values(mat).forEach(wert => { if (wert?.isTexture) wert.dispose() })
+      Object.values(mat).forEach(wert => { if (wert?.isTexture && !wert.userData?.persistenteTextur) wert.dispose() })
       mat.dispose()
     })
   })

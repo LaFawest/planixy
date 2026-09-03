@@ -121,6 +121,7 @@ export const bodenBelaege = [
 ]
 export const wandFarben = [
   { name: 'Weiß',       farbe: '#FFFFFF' }, { name: 'Cremeweiß',  farbe: '#F5F0E8' },
+  { name: 'Schwarz',    farbe: '#1A1A1A' },
   { name: 'Hellgrau',   farbe: '#E8E6E0' }, { name: 'Grau',       farbe: '#B4B2A9' },
   { name: 'Anthrazit',  farbe: '#444441' }, { name: 'Beige',      farbe: '#E8D5B0' },
   { name: 'Sandbraun',  farbe: '#C4A882' }, { name: 'Terrakotta', farbe: '#D4856A' },

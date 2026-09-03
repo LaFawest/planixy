@@ -1,4 +1,6 @@
 import { createContext, useContext, useCallback, useMemo, useState } from 'react'
+import { alleKatalogItems } from '../constants'
+import { produktAufKatalogItemAnwenden } from '../data/produktAuswahl'
 import { useRooms } from './RoomsContext'
 import { useRaumGeometrie } from './useRaumGeometrie'
 import { vergibMoebelId } from './idZaehler'
@@ -114,6 +116,62 @@ export function FurnitureProvider({ children }) {
     }))
   }, [updateFurniture, activeRoom, grenzB, grenzT, grenzStart, rechteckInPolygon])
 
+  // Produktwechsel in der Produktgalerie (ProduktPanel.jsx): übernimmt Farbe/Maße des gewählten
+  // Produkts für ein bereits platziertes Möbelstück. Der Mittelpunkt bleibt bei der aktuellen
+  // Rotation erhalten (wie rotateFurniture oben), aber die neue Bounding-Box muss zusätzlich vor
+  // Überlappung mit anderen Möbelstücken bewahrt werden — dafür dieselbe snappeAnFreieKante-Logik
+  // wie beim Loslassen nach einem Drag (handleDrag/onUp unten), nicht nur die reine Raumklemmung.
+  const wechsleProdukt = useCallback((id, produkt) => {
+    updateFurniture((activeRoom?.furniture || []).map(f => {
+      if (f.id !== id || f.istWandElement) return f
+      const katalogDefault = alleKatalogItems.find(k => k.name === f.name)
+      if (!katalogDefault) return f
+      const enriched = produktAufKatalogItemAnwenden(katalogDefault, produkt)
+
+      const origW = f.origWidth  || f.width
+      const origH = f.origHeight || f.height
+      const rad = (f.rotation || 0) * Math.PI / 180
+      const cos = Math.abs(Math.cos(rad))
+      const sin = Math.abs(Math.sin(rad))
+      const altBoundW = origW * cos + origH * sin
+      const altBoundH = origW * sin + origH * cos
+      const mitteX = f.left + altBoundW / 2
+      const mitteY = f.top  + altBoundH / 2
+
+      const neuBoundW = enriched.width * cos + enriched.height * sin
+      const neuBoundH = enriched.width * sin + enriched.height * cos
+      const kandidatLinks = Math.max(grenzStart, Math.min(grenzStart + grenzB - neuBoundW, mitteX - neuBoundW / 2))
+      const kandidatOben  = Math.max(grenzStart, Math.min(grenzStart + grenzT - neuBoundH, mitteY - neuBoundH / 2))
+
+      let left = kandidatLinks
+      let top = kandidatOben
+
+      // Elektrogeräte stehen auf anderen Möbelstücken und sind von der Kollisionsprüfung
+      // ausgenommen — genau wie beim Loslassen nach einem Drag (handleDrag/onUp unten).
+      if (f.kategorie !== 'Elektrogeräte') {
+        const andere = (activeRoom?.furniture || [])
+          .filter(o => o.id !== id && o.kategorie !== 'Elektrogeräte')
+          .map(o => {
+            const oW = o.origWidth  || o.width
+            const oH = o.origHeight || o.height
+            const oRad = (o.rotation || 0) * Math.PI / 180
+            return {
+              left: o.left, top: o.top,
+              breite: oW * Math.abs(Math.cos(oRad)) + oH * Math.abs(Math.sin(oRad)),
+              hoehe: oW * Math.abs(Math.sin(oRad)) + oH * Math.abs(Math.cos(oRad)),
+            }
+          })
+        const position = snappeAnFreieKante(
+          { left, top }, neuBoundW, neuBoundH, andere,
+          grenzeEckpunkte, grenzStart, grenzB, grenzT, { left: f.left, top: f.top },
+        )
+        if (position) { left = position.left; top = position.top }
+      }
+
+      return { ...f, ...enriched, origWidth: enriched.width, origHeight: enriched.height, left, top }
+    }))
+  }, [updateFurniture, activeRoom, grenzB, grenzT, grenzStart, grenzeEckpunkte])
+
   const handleDrag = useCallback((e, id) => {
     e.preventDefault()
     const aktuellesFurniture = activeRoom?.furniture || []
@@ -215,8 +273,8 @@ export function FurnitureProvider({ children }) {
 
   const value = useMemo(() => ({
     furniture, selectedId, setSelectedId,
-    updateFurniture, addFurniture, addWandElement, removeFurniture, rotateFurniture, handleDrag,
-  }), [furniture, selectedId, updateFurniture, addFurniture, addWandElement, removeFurniture, rotateFurniture, handleDrag])
+    updateFurniture, addFurniture, addWandElement, removeFurniture, rotateFurniture, handleDrag, wechsleProdukt,
+  }), [furniture, selectedId, updateFurniture, addFurniture, addWandElement, removeFurniture, rotateFurniture, handleDrag, wechsleProdukt])
 
   return <FurnitureContext.Provider value={value}>{children}</FurnitureContext.Provider>
 }

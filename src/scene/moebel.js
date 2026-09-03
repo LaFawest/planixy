@@ -71,7 +71,7 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       const fbw = f.width * Math.abs(Math.cos(frad)) + f.height * Math.abs(Math.sin(frad))
       const fbh = f.width * Math.abs(Math.sin(frad)) + f.height * Math.abs(Math.cos(frad))
       if (cxPx >= f.left && cxPx <= f.left + fbw && cyPx >= f.top && cyPx <= f.top + fbh) {
-        hoehe = Math.max(hoehe, getMoebelHoehe(f.name))
+        hoehe = Math.max(hoehe, f.echteHoeheM || getMoebelHoehe(f.name))
       }
     })
     return hoehe
@@ -79,7 +79,10 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
 
   const moebelBreite = item.width  / 60
   const moebelTiefe  = item.height / 60
-  const moebelHoehe  = getMoebelHoehe(item.name)
+  // Vertikale Höhe kommt normalerweise aus der statischen, nur nach Namen nachschlagenden
+  // Tabelle (texturen.js) — ein ausgewähltes echtes Produkt mit verifizierter Höhe (cm, siehe
+  // produktAuswahl.js) überschreibt das pro platzierter Instanz über item.echteHoeheM (Meter).
+  const moebelHoehe  = item.echteHoeheM || getMoebelHoehe(item.name)
 
   const rad = ((item.rotation || 0) * Math.PI) / 180
   const boundWpx = item.width * Math.abs(Math.cos(rad)) + item.height * Math.abs(Math.sin(rad))

@@ -1,4 +1,38 @@
 import * as THREE from 'three'
+import wandputzUrl from './assets/texturen/wandputz.jpg'
+import bodenParkettUrl from './assets/texturen/boden-parkett.jpg'
+import bodenFischgraetUrl from './assets/texturen/boden-fischgraet.jpg'
+import bodenLaminatUrl from './assets/texturen/boden-laminat.jpg'
+import bodenFliesenUrl from './assets/texturen/boden-fliesen.jpg'
+import bodenBetonUrl from './assets/texturen/boden-beton.jpg'
+import bodenMarmorUrl from './assets/texturen/boden-marmor.jpg'
+import bodenSchieferUrl from './assets/texturen/boden-schiefer.jpg'
+import bodenTeppichUrl from './assets/texturen/boden-teppich.jpg'
+import bodenSchachbrettUrl from './assets/texturen/boden-schachbrett.jpg'
+import bodenKorkUrl from './assets/texturen/boden-kork.jpg'
+
+// Echte Foto-Texturen (CC0, polyhaven.com/ambientcg.com) statt weiterer prozeduraler
+// Canvas-Zeichnungen — siehe erzeugeBodenTextur/erzeugeWandputzTextur unten. Geladen wird pro
+// Datei nur einmal: fotoTexturCache hält die fertige THREE.Texture über Szenen-Neuaufbauten
+// hinweg fest (RoomView3D.jsx baut die Szene bei jeder Room-/Furniture-Änderung komplett neu
+// auf). Jede zurückgegebene Textur ist als "persistent" markiert (userData.persistenteTextur) —
+// RoomView3D.jsx überspringt sie beim generischen Aufräumen der Szene beim Unmount/Neuaufbau,
+// sonst würde das dortige scene.traverse() sie disposen und der nächste Neuaufbau bekäme aus
+// dem Cache eine bereits GPU-seitig freigegebene (leere) Textur zurück.
+const textureLoader = new THREE.TextureLoader()
+const fotoTexturCache = new Map() // URL -> THREE.Texture
+
+function ladeFotoTextur(url) {
+  const gecached = fotoTexturCache.get(url)
+  if (gecached) return gecached
+  const texture = textureLoader.load(url, undefined, undefined, (fehler) => {
+    console.error(`Foto-Textur konnte nicht geladen werden: ${url}`, fehler)
+  })
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.userData.persistenteTextur = true
+  fotoTexturCache.set(url, texture)
+  return texture
+}
 
 export function erzeugeHolzTextur() {
   const groesse = 256
@@ -51,77 +85,65 @@ export function erzeugeStoffTextur() {
   return texture
 }
 
-export function erzeugeBodenTextur(bodenTyp, breiteM, tiefeM) {
+// Bodenbelag -> Datei, siehe bodenBelaege in constants.js. 'boden-standard' bleibt bewusst ohne
+// Foto (schlichter neutraler Boden, dafür lohnt sich keine eigene Aufnahme) und läuft über den
+// Canvas-Fallback unten, ebenso jeder unbekannte/zukünftige Typ.
+const BODEN_TEXTUR_URLS = {
+  'boden-parkett': bodenParkettUrl,
+  'boden-fischgraet': bodenFischgraetUrl,
+  'boden-laminat': bodenLaminatUrl,
+  'boden-fliesen': bodenFliesenUrl,
+  'boden-beton': bodenBetonUrl,
+  'boden-marmor': bodenMarmorUrl,
+  'boden-schiefer': bodenSchieferUrl,
+  'boden-teppich': bodenTeppichUrl,
+  'boden-schachbrett': bodenSchachbrettUrl,
+  'boden-kork': bodenKorkUrl,
+}
+
+function erzeugeStandardBodenTextur(breiteM, tiefeM) {
   const groesse = 512
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = groesse
   const ctx = canvas.getContext('2d')
-  ctx.fillStyle = getBodenFarbe(bodenTyp)
+  ctx.fillStyle = getBodenFarbe('boden-standard')
   ctx.fillRect(0, 0, groesse, groesse)
-
-  if (bodenTyp === 'boden-parkett' || bodenTyp === 'boden-laminat') {
-    const dielenBreite = groesse / 10
-    for (let i = 0; i < 10; i++) {
-      for (let j = 0; j < 24; j++) {
-        const x = i * dielenBreite + Math.random() * dielenBreite
-        const y = Math.random() * groesse
-        ctx.strokeStyle = `rgba(70,40,15,${(0.05 + Math.random() * 0.1).toFixed(2)})`
-        ctx.lineWidth = 1
-        ctx.beginPath()
-        ctx.moveTo(x, y)
-        ctx.lineTo(x + (Math.random() - 0.5) * 10, y + 20 + Math.random() * 30)
-        ctx.stroke()
-      }
-    }
-    ctx.strokeStyle = 'rgba(60,35,10,0.35)'
-    ctx.lineWidth = 2
-    for (let i = 0; i <= 10; i++) {
-      ctx.beginPath()
-      ctx.moveTo(i * dielenBreite, 0)
-      ctx.lineTo(i * dielenBreite, groesse)
-      ctx.stroke()
-    }
-  } else if (bodenTyp === 'boden-fliesen') {
-    const fliesenAnzahl = 6
-    const fliesenGroesse = groesse / fliesenAnzahl
-    for (let i = 0; i < 400; i++) {
-      const x = Math.random() * groesse, y = Math.random() * groesse
-      ctx.fillStyle = `rgba(255,255,255,${(Math.random() * 0.08).toFixed(2)})`
-      ctx.fillRect(x, y, 2, 2)
-    }
-    ctx.strokeStyle = 'rgba(150,145,135,0.8)'
-    ctx.lineWidth = 3
-    for (let i = 0; i <= fliesenAnzahl; i++) {
-      ctx.beginPath(); ctx.moveTo(i * fliesenGroesse, 0); ctx.lineTo(i * fliesenGroesse, groesse); ctx.stroke()
-      ctx.beginPath(); ctx.moveTo(0, i * fliesenGroesse); ctx.lineTo(groesse, i * fliesenGroesse); ctx.stroke()
-    }
-  } else if (bodenTyp === 'boden-teppich') {
-    for (let i = 0; i < 5000; i++) {
-      const x = Math.random() * groesse, y = Math.random() * groesse
-      const hell = Math.random() * 40 - 20
-      ctx.fillStyle = hell > 0 ? `rgba(255,255,255,${(hell / 100).toFixed(2)})` : `rgba(0,0,0,${(-hell / 100).toFixed(2)})`
-      ctx.fillRect(x, y, 1.5, 1.5)
-    }
-  } else if (bodenTyp === 'boden-beton') {
-    for (let i = 0; i < 500; i++) {
-      const x = Math.random() * groesse, y = Math.random() * groesse
-      const r = 5 + Math.random() * 20
-      const hell = Math.random() > 0.5
-      ctx.fillStyle = hell ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.025)'
-      ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill()
-    }
-  } else {
-    for (let i = 0; i < 2000; i++) {
-      const x = Math.random() * groesse, y = Math.random() * groesse
-      ctx.fillStyle = `rgba(0,0,0,${(Math.random() * 0.02).toFixed(2)})`
-      ctx.fillRect(x, y, 2, 2)
-    }
+  for (let i = 0; i < 2000; i++) {
+    const x = Math.random() * groesse, y = Math.random() * groesse
+    ctx.fillStyle = `rgba(0,0,0,${(Math.random() * 0.02).toFixed(2)})`
+    ctx.fillRect(x, y, 2, 2)
   }
-
   const texture = new THREE.CanvasTexture(canvas)
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping
   texture.repeat.set(Math.max(1, Math.round(breiteM)), Math.max(1, Math.round(tiefeM)))
   texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+}
+
+export function erzeugeBodenTextur(bodenTyp, breiteM, tiefeM) {
+  const url = BODEN_TEXTUR_URLS[bodenTyp]
+  if (!url) return erzeugeStandardBodenTextur(breiteM, tiefeM)
+  const texture = ladeFotoTextur(url)
+  // Kein manuelles needsUpdate hier: repeat/wrapS/wrapT sind Sampler-Uniforms, die bei jedem
+  // Frame neu gelesen werden, keine Pixeldaten — ein needsUpdate direkt nach dem (asynchronen)
+  // textureLoader.load() würde einen Upload-Versuch auslösen, bevor das Bild überhaupt geladen
+  // ist ("Texture marked for update but no image data found"-Warnung). TextureLoader setzt
+  // needsUpdate selbst, sobald das Bild tatsächlich da ist.
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(Math.max(1, Math.round(breiteM)), Math.max(1, Math.round(tiefeM)))
+  return texture
+}
+
+// Putzstruktur für alle Wände — RoomView3D.jsx multipliziert diese Textur mit der jeweiligen
+// Wandfarbe (MeshStandardMaterial color × map), der bestehende 27-Farben-Picker bleibt dadurch
+// unangetastet. Feste Wiederholung statt einer pro Wandlänge berechneten: alle Wandsegmente
+// einer Szene teilen sich dieselbe gecachte Textur-Instanz (siehe ladeFotoTextur), ein pro Wand
+// unterschiedliches repeat würde sich gegenseitig überschreiben, weil sie am selben THREE.Texture-
+// Objekt hängen.
+export function erzeugeWandputzTextur() {
+  const texture = ladeFotoTextur(wandputzUrl)
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(4, 2)
   return texture
 }
 
@@ -142,13 +164,11 @@ export function erzeugeUmgebungsTextur() {
   return texture
 }
 
+// Nur noch für erzeugeStandardBodenTextur relevant (die anderen Bodenbeläge sind echte
+// Foto-Texturen, siehe BODEN_TEXTUR_URLS) — bleibt trotzdem generisch nach Typ statt fest
+// verdrahtet, für jeden unbekannten/zukünftigen Belag ohne eigenes Foto.
 export function getBodenFarbe(boden) {
   const farben = {
-    'boden-parkett':  '#C8A97A',
-    'boden-laminat':  '#D4B896',
-    'boden-fliesen':  '#E8E4DC',
-    'boden-teppich':  '#C4B8D4',
-    'boden-beton':    '#B8B8B4',
     'boden-standard': '#F5F4F0',
   }
   return farben[boden] || '#F5F4F0'
