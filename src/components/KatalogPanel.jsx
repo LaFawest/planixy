@@ -52,7 +52,7 @@ export default function KatalogPanel({ spalten, onItemHinzugefuegt }) {
             ? <p style={{ fontSize: '12px', color: '#B4B2A9', textAlign: 'center', marginTop: '20px' }}>Nichts gefunden 🔍</p>
             : <div style={{ display: 'grid', gridTemplateColumns: `repeat(${spalten}, 1fr)`, gap: '8px' }}>
                 {gefilterteMoebel.map(item => (
-                  <KatalogKarte key={item.name} item={item} onClick={() => { katalogItemHinzufuegen(item); onItemHinzugefuegt?.() }} />
+                  <KatalogKarte key={item.katalogKey || item.name} item={item} onClick={() => { katalogItemHinzufuegen(item); onItemHinzugefuegt?.() }} />
                 ))}
               </div>
           }

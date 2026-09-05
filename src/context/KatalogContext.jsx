@@ -1,6 +1,6 @@
 import { createContext, useContext, useCallback, useMemo, useState } from 'react'
 import { alleKatalogItems, kategorien, WIZARD_SCHRITTE } from '../constants'
-import { ersterVorschlag, produktAufKatalogItemAnwenden } from '../data/produktAuswahl'
+import { produkteFuerTyp, produktAufKatalogItemAnwenden } from '../data/produktAuswahl'
 import { useFurniture } from './FurnitureContext'
 import { useWizard } from './WizardContext'
 
@@ -39,11 +39,30 @@ export function KatalogProvider({ children }) {
 
   // In Schritt 3/4 gibt es nur eine Kategorie, die Auswahl entfällt dort komplett (siehe oben) —
   // die gespeicherte aktiveKategorie ist dann irrelevant und wird ignoriert statt gefiltert.
-  const gefilterteMoebel = useMemo(() => erreichbareItems.filter(item => {
+  // Kategorie-/Suchfilter laufen weiterhin über die Typ-Felder (item.kategorie/item.name), nicht
+  // über einzelne Produktfelder — sonst würde Suche/Filterung von Karte zu Karte unterschiedlich
+  // reagieren, obwohl sie zum selben Möbeltyp gehören.
+  const gefilterteTypen = useMemo(() => erreichbareItems.filter(item => {
     const kategorieOk = !kategorieAuswahlSichtbar || aktiveKategorie === 'Alle' || item.kategorie === aktiveKategorie
     const sucheOk = item.name.toLowerCase().includes(suche.toLowerCase())
     return kategorieOk && sucheOk
   }), [erreichbareItems, kategorieAuswahlSichtbar, aktiveKategorie, suche])
+
+  // Ein Katalog-Typ mit mehreren echten Amazon-Produkten (z. B. 3 Kleiderschrank-Varianten) wird
+  // hier zu mehreren Karten expandiert — eine pro Produkt, mit dessen eigenem Foto/Marke/Preis —
+  // statt wie bisher einer Karte pro Typ mit zufällig vorausgewähltem ersten Produkt. Wandelemente
+  // (Fenster & Türen) haben keine Produktdaten und bleiben unverändert 1 Karte pro Typ.
+  const gefilterteMoebel = useMemo(() => gefilterteTypen.flatMap(item => {
+    if (item.typ) return [item]
+    const produkte = produkteFuerTyp(item.name)
+    if (produkte.length === 0) return [item]
+    return produkte.map(produkt => ({
+      ...item,
+      ...produktAufKatalogItemAnwenden(item, produkt),
+      produkt,
+      katalogKey: `${item.name}::${produkt.id}`,
+    }))
+  }), [gefilterteTypen])
 
   // Findet eine Suche in diesem Schritt nichts, in einem der anderen Katalog-Schritte aber schon,
   // auf den Sprung dorthin hinweisen statt einer leeren Spalte.
@@ -59,14 +78,14 @@ export function KatalogProvider({ children }) {
 
   const kategorienFuerAuswahl = useMemo(() => kategorien.filter(kat => kat !== FENSTER_TUEREN_KATEGORIE && kat !== LICHT_KATEGORIE), [])
 
-  // Beim Platzieren bekommt ein Möbelstück sofort Farbe/Maße seines ersten passenden echten
-  // Amazon-Produkts (falls vorhanden) statt der rein generischen Katalogwerte — auch bei nur
-  // einer Produktoption. Wandelemente (Tür/Fenster) haben keine Produktdaten und bleiben
-  // unverändert.
+  // Farbe/Maße des konkret angeklickten Produkts stehen bereits auf dem Katalog-Eintrag selbst
+  // (siehe gefilterteMoebel oben) — hier nur noch die Hilfsfelder abstreifen, die ausschließlich
+  // fürs Rendern der Karte gebraucht wurden. Wandelemente (Tür/Fenster) haben keine Produktdaten
+  // und bleiben unverändert.
   const katalogItemHinzufuegen = useCallback((item) => {
     if (item.typ) { addWandElement(item); return }
-    const produkt = ersterVorschlag(item.name)
-    addFurniture(produkt ? { ...item, ...produktAufKatalogItemAnwenden(item, produkt) } : item)
+    const { produkt: _produkt, katalogKey: _katalogKey, ...rest } = item
+    addFurniture(rest)
   }, [addFurniture, addWandElement])
 
   const value = useMemo(() => ({

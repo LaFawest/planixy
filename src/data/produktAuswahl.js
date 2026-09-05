@@ -58,6 +58,14 @@ export function produkteFuerTyp(moebelName) {
   return produktEmpfehlungen.filter(p => p.moebelName === moebelName)
 }
 
+// Amazon-Preise sind teils (noch) nicht erfasst (preis: null) — dann auf Amazon verweisen statt
+// "0,00 €" oder eine leere Stelle anzuzeigen. Gemeinsam genutzt von Katalog-Karte und Produkt-
+// Wechsel-Panel, damit beide Stellen bei fehlendem Preis denselben Text zeigen.
+export function formatPreis(preis) {
+  if (preis == null) return 'Preis auf Amazon prüfen'
+  return preis.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
+}
+
 // Vorschlag beim Platzieren aus dem Katalog: bevorzugt ein Produkt mit verifiziertem Preis,
 // sonst das erste — null, wenn es für den Typ (noch) keine echten Produkte gibt.
 export function ersterVorschlag(moebelName) {

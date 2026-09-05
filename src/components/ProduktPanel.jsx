@@ -1,13 +1,8 @@
 import { useFurniture } from '../context/FurnitureContext'
 import { alleKatalogItems } from '../constants'
 import { produktEmpfehlungen } from '../data/produktempfehlungen'
-import { produktAufKatalogItemAnwenden } from '../data/produktAuswahl'
+import { produktAufKatalogItemAnwenden, formatPreis } from '../data/produktAuswahl'
 import { moebelIconTyp, moebelShapes } from '../moebelIcons'
-
-function formatPreis(preis) {
-  if (preis == null) return 'Preis auf Amazon prüfen'
-  return preis.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
-}
 
 // Eigenes, in der aufgelösten Produktfarbe eingefärbtes Icon statt Amazon-Foto — dieselbe
 // Icon-Form wie im Katalog (KatalogKarte.jsx), nur mit der Farbe/Kantenfarbe dieses konkreten
