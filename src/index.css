@@ -273,7 +273,7 @@ input[type=number]::-webkit-outer-spin-button { opacity: 1; }
 .schritt-leiste-mobil {
   display: none;
 }
-@media (max-width: 680px) {
+@media (max-width: 860px) {
   .schritt-leiste-desktop {
     display: none !important;
   }
