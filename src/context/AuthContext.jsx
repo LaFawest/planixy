@@ -32,6 +32,18 @@ export function AuthProvider({ children }) {
   const signOut = useCallback(() => supabase.auth.signOut(), [])
   const updateEmail = useCallback((email) => supabase.auth.updateUser({ email }), [])
   const updatePassword = useCallback((password) => supabase.auth.updateUser({ password }), [])
+  // Schickt die Passwort-Reset-Mail (enthält einen Code, siehe verifyPasswortResetCode, sowie einen
+  // klassischen Link). Die App verlässt sich ausschließlich auf den Code — der Link ist nicht
+  // zuverlässig nutzbar, da manche Mail-Anbieter/Sicherheitsscanner Einmal-Links automatisch im
+  // Hintergrund aufrufen und dadurch vor dem echten Klick verbrauchen (z.B. GMX).
+  const resetPasswordForEmail = useCallback((email) => supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/',
+  }), [])
+  // Verifiziert den 6-stelligen Code aus der Passwort-Reset-Mail. Bei Erfolg entsteht eine gültige
+  // Recovery-Session, mit der direkt danach updatePassword aufgerufen werden kann.
+  const verifyPasswortResetCode = useCallback((email, code) => supabase.auth.verifyOtp({
+    email, token: code, type: 'recovery',
+  }), [])
   // Löscht das Konto serverseitig (Edge Function delete-account, braucht den Service-Role-Key —
   // ein Client kann sich nicht selbst per auth.admin löschen). password nur relevant, wenn der
   // Nutzer eine E-Mail/Passwort-Identity hat; die Function prüft das selbst.
@@ -45,7 +57,9 @@ export function AuthProvider({ children }) {
     user: session?.user ?? null,
     ladeStatus,
     signUp, signIn, signInWithGoogle, signOut, updateEmail, updatePassword, deleteAccount,
-  }), [session, ladeStatus, signUp, signIn, signInWithGoogle, signOut, updateEmail, updatePassword, deleteAccount])
+    resetPasswordForEmail, verifyPasswortResetCode,
+  }), [session, ladeStatus, signUp, signIn, signInWithGoogle, signOut, updateEmail, updatePassword, deleteAccount,
+    resetPasswordForEmail, verifyPasswortResetCode])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

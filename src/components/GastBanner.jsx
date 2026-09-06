@@ -31,7 +31,13 @@ export default function GastBanner({ bestaetigt = false }) {
     }
   }
 
-  if (user || ausgeblendet) return null
+  // Während das AuthModal offen ist (z.B. mitten im Passwort-Reset-Flow), darf der Banner
+  // sich NICHT wegen `user` ausblenden: verifyPasswortResetCode (supabase.auth.verifyOtp)
+  // erzeugt bereits eine Session, sobald der Code bestätigt ist — also bevor der Nutzer den
+  // nächsten Schritt ("Neues Passwort vergeben") überhaupt sieht. Ohne diese Ausnahme würde
+  // die Komponente sich hier selbst unmounten und das noch offene AuthModal mitreißen.
+  // Das Modal schließt sich stattdessen ganz normal über onSchliessen (setAuthModalOffen(false)).
+  if ((user && !authModalOffen) || ausgeblendet) return null
 
   return (
     <>
