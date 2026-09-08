@@ -2,6 +2,7 @@ import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { getMoebelHoehe } from '../texturen'
 import { berechneInnenmasse } from '../constants'
+import { getModell, MODELL_HOEHE_UEBERSCHREIBUNG } from './modelle'
 
 function baueBeine(gruppe, positionen, radius, hoehe, farbe, holzTextur, { segmente = 10, roughness = 0.55, castShadow = false } = {}) {
   const [radiusOben, radiusUnten] = Array.isArray(radius) ? radius : [radius, radius]
@@ -104,6 +105,40 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
   const gruppe = new THREE.Group()
   gruppe.position.set(x, y, z)
   gruppe.rotation.y = rotation
+
+  // Falls für dieses Möbelstück ein echtes 3D-Modell existiert (KI-generiert, siehe scene/modelle.js),
+  // dieses statt der Klötzchen-Geometrie unten verwenden. getModell() liefert erst nach dem Laden
+  // etwas zurück (siehe RoomView3D.jsx) — bis dahin greift ganz normal die Bauweise unten als Fallback.
+  const modellVorlage = getModell(item.name)
+  if (modellVorlage) {
+    const modell = modellVorlage.clone(true)
+    const box = new THREE.Box3().setFromObject(modell)
+    const groesse = box.getSize(new THREE.Vector3())
+    const skalierX = groesse.x > 0.0001 ? moebelBreite / groesse.x : 1
+    const skalierZ = groesse.z > 0.0001 ? moebelTiefe / groesse.z : 1
+    // Höhe NICHT pauschal auf moebelHoehe zwingen (der Wert stammt aus der für die Klötzchen-Bauweise
+    // gedachten getMoebelHoehe()-Tabelle, z.B. 0.4m für JEDES Sofa/Sessel — bei einem echten 3D-Modell
+    // mit Rückenlehne führt das zu einem sichtbar gequetschten/flachen Möbelstück). Im Normalfall die
+    // Höhe stattdessen mit demselben Faktor wie die Breite skalieren, damit die echten Proportionen des
+    // Modells erhalten bleiben. Ausnahme: MODELL_HOEHE_UEBERSCHREIBUNG (scene/modelle.js) — für Modelle,
+    // bei denen mitgeliefertes Deko-Beiwerk die Bounding-Box künstlich in die Höhe zieht (z.B. eine Vase
+    // auf dem Esstisch), dort weiterhin eine feste, realistische Zielhöhe verwenden.
+    const zielHoehe = MODELL_HOEHE_UEBERSCHREIBUNG[item.name]
+    const skalierY = zielHoehe != null
+      ? (groesse.y > 0.0001 ? zielHoehe / groesse.y : 1)
+      : skalierX
+    modell.scale.set(skalierX, skalierY, skalierZ)
+    // Nach der Skalierung neu vermessen und so verschieben, dass das Modell mittig auf dem
+    // Boden der Gruppe steht (Meshy liefert die Modelle nicht garantiert exakt auf y=0 zentriert).
+    const box2 = new THREE.Box3().setFromObject(modell)
+    const mitte = box2.getCenter(new THREE.Vector3())
+    modell.position.set(-mitte.x, -box2.min.y, -mitte.z)
+    modell.traverse(obj => { if (obj.isMesh) { obj.castShadow = true; obj.receiveShadow = true } })
+    gruppe.add(modell)
+    gruppe.castShadow = true
+    scene.add(gruppe)
+    return
+  }
 
   const mat = new THREE.MeshStandardMaterial({
     color: item.color,

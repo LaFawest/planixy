@@ -4,6 +4,7 @@ import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgeb
 import { baueTrennwaende } from './scene/trennwaende'
 import { baueWandElement } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
+import { ladeModelle } from './scene/modelle'
 import { baueBeleuchtung } from './scene/beleuchtung'
 import { rechteckPolygon, boundingBox, wandSegmente, punktInPolygon, versetztesPolygon, punktSicherImPolygon } from './raumPolygon'
 import { useRooms } from './context/RoomsContext'
@@ -24,6 +25,14 @@ export default function RoomView3D() {
   const [kameraModus, setKameraModus] = useState('rundumblick')
   const rundgangRef = useRef(null)
   const updateCameraRef = useRef(() => {})
+
+  // Lädt die echten 3D-Modelle (siehe scene/modelle.js) einmalig beim ersten Mount. Sobald fertig,
+  // triggert modelleBereit unten einen Neuaufbau der Szene, damit die Modelle auch dann erscheinen,
+  // wenn sie beim allerersten Rendern noch nicht rechtzeitig fertig geladen waren.
+  const [modelleBereit, setModelleBereit] = useState(false)
+  useEffect(() => {
+    ladeModelle().then(() => setModelleBereit(true))
+  }, [])
 
   const waehleKameraModus = (modus) => {
     if (modus === kameraModusRef.current) return
@@ -449,7 +458,7 @@ return () => {
   mount.removeChild(renderer.domElement)
   renderer.dispose()
 }
-  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit])
+  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleBereit])
 
   return (
     <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: 'grab', position: 'relative' }}>
