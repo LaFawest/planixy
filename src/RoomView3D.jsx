@@ -34,6 +34,10 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
   const ausgewaehltesElementRef = useRef(null)
   const setAusgewaehltesElement = (id) => { ausgewaehltesElementRef.current = id }
   const [liveWerte, setLiveWerte] = useState(null) // { typ, horizontalCm, vertikalCm } | null
+  const [massLinien, setMassLinien] = useState(null) // { id, links, rechts, unten } | null
+  const [bearbeiteSeite, setBearbeiteSeite] = useState(null) // 'links' | 'rechts' | 'unten' | null
+  const [bearbeiteWert, setBearbeiteWert] = useState('')
+  const wandElementRechnerRef = useRef(() => {}) // setzeMass(id, seite, wertCm) — vom Effekt befüllt
 
   // Analog zu kameraModusRef: ein reiner Wand-Wechsel soll NUR die Kamera neu positionieren,
   // nicht die komplette Szene neu aufbauen (siehe waehleKameraModus-Pattern weiter unten). Setzt
@@ -54,6 +58,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
   if (letzterFokusWandRef.current !== fokusWand) {
     letzterFokusWandRef.current = fokusWand
     if (liveWerte !== null) setLiveWerte(null)
+    if (massLinien !== null) setMassLinien(null)
+    if (bearbeiteSeite !== null) setBearbeiteSeite(null)
   }
 
   // Lädt die echten 3D-Modelle (siehe scene/modelle.js) einmalig beim ersten Mount. Sobald fertig,
@@ -482,13 +488,126 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
       return raycaster.ray.intersectPlane(ebene, schnitt) ? schnitt : null
     }
 
-    const meldeLiveWerte = (item, segment, gruppe, elBreite) => {
-      const mitteU = ((gruppe.position.x - segment.x1) * segment.dx + (gruppe.position.z - segment.z1) * segment.dz) / (segment.laenge || 1)
-      setLiveWerte({
-        typ: item.typ,
-        horizontalCm: Math.round((mitteU - elBreite / 2) * 100),
-        vertikalCm: item.typ === 'fenster' ? Math.round(gruppe.position.y * 100) : null,
+    // Freie Strecke links/rechts von einem Wand-Element bis zum nächsten Nachbarn auf derselben
+    // Wand (oder bis zum Segmentanfang/-ende, wenn keiner da ist) — in Metern ab Segmentanfang
+    // (u), dieselbe Konvention wie wandPosition. Grundlage für die Maßlinien-Anzeige UND für die
+    // Zahlen-Eingabe (setzeMass unten).
+    const ermittleNachbarGrenzen = (eintrag, segment, elBreite) => {
+      const uStart = eintrag.item.wandPosition
+      const uEnde = uStart + elBreite
+      let uLinksRef = 0
+      let uRechtsRef = segment.laenge
+      wandElementGruppen.forEach(({ item }) => {
+        if (item.id === eintrag.item.id || item.wandSegment !== eintrag.item.wandSegment) return
+        const oStart = item.wandPosition
+        const oEnde = oStart + item.width / 60
+        if (oEnde <= uStart && oEnde > uLinksRef) uLinksRef = oEnde
+        if (oStart >= uEnde && oStart < uRechtsRef) uRechtsRef = oStart
       })
+      return { uLinksRef, uRechtsRef }
+    }
+
+    // Screen-Projektion eines Weltpunkts. Nur im Wand-Fokus-Modus gebraucht — die Kamera bewegt
+    // sich dort außer während eines Wandwechsel-Schwenks nicht (wandFokusAnimation oben), ein
+    // Neuberechnen bei jedem Frame ist deshalb nicht nötig, nur bei Auswahl/Ziehen/Resize.
+    const projiziere = (punkt3D) => {
+      const rect = mount.getBoundingClientRect()
+      const p = punkt3D.clone().project(camera)
+      return { x: (p.x * 0.5 + 0.5) * rect.width, y: (-p.y * 0.5 + 0.5) * rect.height }
+    }
+
+    // Ersetzt das bisherige meldeLiveWerte: berechnet weiterhin die Live-cm-Anzeige, zusätzlich
+    // die drei Maßlinien (links/rechts zum Nachbarn bzw. zur Wandkante, bei Fenstern zusätzlich
+    // die Brüstungshöhe). Aufrufstellen bleiben dieselben (Anklicken, Ziehen), dazu neu: einmalig
+    // nach einem Szenen-Neuaufbau, falls die Auswahl ihn überlebt hat, und bei Resize (siehe unten).
+    const berechneAnzeige = (eintrag, segment, elBreite) => {
+      const mitteU = ((eintrag.gruppe.position.x - segment.x1) * segment.dx + (eintrag.gruppe.position.z - segment.z1) * segment.dz) / (segment.laenge || 1)
+      const uStart = mitteU - elBreite / 2
+      const elHoehe = eintrag.item.typ === 'fenster' ? FENSTER_HOEHE_3D : TUER_HOEHE_3D
+      const elBoden = eintrag.item.typ === 'fenster' ? eintrag.gruppe.position.y : 0
+
+      setLiveWerte({
+        typ: eintrag.item.typ,
+        horizontalCm: Math.round(uStart * 100),
+        vertikalCm: eintrag.item.typ === 'fenster' ? Math.round(elBoden * 100) : null,
+      })
+
+      const { uLinksRef, uRechtsRef } = ermittleNachbarGrenzen(eintrag, segment, elBreite)
+      const weltpunkt = (u, y) => {
+        const t = u / (segment.laenge || 1)
+        return new THREE.Vector3(segment.x1 + segment.dx * t, y, segment.z1 + segment.dz * t)
+      }
+      const linieY = elBoden + elHoehe / 2
+      const linksA = projiziere(weltpunkt(uLinksRef, linieY))
+      const linksB = projiziere(weltpunkt(uStart, linieY))
+      const rechtsA = projiziere(weltpunkt(uStart + elBreite, linieY))
+      const rechtsB = projiziere(weltpunkt(uRechtsRef, linieY))
+
+      const linien = {
+        id: eintrag.item.id,
+        links: {
+          x1: linksA.x, y1: linksA.y, x2: linksB.x, y2: linksB.y,
+          labelX: (linksA.x + linksB.x) / 2, labelY: (linksA.y + linksB.y) / 2,
+          wertCm: Math.round((uStart - uLinksRef) * 100),
+        },
+        rechts: {
+          x1: rechtsA.x, y1: rechtsA.y, x2: rechtsB.x, y2: rechtsB.y,
+          labelX: (rechtsA.x + rechtsB.x) / 2, labelY: (rechtsA.y + rechtsB.y) / 2,
+          wertCm: Math.round((uRechtsRef - (uStart + elBreite)) * 100),
+        },
+        unten: null,
+      }
+      if (eintrag.item.typ === 'fenster') {
+        const uUnten = Math.max(0, uStart - 0.1)
+        const untenA = projiziere(weltpunkt(uUnten, 0))
+        const untenB = projiziere(weltpunkt(uUnten, elBoden))
+        linien.unten = {
+          x1: untenA.x, y1: untenA.y, x2: untenB.x, y2: untenB.y,
+          labelX: untenA.x, labelY: (untenA.y + untenB.y) / 2,
+          wertCm: Math.round(elBoden * 100),
+        }
+      }
+      setMassLinien(linien)
+    }
+
+    // Übernimmt eine per Zahlen-Eingabe getippte Maßlinien-Länge (siehe JSX unten): rechnet sie in
+    // die neue wandPosition bzw. Brüstungshöhe um und committet über denselben Weg wie das
+    // Loslassen nach einem Ziehvorgang (onWandElementBewegt). In wandElementRechnerRef hinterlegt
+    // (analog zu updateCameraRef), damit die JSX-Eingabe außerhalb dieses Effekts darauf zugreift.
+    const setzeMass = (id, seite, wertCm) => {
+      const eintrag = wandElementGruppen.find(w => w.item.id === id)
+      if (!eintrag) return
+      const segment = wandMeshe[eintrag.item.wandSegment]
+      if (!segment) return
+      const elBreite = eintrag.item.width / 60
+      const elHoehe = eintrag.item.typ === 'fenster' ? FENSTER_HOEHE_3D : TUER_HOEHE_3D
+      const wertM = Math.max(0, wertCm) / 100
+
+      if (seite === 'unten') {
+        if (eintrag.item.typ !== 'fenster') return
+        const neueHoehe = Math.max(0, Math.min(wandHoehe - elHoehe, wertM))
+        onWandElementBewegt?.(id, { bruestungshoehe: neueHoehe })
+        return
+      }
+
+      const { uLinksRef, uRechtsRef } = ermittleNachbarGrenzen(eintrag, segment, elBreite)
+      let neuesUStart = seite === 'links' ? uLinksRef + wertM : uRechtsRef - wertM - elBreite
+      neuesUStart = Math.max(uLinksRef, Math.min(uRechtsRef - elBreite, neuesUStart))
+      onWandElementBewegt?.(id, { wandPosition: neuesUStart })
+    }
+    wandElementRechnerRef.current = setzeMass
+
+    // Nach einem Neuaufbau (z.B. durch das Committen einer Zahlen-Eingabe oder eines Zieh-
+    // vorgangs, beides ändert `furniture` und löst dadurch diesen ganzen Effekt erneut aus) die
+    // Auswahl/Maßlinien-Anzeige mit den neuen Werten auffrischen — nur wenn das Element noch
+    // existiert und weiterhin auf der fokussierten Wand sitzt, sonst Auswahl aufheben.
+    if (ausgewaehltesElementRef.current) {
+      const ausgewaehlterEintrag = wandElementGruppen.find(w => w.item.id === ausgewaehltesElementRef.current)
+      if (ausgewaehlterEintrag && ausgewaehlterEintrag.item.wandSegment === fokusWandRef.current) {
+        berechneAnzeige(ausgewaehlterEintrag, wandMeshe[ausgewaehlterEintrag.item.wandSegment], ausgewaehlterEintrag.item.width / 60)
+      } else {
+        ausgewaehltesElementRef.current = null
+      }
     }
 
     const wandElementMausDown = (clientX, clientY) => {
@@ -498,7 +617,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
       zeigerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1
       raycaster.setFromCamera(zeigerNDC, camera)
       const treffer = raycaster.intersectObjects(wandElementRaycastZiele, true)
-      if (treffer.length === 0) { setAusgewaehltesElement(null); setLiveWerte(null); return }
+      setBearbeiteSeite(null)
+      if (treffer.length === 0) { setAusgewaehltesElement(null); setLiveWerte(null); setMassLinien(null); return }
       let obj = treffer[0].object
       while (obj && !obj.userData?.wandElementId) obj = obj.parent
       const eintrag = wandElementGruppen.find(w => w.item.id === obj?.userData?.wandElementId)
@@ -519,7 +639,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
         bewegt: false,
       }
       setAusgewaehltesElement(eintrag.item.id)
-      meldeLiveWerte(eintrag.item, segment, eintrag.gruppe, elBreite)
+      berechneAnzeige(eintrag, segment, elBreite)
     }
 
     const wandElementMausMove = (clientX, clientY) => {
@@ -538,7 +658,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
       }
       eintrag.gruppe.position.set(px, neueY, pz)
       wandElementDrag.bewegt = true
-      meldeLiveWerte(eintrag.item, segment, eintrag.gruppe, elBreite)
+      berechneAnzeige(eintrag, segment, elBreite)
     }
 
     const wandElementMausUp = () => {
@@ -554,6 +674,12 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     }
 
     const onMouseDown = (e) => {
+      // mount enthält neben dem Canvas auch die React-gerenderten HTML-Overlays (Kameramodus-
+      // Buttons, Maßlinien-Zahlen/-Eingabefelder) — deren mousedown bubbelt sonst hierher hoch und
+      // würde z.B. beim Antippen einer Maßlinien-Zahl fälschlich als Klick "daneben" gewertet
+      // (Raycast trifft nichts -> Auswahl wird sofort wieder aufgehoben, bevor der Klick das
+      // Eingabefeld überhaupt erreicht). Nur echte Canvas-Klicks sollen die 3D-Interaktion auslösen.
+      if (e.target !== renderer.domElement) return
       if (fokusWandRef.current != null) { wandElementMausDown(e.clientX, e.clientY); return }
       if (kameraModusRef.current === 'rundgang') {
         rundgangZeiger = { startX: e.clientX, startY: e.clientY, letzteX: e.clientX, letzteY: e.clientY, bewegung: 0, startZeit: performance.now() }
@@ -607,6 +733,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
 
     let lastTouch = null
     const onTouchStart = (e) => {
+      // Siehe onMouseDown oben: nur echte Canvas-Touches sollen die 3D-Interaktion auslösen, nicht
+      // ein Antippen der HTML-Overlays (Maßlinien-Zahlen/-Eingabefelder, Kameramodus-Buttons).
+      if (e.target !== renderer.domElement) return
       if (fokusWandRef.current != null) { wandElementMausDown(e.touches[0].clientX, e.touches[0].clientY); return }
       if (kameraModusRef.current === 'rundgang') {
         const t = e.touches[0]
@@ -669,6 +798,10 @@ const onResize = () => {
   camera.aspect = neueBreite / neueHoehe
   camera.updateProjectionMatrix()
   renderer.setSize(neueBreite, neueHoehe)
+  if (ausgewaehltesElementRef.current) {
+    const eintrag = wandElementGruppen.find(w => w.item.id === ausgewaehltesElementRef.current)
+    if (eintrag) berechneAnzeige(eintrag, wandMeshe[eintrag.item.wandSegment], eintrag.item.width / 60)
+  }
 }
 const resizeObserver = new ResizeObserver(onResize)
 resizeObserver.observe(mount)
@@ -755,6 +888,46 @@ return () => {
           {liveWerte.horizontalCm} cm von Wandanfang
           {liveWerte.typ === 'fenster' && ` · ${liveWerte.vertikalCm} cm Brüstungshöhe`}
         </div>
+      )}
+      {fokusWand != null && massLinien && (
+        <>
+          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 9, pointerEvents: 'none' }}>
+            {['links', 'rechts', 'unten'].map(seite => massLinien[seite] && (
+              <line key={seite}
+                x1={massLinien[seite].x1} y1={massLinien[seite].y1}
+                x2={massLinien[seite].x2} y2={massLinien[seite].y2}
+                stroke="#185FA5" strokeWidth={1.5} strokeDasharray="3 3" />
+            ))}
+          </svg>
+          {['links', 'rechts', 'unten'].map(seite => {
+            const linie = massLinien[seite]
+            if (!linie) return null
+            return (
+              <div key={seite} style={{
+                position: 'absolute', left: linie.labelX, top: linie.labelY, transform: 'translate(-50%, -50%)',
+                zIndex: 10, fontFamily: "'DM Sans', sans-serif",
+              }}>
+                {bearbeiteSeite === seite ? (
+                  <input type="number" autoFocus value={bearbeiteWert}
+                    onChange={e => setBearbeiteWert(e.target.value)}
+                    onBlur={() => { wandElementRechnerRef.current(massLinien.id, seite, Number(bearbeiteWert) || 0); setBearbeiteSeite(null) }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') e.currentTarget.blur()
+                      if (e.key === 'Escape') setBearbeiteSeite(null)
+                    }}
+                    style={{ width: '54px', fontSize: '11px', padding: '2px 4px', borderRadius: '4px', border: '1px solid #185FA5', textAlign: 'center' }} />
+                ) : (
+                  <span onClick={() => { setBearbeiteSeite(seite); setBearbeiteWert(String(linie.wertCm)) }}
+                    style={{
+                      cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', background: 'white',
+                      border: '1px solid #185FA5', color: '#185FA5', fontSize: '11px',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)', whiteSpace: 'nowrap',
+                    }}>{linie.wertCm} cm</span>
+                )}
+              </div>
+            )
+          })}
+        </>
       )}
     </div>
   )
