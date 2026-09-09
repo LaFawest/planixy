@@ -1,6 +1,9 @@
 import * as THREE from 'three'
 import { wandSegmente, rechteckPolygon } from '../raumPolygon'
 
+const FENSTER_HOEHE = 1.2
+const TUER_HOEHE = 2.1
+
 // === WANDELEMENTE (Tür/Fenster) ===
 // holzTextur (erzeugeHolzTextur aus texturen.js, wie schon bei Möbel-Holzbeinen in moebel.js)
 // ersetzt die bisherigen flachen Farben an Tür/Rahmen/Fensterrahmen durch eine Holzmaserung.
@@ -31,12 +34,20 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
   const pz = z1 + (z2 - z1) * t
   const ry = -Math.atan2(z2 - z1, x2 - x1)
 
-  gruppe.position.set(px, 0, pz)
+  // Bei Fenstern trägt gruppe.position.y jetzt direkt die Brüstungshöhe (Abstand Unterkante
+  // Fenster bis Boden) — item.bruestungshoehe, falls vom Nutzer im 3D-Editor gesetzt, sonst der
+  // bisherige feste Wert als Fallback (keine optische Änderung an bereits platzierten Fenstern).
+  // Türen bleiben bei y=0 (Bodenanschluss), wie bisher.
+  const bruestungshoeheFallback = wandHoehe * 0.55 - FENSTER_HOEHE / 2
+  const gruppenY = item.typ === 'fenster' ? (item.bruestungshoehe ?? bruestungshoeheFallback) : 0
+  gruppe.position.set(px, gruppenY, pz)
   gruppe.rotation.y = ry
 
   if (item.typ === 'fenster') {
-    const elHoehe = 1.2
-    const yPos = wandHoehe * 0.55
+    const elHoehe = FENSTER_HOEHE
+    // Relativ zur Gruppe konstant (halbe Fensterhöhe) — die absolute Höhe kommt jetzt allein aus
+    // gruppe.position.y oben, nicht mehr aus einer hier berechneten Weltkoordinate.
+    const yPos = elHoehe / 2
 
     const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, metalness: 0.1, map: holzTextur })
     const rahmen = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.1), rahmenMat)
@@ -67,7 +78,7 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
     gruppe.add(bank)
 
   } else {
-    const elHoehe = 2.1
+    const elHoehe = TUER_HOEHE
     const tuerMat = new THREE.MeshStandardMaterial({ color: '#C8A97A', roughness: 0.7, metalness: 0.0, map: holzTextur })
 
     const tuer = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.06), tuerMat)
@@ -106,5 +117,12 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
     schluessel.position.set(elBreite/2 - 0.12, elHoehe * 0.5 - 0.08, 0.09)
     gruppe.add(schluessel)
   }
+
+  // Jedes Kind-Mesh bekommt die furniture-Item-ID — Grundlage fürs Anklicken/Ziehen im
+  // Wand-Fokus-Modus (RoomView3D.jsx): ein Raycaster-Treffer auf ein beliebiges Kind-Mesh lässt
+  // sich darüber eindeutig auf sein furniture-Item zurückführen.
+  gruppe.traverse(obj => { obj.userData.wandElementId = item.id })
+
   scene.add(gruppe)
+  return gruppe
 }

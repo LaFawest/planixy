@@ -271,10 +271,24 @@ export function FurnitureProvider({ children }) {
     window.addEventListener('touchend', onUp)
   }, [activeRoom, updateFurniture, grenzB, grenzT, grenzStart, grenzeEckpunkte, innenEckpunkte, wandDicke, rechteckInPolygon])
 
+  // Übernimmt Position/Brüstungshöhe eines Fenster/Tür-Elements NACH einem Ziehvorgang im
+  // 3D-Wand-Fokus-Editor (RoomView3D, fokusWand-Modus) — bleibt auf demselben Wandsegment, dafür
+  // weiterhin die bestehende 2D-Ansicht/handleDrag nutzen (Wandwechsel, Erstplatzierung).
+  const positioniereWandElement = useCallback((id, { wandPosition, bruestungshoehe }) => {
+    updateFurniture((activeRoom?.furniture || []).map(f => {
+      if (f.id !== id) return f
+      const patch = {}
+      if (wandPosition !== undefined) patch.wandPosition = wandPosition
+      if (bruestungshoehe !== undefined) patch.bruestungshoehe = bruestungshoehe
+      return { ...f, ...patch }
+    }))
+  }, [updateFurniture, activeRoom])
+
   const value = useMemo(() => ({
     furniture, selectedId, setSelectedId,
     updateFurniture, addFurniture, addWandElement, removeFurniture, rotateFurniture, handleDrag, wechsleProdukt,
-  }), [furniture, selectedId, updateFurniture, addFurniture, addWandElement, removeFurniture, rotateFurniture, handleDrag, wechsleProdukt])
+    positioniereWandElement,
+  }), [furniture, selectedId, updateFurniture, addFurniture, addWandElement, removeFurniture, rotateFurniture, handleDrag, wechsleProdukt, positioniereWandElement])
 
   return <FurnitureContext.Provider value={value}>{children}</FurnitureContext.Provider>
 }

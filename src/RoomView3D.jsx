@@ -11,7 +11,7 @@ import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
 
-export default function RoomView3D({ fokusWand = null } = {}) {
+export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {}) {
   const { activeRoom: room } = useRooms()
   const { furniture } = useFurniture()
   const { fussleiste, fussleisteFarbe, raumHoehe, tageszeit } = useDesign()
@@ -26,13 +26,35 @@ export default function RoomView3D({ fokusWand = null } = {}) {
   const rundgangRef = useRef(null)
   const updateCameraRef = useRef(() => {})
 
+  // Ausgewähltes Fenster/Tür-Element im Wand-Fokus-Modus + Live-Anzeige seiner Position beim
+  // Ziehen. Lebt außerhalb des schweren Szenen-Effekts (wie kameraModus oben) — Auswählen/Ziehen
+  // darf keinen kompletten Neuaufbau der Szene auslösen. ausgewaehltesElementRef ist die von den
+  // Maus-Handlern im Effekt gelesene Quelle der Wahrheit; sie fließt aktuell nirgends ins Rendern
+  // ein, deshalb reicht dafür ein reiner Ref ohne begleitenden State.
+  const ausgewaehltesElementRef = useRef(null)
+  const setAusgewaehltesElement = (id) => { ausgewaehltesElementRef.current = id }
+  const [liveWerte, setLiveWerte] = useState(null) // { typ, horizontalCm, vertikalCm } | null
+
   // Analog zu kameraModusRef: ein reiner Wand-Wechsel soll NUR die Kamera neu positionieren,
-  // nicht die komplette Szene neu aufbauen (siehe waehleKameraModus-Pattern weiter unten).
+  // nicht die komplette Szene neu aufbauen (siehe waehleKameraModus-Pattern weiter unten). Setzt
+  // hier zugleich die Fenster/Tür-Auswahl zurück (reine Ref-Mutation, kein setState — deshalb als
+  // Teil dieses Effects unproblematisch).
   const fokusWandRef = useRef(fokusWand)
   useEffect(() => {
     fokusWandRef.current = fokusWand
+    ausgewaehltesElementRef.current = null
     updateCameraRef.current?.()
   }, [fokusWand])
+
+  // Wandwechsel (Mini-Karte) oder Verlassen des Wand-Fokus-Modus: Live-Anzeige zurücksetzen.
+  // Direkt beim Rendern verglichen (React-empfohlenes Muster fürs Zurücksetzen von State bei
+  // einer Prop-Änderung, siehe react.dev "You Might Not Need an Effect") — vermeidet den
+  // zusätzlichen Render-Zyklus/Lint-Fehler eines setState-in-Effect.
+  const letzterFokusWandRef = useRef(fokusWand)
+  if (letzterFokusWandRef.current !== fokusWand) {
+    letzterFokusWandRef.current = fokusWand
+    if (liveWerte !== null) setLiveWerte(null)
+  }
 
   // Lädt die echten 3D-Modelle (siehe scene/modelle.js) einmalig beim ersten Mount. Sobald fertig,
   // triggert modelleBereit unten einen Neuaufbau der Szene, damit die Modelle auch dann erscheinen,
@@ -159,7 +181,10 @@ export default function RoomView3D({ fokusWand = null } = {}) {
       wand.rotation.y = -Math.atan2(z2 - z1, x2 - x1)
       wand.receiveShadow = true
       scene.add(wand)
-      return { mesh: wand, normale: { x: segment.normale.x, z: segment.normale.y }, laenge: segment.laenge }
+      return {
+        mesh: wand, normale: { x: segment.normale.x, z: segment.normale.y }, laenge: segment.laenge,
+        x1, z1, dx: x2 - x1, dz: z2 - z1,
+      }
     })
 
     // Sockelleisten — eine Leiste je Wandsegment, volle Segmentlänge, nach innen versetzt um die
@@ -185,9 +210,13 @@ export default function RoomView3D({ fokusWand = null } = {}) {
     // === TRENNWÄNDE, WANDELEMENTE & MÖBEL ===
     baueTrennwaende(scene, room, raumBreite, raumTiefe, wandHoehe)
 
+    // Referenz auf jede gebaute Fenster/Tür-Gruppe + ihr furniture-Item — Grundlage fürs
+    // Anklicken/Ziehen im Wand-Fokus-Modus weiter unten.
+    const wandElementGruppen = []
     furniture.forEach(item => {
       if (item.istWandElement) {
-        baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur)
+        const gruppe = baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur)
+        wandElementGruppen.push({ gruppe, item })
       } else {
         baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur)
       }
@@ -281,9 +310,10 @@ export default function RoomView3D({ fokusWand = null } = {}) {
       })
     }
 
-    // Positioniert die Kamera exakt senkrecht (kein Kippen/Schwenken) mittig vor einer Wand, so
-    // dass die gesamte Wandhöhe UND -breite ins Bild passt (klassisches "Objekt in Frustum
-    // einpassen" — Distanz = Maximum aus Höhen-Fit und Breiten-Fit, beide mit Rand-Puffer).
+    // Berechnet Kamera-Zielposition + Blickpunkt exakt senkrecht mittig vor einer Wand (klassisches
+    // "Objekt in Frustum einpassen", primär an der Wandhöhe ausgerichtet — siehe MAX_BREITEN_AUFSCHLAG
+    // unten). Reine Zielberechnung, keine Kamerabewegung selbst — die übernimmt updateWandFokusCamera
+    // weiter unten (harter Sprung oder weicher Schwenk bei einem echten Wandwechsel).
     const berechneWandFokusZiel = (index) => {
       const eintrag = wandMeshe[index]
       if (!eintrag) return null
@@ -291,9 +321,20 @@ export default function RoomView3D({ fokusWand = null } = {}) {
       const fovY = camera.fov * Math.PI / 180
       const fovX = 2 * Math.atan(Math.tan(fovY / 2) * camera.aspect)
       const RAND_FAKTOR = 1.2
-      const gewuenschteDistanz = Math.max(
-        (wandHoehe / 2) / Math.tan(fovY / 2),
-        (laenge / 2) / Math.tan(fovX / 2),
+      const hoehenFitDistanz = (wandHoehe / 2) / Math.tan(fovY / 2)
+      const breitenFitDistanz = (laenge / 2) / Math.tan(fovX / 2)
+      // Bei den meisten Räumen ist eine Wand deutlich breiter als hoch — reines "ganze Wand ins
+      // Bild einpassen" würde dann von der Breite dominiert, die Kamera müsste so weit zurück,
+      // dass oben/unten ein großer leerer Decken-/Boden-Streifen sichtbar wird (siehe Hassans
+      // Screenshot-Feedback). Deshalb primär an der Wandhöhe ausrichten und die Distanz nur noch
+      // begrenzt in Richtung Breiten-Fit erweitern (max. 35% mehr als der reine Höhen-Fit) — bei
+      // sehr breiten Wänden ist dadurch nicht mehr zwingend die komplette Breite im Bild, dafür
+      // füllt die Wand den Ausschnitt vertikal wie gewünscht. Bei normalen/schmalen Wänden (Höhen-
+      // Fit ohnehin schon der größere Wert) ändert sich nichts.
+      const MAX_BREITEN_AUFSCHLAG = 1.35
+      const gewuenschteDistanz = Math.min(
+        Math.max(hoehenFitDistanz, breitenFitDistanz),
+        hoehenFitDistanz * MAX_BREITEN_AUFSCHLAG,
       ) * RAND_FAKTOR
       // Kamera darf nie so weit zurück, dass sie über die gegenüberliegende Seite des Raums
       // hinausgeht (sonst landet sie fast auf/hinter der gegenüberliegenden Wand — sichtbar als
@@ -314,16 +355,57 @@ export default function RoomView3D({ fokusWand = null } = {}) {
       }
     }
 
-    const updateWandFokusCamera = (index) => {
-      const ziel = berechneWandFokusZiel(index)
-      if (!ziel) return
-      camera.position.set(ziel.x, wandHoehe / 2, ziel.z)
-      camera.lookAt(ziel.zielX, wandHoehe / 2, ziel.zielZ)
+    // Zustand für den weichen Wandwechsel — lebt als normale Variable im Effekt-Scope (wie
+    // laufAnimation weiter unten für den Rundgang-Modus), nicht als React-State: soll bei jedem
+    // Frame ohne Re-Render aktualisiert werden.
+    const WAND_WECHSEL_DAUER = 550
+    let wandFokusAnimation = null // { startPos:{x,z}, startZiel:{x,z}, endPos:{x,z}, endZiel:{x,z}, startZeit }
+    let letzterFokusWand = fokusWandRef.current
+    let letztesFokusZiel = null
+
+    const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2)
+
+    // Interpoliert zwei Punkte auf einer Kreisbahn um den Ursprung (= Raummittelpunkt in den
+    // lokalen Koordinaten dieser Datei) statt geradlinig — dadurch wirkt die Kamerabewegung wie
+    // ein Schwenk/Drehen im Raum statt einer geraden Fahrt quer durch den Raum.
+    const lerpUmUrsprung = (start, end, t) => {
+      const r0 = Math.hypot(start.x, start.z), r1 = Math.hypot(end.x, end.z)
+      const a0 = Math.atan2(start.z, start.x), a1 = Math.atan2(end.z, end.x)
+      let diff = a1 - a0
+      while (diff > Math.PI) diff -= Math.PI * 2
+      while (diff < -Math.PI) diff += Math.PI * 2
+      const a = a0 + diff * t
+      const r = r0 + (r1 - r0) * t
+      return { x: Math.cos(a) * r, z: Math.sin(a) * r }
+    }
+
+    const setzeWandFokusKamera = (pos, ziel) => {
+      camera.position.set(pos.x, wandHoehe / 2, pos.z)
+      camera.lookAt(ziel.x, wandHoehe / 2, ziel.z)
       // Im Wand-Fokus-Modus sollen Decke/Wände immer voll sichtbar sein (kein Ausblenden wie beim
       // freien Rundumblick, wo die Kamerawinkel-abhängige Transparenz Durchblicke ermöglicht).
       decke.material.opacity = 1
       decke.material.transparent = false
       wandMeshe.forEach(({ mesh }) => { mesh.material.opacity = 1; mesh.material.transparent = false })
+    }
+
+    const updateWandFokusCamera = (index) => {
+      const ziel = berechneWandFokusZiel(index)
+      if (!ziel) return
+      const endPos = { x: ziel.x, z: ziel.z }
+      const endZiel = { x: ziel.zielX, z: ziel.zielZ }
+      if (letzterFokusWand !== null && letzterFokusWand !== index) {
+        wandFokusAnimation = {
+          startPos: { x: camera.position.x, z: camera.position.z },
+          startZiel: letztesFokusZiel || endZiel,
+          endPos, endZiel,
+          startZeit: performance.now(),
+        }
+      } else {
+        setzeWandFokusKamera(endPos, endZiel)
+      }
+      letztesFokusZiel = endZiel
+      letzterFokusWand = index
     }
 
     const updateCamera = () => {
@@ -363,8 +445,116 @@ export default function RoomView3D({ fokusWand = null } = {}) {
     const KLICK_MAX_DAUER_MS = 400
     let rundgangZeiger = null // { startX, startY, letzteX, letzteY, bewegung, startZeit }
 
+    // === FENSTER/TÜR ANKLICKEN + ZIEHEN (nur im Wand-Fokus-Modus) ===
+    // Reine Positions-Mutation direkt am Three.js-Objekt während des Ziehens — KEIN
+    // updateFurniture pro Mousemove, das würde `furniture` ändern und dadurch diesen kompletten
+    // (teuren) Szenen-Aufbau-Effekt bei jeder Mausbewegung erneut auslösen (siehe Dependency-Array
+    // ganz unten). Committed wird erst einmalig beim Loslassen über onWandElementBewegt.
+    // FENSTER_HOEHE_3D/TUER_HOEHE_3D müssen mit FENSTER_HOEHE/TUER_HOEHE aus wandelemente.js
+    // übereinstimmen (dort nicht exportiert, deshalb hier separat dupliziert).
+    const FENSTER_HOEHE_3D = 1.2
+    const TUER_HOEHE_3D = 2.1
+
+    const wandElementRaycastZiele = wandElementGruppen.map(w => w.gruppe)
+    let wandElementDrag = null // { eintrag, segment, elBreite, elHoehe, offsetU, offsetV, bewegt }
+
+    const ebeneFuerSegment = (segmentIndex) => {
+      const w = wandMeshe[segmentIndex]
+      if (!w) return null
+      const normale3 = new THREE.Vector3(w.normale.x, 0, w.normale.z)
+      return new THREE.Plane().setFromNormalAndCoplanarPoint(normale3, w.mesh.position)
+    }
+
+    // Weltpunkt auf der Wandebene -> {u, v}: u = Meter ab Segmentanfang entlang der Wand
+    // (dieselbe Konvention wie wandPosition/platziereAufSegment in raumPolygon.js), v = Meter
+    // über dem Boden (= Welt-Y, alle Wände stehen senkrecht).
+    const weltpunktZuUV = (punkt, w) => ({
+      u: ((punkt.x - w.x1) * w.dx + (punkt.z - w.z1) * w.dz) / (w.laenge || 1),
+      v: punkt.y,
+    })
+
+    const zeigerAufWeltpunkt = (clientX, clientY, ebene) => {
+      const rect = mount.getBoundingClientRect()
+      zeigerNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1
+      zeigerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1
+      raycaster.setFromCamera(zeigerNDC, camera)
+      const schnitt = new THREE.Vector3()
+      return raycaster.ray.intersectPlane(ebene, schnitt) ? schnitt : null
+    }
+
+    const meldeLiveWerte = (item, segment, gruppe, elBreite) => {
+      const mitteU = ((gruppe.position.x - segment.x1) * segment.dx + (gruppe.position.z - segment.z1) * segment.dz) / (segment.laenge || 1)
+      setLiveWerte({
+        typ: item.typ,
+        horizontalCm: Math.round((mitteU - elBreite / 2) * 100),
+        vertikalCm: item.typ === 'fenster' ? Math.round(gruppe.position.y * 100) : null,
+      })
+    }
+
+    const wandElementMausDown = (clientX, clientY) => {
+      if (wandFokusAnimation) return
+      const rect = mount.getBoundingClientRect()
+      zeigerNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1
+      zeigerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1
+      raycaster.setFromCamera(zeigerNDC, camera)
+      const treffer = raycaster.intersectObjects(wandElementRaycastZiele, true)
+      if (treffer.length === 0) { setAusgewaehltesElement(null); setLiveWerte(null); return }
+      let obj = treffer[0].object
+      while (obj && !obj.userData?.wandElementId) obj = obj.parent
+      const eintrag = wandElementGruppen.find(w => w.item.id === obj?.userData?.wandElementId)
+      if (!eintrag) return
+      const segment = wandMeshe[eintrag.item.wandSegment]
+      const ebene = ebeneFuerSegment(eintrag.item.wandSegment)
+      if (!segment || !ebene) return
+      const schnitt = zeigerAufWeltpunkt(clientX, clientY, ebene)
+      if (!schnitt) return
+      const { u, v } = weltpunktZuUV(schnitt, segment)
+      const elBreite = eintrag.item.width / 60
+      const elHoehe = eintrag.item.typ === 'fenster' ? FENSTER_HOEHE_3D : TUER_HOEHE_3D
+      const mitteUAktuell = ((eintrag.gruppe.position.x - segment.x1) * segment.dx + (eintrag.gruppe.position.z - segment.z1) * segment.dz) / (segment.laenge || 1)
+      wandElementDrag = {
+        eintrag, segment, elBreite, elHoehe,
+        offsetU: mitteUAktuell - u,
+        offsetV: eintrag.gruppe.position.y - v,
+        bewegt: false,
+      }
+      setAusgewaehltesElement(eintrag.item.id)
+      meldeLiveWerte(eintrag.item, segment, eintrag.gruppe, elBreite)
+    }
+
+    const wandElementMausMove = (clientX, clientY) => {
+      if (!wandElementDrag) return
+      const { eintrag, segment, elBreite, elHoehe, offsetU, offsetV } = wandElementDrag
+      const ebene = ebeneFuerSegment(eintrag.item.wandSegment)
+      const schnitt = zeigerAufWeltpunkt(clientX, clientY, ebene)
+      if (!schnitt) return
+      const { u, v } = weltpunktZuUV(schnitt, segment)
+      const mitteU = Math.max(elBreite / 2, Math.min(segment.laenge - elBreite / 2, u + offsetU))
+      const px = segment.x1 + segment.dx * (mitteU / segment.laenge)
+      const pz = segment.z1 + segment.dz * (mitteU / segment.laenge)
+      let neueY = eintrag.gruppe.position.y
+      if (eintrag.item.typ === 'fenster') {
+        neueY = Math.max(0, Math.min(wandHoehe - elHoehe, v + offsetV))
+      }
+      eintrag.gruppe.position.set(px, neueY, pz)
+      wandElementDrag.bewegt = true
+      meldeLiveWerte(eintrag.item, segment, eintrag.gruppe, elBreite)
+    }
+
+    const wandElementMausUp = () => {
+      if (!wandElementDrag) return
+      const { eintrag, segment, elBreite } = wandElementDrag
+      if (wandElementDrag.bewegt) {
+        const mitteU = ((eintrag.gruppe.position.x - segment.x1) * segment.dx + (eintrag.gruppe.position.z - segment.z1) * segment.dz) / (segment.laenge || 1)
+        const patch = { wandPosition: mitteU - elBreite / 2 }
+        if (eintrag.item.typ === 'fenster') patch.bruestungshoehe = eintrag.gruppe.position.y
+        onWandElementBewegt?.(eintrag.item.id, patch)
+      }
+      wandElementDrag = null
+    }
+
     const onMouseDown = (e) => {
-      if (fokusWandRef.current != null) return
+      if (fokusWandRef.current != null) { wandElementMausDown(e.clientX, e.clientY); return }
       if (kameraModusRef.current === 'rundgang') {
         rundgangZeiger = { startX: e.clientX, startY: e.clientY, letzteX: e.clientX, letzteY: e.clientY, bewegung: 0, startZeit: performance.now() }
         return
@@ -373,6 +563,7 @@ export default function RoomView3D({ fokusWand = null } = {}) {
       previousMouse = { x: e.clientX, y: e.clientY }
     }
     const onMouseUp = () => {
+      if (fokusWandRef.current != null) { wandElementMausUp(); return }
       if (kameraModusRef.current === 'rundgang') {
         if (rundgangZeiger) {
           const dauer = performance.now() - rundgangZeiger.startZeit
@@ -386,6 +577,7 @@ export default function RoomView3D({ fokusWand = null } = {}) {
       isDragging = false
     }
     const onMouseMove = (e) => {
+      if (fokusWandRef.current != null) { wandElementMausMove(e.clientX, e.clientY); return }
       if (kameraModusRef.current === 'rundgang') {
         if (!rundgangZeiger) return
         const dx = e.clientX - rundgangZeiger.letzteX
@@ -415,7 +607,7 @@ export default function RoomView3D({ fokusWand = null } = {}) {
 
     let lastTouch = null
     const onTouchStart = (e) => {
-      if (fokusWandRef.current != null) return
+      if (fokusWandRef.current != null) { wandElementMausDown(e.touches[0].clientX, e.touches[0].clientY); return }
       if (kameraModusRef.current === 'rundgang') {
         const t = e.touches[0]
         rundgangZeiger = { startX: t.clientX, startY: t.clientY, letzteX: t.clientX, letzteY: t.clientY, bewegung: 0, startZeit: performance.now() }
@@ -424,6 +616,7 @@ export default function RoomView3D({ fokusWand = null } = {}) {
       lastTouch = e.touches[0]; isDragging = true
     }
     const onTouchMove  = (e) => {
+      if (fokusWandRef.current != null) { wandElementMausMove(e.touches[0].clientX, e.touches[0].clientY); return }
       if (kameraModusRef.current === 'rundgang') {
         if (!rundgangZeiger) return
         const t = e.touches[0]
@@ -446,6 +639,7 @@ export default function RoomView3D({ fokusWand = null } = {}) {
       updateCamera()
     }
     const onTouchEnd = () => {
+      if (fokusWandRef.current != null) { wandElementMausUp(); return }
       if (kameraModusRef.current === 'rundgang') {
         if (rundgangZeiger) {
           const dauer = performance.now() - rundgangZeiger.startZeit
@@ -490,6 +684,14 @@ const animate = () => {
     updateCamera()
     if (t >= 1) laufAnimation = null
   }
+  if (wandFokusAnimation) {
+    const t = Math.min(1, (performance.now() - wandFokusAnimation.startZeit) / WAND_WECHSEL_DAUER)
+    const fortschritt = easeInOut(t)
+    const pos = lerpUmUrsprung(wandFokusAnimation.startPos, wandFokusAnimation.endPos, fortschritt)
+    const ziel = lerpUmUrsprung(wandFokusAnimation.startZiel, wandFokusAnimation.endZiel, fortschritt)
+    setzeWandFokusKamera(pos, ziel)
+    if (t >= 1) wandFokusAnimation = null
+  }
   renderer.render(scene, camera)
 }
 animate()
@@ -525,7 +727,7 @@ return () => {
   mount.removeChild(renderer.domElement)
   renderer.dispose()
 }
-  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleBereit])
+  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleBereit, onWandElementBewegt])
 
   return (
     <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: fokusWand == null ? 'grab' : 'default', position: 'relative' }}>
@@ -541,6 +743,17 @@ return () => {
               border: 'none', cursor: 'pointer', fontWeight: kameraModus === key ? '500' : '400',
             }}>{label}</button>
           ))}
+        </div>
+      )}
+      {fokusWand != null && liveWerte && (
+        <div style={{
+          position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', zIndex: 10,
+          padding: '6px 14px', borderRadius: '20px', background: 'white', border: '1px solid #E8E6E0',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)', fontSize: '12px', color: '#444441',
+          fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap',
+        }}>
+          {liveWerte.horizontalCm} cm von Wandanfang
+          {liveWerte.typ === 'fenster' && ` · ${liveWerte.vertikalCm} cm Brüstungshöhe`}
         </div>
       )}
     </div>
