@@ -147,6 +147,150 @@ export function erzeugeWandputzTextur() {
   return texture
 }
 
+// Blumentapete: 5-blättrige Blüten im Ziegelmuster versetzt angeordnet, wie bei echter
+// Mustertapete. Naturfarben (creme + Terrakotta/Salbei-Akzent) statt Graustufen, damit sie bei
+// Standard-Wandfarbe Weiß direkt gut aussieht — bei anderen Wandfarben wird sie wie der bisherige
+// Putz zusätzlich eingefärbt (color × map in RoomView3D.jsx).
+export function erzeugeBlumenTapete() {
+  const groesse = 512
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = groesse
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = '#F7F1E6'
+  ctx.fillRect(0, 0, groesse, groesse)
+  const raster = 8
+  const zelle = groesse / raster
+  for (let y = 0; y < raster; y++) {
+    for (let x = 0; x < raster; x++) {
+      const versatz = (y % 2) * (zelle / 2)
+      const cx = x * zelle + versatz + zelle / 2 + (Math.random() - 0.5) * 6
+      const cy = y * zelle + zelle / 2 + (Math.random() - 0.5) * 6
+      const radius = zelle * 0.22
+      for (let p = 0; p < 5; p++) {
+        const winkel = (p / 5) * Math.PI * 2 + Math.random() * 0.3
+        const px = cx + Math.cos(winkel) * radius * 0.6
+        const py = cy + Math.sin(winkel) * radius * 0.6
+        ctx.fillStyle = 'rgba(186,117,23,0.5)'
+        ctx.beginPath()
+        ctx.ellipse(px, py, radius * 0.5, radius * 0.32, winkel, 0, Math.PI * 2)
+        ctx.fill()
+      }
+      ctx.fillStyle = 'rgba(122,150,90,0.6)'
+      ctx.beginPath()
+      ctx.arc(cx, cy, radius * 0.22, 0, Math.PI * 2)
+      ctx.fill()
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(3, 1.5)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+}
+
+// Streifentapete: schlichte vertikale Streifen in zwei Tönen.
+export function erzeugeStreifenTapete() {
+  const breite = 128, hoehe = 128
+  const canvas = document.createElement('canvas')
+  canvas.width = breite
+  canvas.height = hoehe
+  const ctx = canvas.getContext('2d')
+  const streifenBreite = breite / 8
+  for (let i = 0; i < 8; i++) {
+    ctx.fillStyle = i % 2 === 0 ? '#F7F1E6' : '#E4D9C4'
+    ctx.fillRect(i * streifenBreite, 0, streifenBreite, hoehe)
+  }
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(6, 1)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+}
+
+// Holzpaneele: wie erzeugeHolzTextur() (Holzmaserung per Zufalls-Linien), zusätzlich mit
+// vertikalen Paneel-Fugen, damit einzelne Bretter/Paneele erkennbar sind statt einer
+// durchgehenden Fläche.
+export function erzeugeHolzpaneeleTextur() {
+  const groesse = 256
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = groesse
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = '#B8956A'
+  ctx.fillRect(0, 0, groesse, groesse)
+  for (let i = 0; i < 90; i++) {
+    const y = Math.random() * groesse
+    const dunkel = 0.08 + Math.random() * 0.18
+    ctx.strokeStyle = `rgba(80,52,22,${dunkel.toFixed(2)})`
+    ctx.lineWidth = 0.6 + Math.random() * 1.6
+    ctx.beginPath()
+    let x = 0
+    ctx.moveTo(x, y)
+    while (x < groesse) {
+      x += 6
+      ctx.lineTo(x, y + Math.sin(x * 0.04 + i) * 3 + (Math.random() - 0.5) * 1.5)
+    }
+    ctx.stroke()
+  }
+  const anzahlPaneele = 4
+  const paneelBreite = groesse / anzahlPaneele
+  ctx.strokeStyle = 'rgba(50,32,14,0.4)'
+  ctx.lineWidth = 2
+  for (let i = 1; i < anzahlPaneele; i++) {
+    ctx.beginPath()
+    ctx.moveTo(i * paneelBreite, 0)
+    ctx.lineTo(i * paneelBreite, groesse)
+    ctx.stroke()
+  }
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(3, 1.5)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+}
+
+// Akustikpaneele: abwechselnd Holzlamellen und dunkle Zwischenräume (Filzoptik), wie die
+// aktuell verbreiteten Akustik-Wandpaneele aus dem Baumarkt.
+export function erzeugeAkustikpaneeleTextur() {
+  const groesse = 256
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = groesse
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = '#2C2622'
+  ctx.fillRect(0, 0, groesse, groesse)
+  const lamellenAnzahl = 12
+  const lamellenBreite = groesse / lamellenAnzahl
+  for (let i = 0; i < lamellenAnzahl; i++) {
+    const x = i * lamellenBreite
+    ctx.fillStyle = '#B8956A'
+    ctx.fillRect(x, 0, lamellenBreite * 0.7, groesse)
+    for (let g = 0; g < 8; g++) {
+      const gy = Math.random() * groesse
+      ctx.strokeStyle = `rgba(80,52,22,${(0.1 + Math.random() * 0.15).toFixed(2)})`
+      ctx.lineWidth = 0.6
+      ctx.beginPath()
+      ctx.moveTo(x, gy)
+      ctx.lineTo(x + lamellenBreite * 0.7, gy + (Math.random() - 0.5) * 4)
+      ctx.stroke()
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(4, 1.5)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+}
+
+// Liefert die Textur für das gewählte Wandmaterial (siehe wandMaterialien in constants.js).
+// Unbekannter/fehlender Typ (auch alte Räume ohne room.wandmaterial) fällt auf den bisherigen
+// Putz zurück — kein Breaking Change für bestehende Räume.
+export function erzeugeWandTextur(wandTyp) {
+  if (wandTyp === 'wand-tapete-blumen') return erzeugeBlumenTapete()
+  if (wandTyp === 'wand-tapete-streifen') return erzeugeStreifenTapete()
+  if (wandTyp === 'wand-holzpaneele') return erzeugeHolzpaneeleTextur()
+  if (wandTyp === 'wand-akustikpaneele') return erzeugeAkustikpaneeleTextur()
+  return erzeugeWandputzTextur()
+}
+
 export function erzeugeUmgebungsTextur() {
   const canvas = document.createElement('canvas')
   canvas.width = 16

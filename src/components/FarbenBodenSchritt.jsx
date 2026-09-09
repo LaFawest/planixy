@@ -1,4 +1,4 @@
-import { bodenBelaege, wandFarben, HIMMELSRICHTUNG_NAME } from '../constants'
+import { bodenBelaege, wandMaterialien, wandFarben, HIMMELSRICHTUNG_NAME } from '../constants'
 import { himmelsrichtungAusNormale } from '../raumPolygon'
 import { useRooms } from '../context/RoomsContext'
 import { useDesign } from '../context/DesignContext'
@@ -9,7 +9,7 @@ export default function FarbenBodenSchritt() {
   const { wandSegmente } = useRaumGeometrie()
   const {
     fussleiste, setFussleiste, fussleisteFarbe, setFussleisteFarbe, setBoden,
-    aktiveWand, setAktiveWand, aktuelleWandfarbe, setWandfarbeFuer,
+    aktiveWand, setAktiveWand, aktuelleWandfarbe, setWandfarbeFuer, setWandmaterial,
   } = useDesign()
   // Chips nummeriert je Wandsegment, Himmelsrichtung als Zusatz aus der Segmentnormale
   // abgeleitet (himmelsrichtungAusNormale) — funktioniert für jede Raumform, nicht nur für
@@ -73,6 +73,23 @@ export default function FarbenBodenSchritt() {
             }}>
               <div style={{ fontSize: '18px', marginBottom: '4px' }}>{boden.icon}</div>
               {boden.name}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.06em' }}>WANDMATERIAL</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+          {wandMaterialien.map(material => (
+            <div key={material.name} onClick={() => setWandmaterial(material.klasse)} style={{
+              padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s',
+              border: `${(activeRoom?.wandmaterial || 'wand-putz') === material.klasse ? '2px' : '1px'} solid ${(activeRoom?.wandmaterial || 'wand-putz') === material.klasse ? '#185FA5' : '#E8E6E0'}`,
+              background: (activeRoom?.wandmaterial || 'wand-putz') === material.klasse ? '#EEF4FC' : '#FAFAF8',
+              fontSize: '10px', color: (activeRoom?.wandmaterial || 'wand-putz') === material.klasse ? '#185FA5' : '#444441',
+            }}>
+              <div style={{ fontSize: '18px', marginBottom: '4px' }}>{material.icon}</div>
+              {material.name}
             </div>
           ))}
         </div>

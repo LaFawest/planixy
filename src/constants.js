@@ -119,6 +119,13 @@ export const bodenBelaege = [
   { name: 'Kork',     klasse: 'boden-kork',      icon: '🌰' },
   { name: 'Schiefer', klasse: 'boden-schiefer',  icon: '🌑' },
 ]
+export const wandMaterialien = [
+  { name: 'Putz',           klasse: 'wand-putz',            icon: '⬜' },
+  { name: 'Blumentapete',   klasse: 'wand-tapete-blumen',   icon: '🌸' },
+  { name: 'Streifentapete', klasse: 'wand-tapete-streifen', icon: '〰️' },
+  { name: 'Holzpaneele',    klasse: 'wand-holzpaneele',     icon: '🪵' },
+  { name: 'Akustikpaneele', klasse: 'wand-akustikpaneele',  icon: '🎛️' },
+]
 export const wandFarben = [
   { name: 'Weiß',       farbe: '#FFFFFF' }, { name: 'Cremeweiß',  farbe: '#F5F0E8' },
   { name: 'Schwarz',    farbe: '#1A1A1A' },
@@ -188,7 +195,7 @@ export function berechneInnenmasse(raumBreite, raumTiefe) {
 }
 
 // tageszeit in Stunden (0–24), Default Mittag — siehe tageslichtWerte() in scene/beleuchtung.js
-export const DEFAULT_RAUM_DESIGN = { fussleiste: true, fussleisteFarbe: '#E0DDD8', raumHoehe: 2.5, tageszeit: 12 }
+export const DEFAULT_RAUM_DESIGN = { fussleiste: true, fussleisteFarbe: '#E0DDD8', raumHoehe: 2.5, tageszeit: 12, wandmaterial: 'wand-putz' }
 
 // Schrittleiste des Editor-Wizards. `bald: true` markiert einen Schritt als noch nicht
 // funktionsfähig — er bleibt trotzdem anklickbar (kein Zwang zur Reihenfolge).

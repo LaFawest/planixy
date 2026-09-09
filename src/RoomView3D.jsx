@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandputzTextur } from './texturen'
+import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandTextur } from './texturen'
 import { baueTrennwaende } from './scene/trennwaende'
 import { baueWandElement } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
@@ -81,7 +81,7 @@ export default function RoomView3D() {
     // === TEXTUREN (einmal pro Szene erzeugt, mehrfach verwendet) ===
     const holzTextur = erzeugeHolzTextur()
     const stoffTextur = erzeugeStoffTextur()
-    const wandputzTextur = erzeugeWandputzTextur()
+    const wandTextur = erzeugeWandTextur(room?.wandmaterial)
     scene.environment = erzeugeUmgebungsTextur()
 
     // === BELEUCHTUNG ===
@@ -127,7 +127,7 @@ export default function RoomView3D() {
     // map + color: MeshStandardMaterial multipliziert beide miteinander, die Putzstruktur bleibt
     // dadurch mit jeder der 27 Wandfarben einfärbbar, ohne dass die Farbwahl selbst hier angefasst
     // werden muss.
-    const wandMatFuer = (index) => new THREE.MeshStandardMaterial({ color: wandFarbeFuer(index), map: wandputzTextur, roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1 })
+    const wandMatFuer = (index) => new THREE.MeshStandardMaterial({ color: wandFarbeFuer(index), map: wandTextur, roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1 })
 
     const segmente = wandSegmente(eckpunkte)
     // Für updateCamera unten: pro Wand Mesh + 3D-Normale (2D-Normale direkt auf X/Z übernommen,

@@ -22,6 +22,7 @@ export function DesignProvider({ children }) {
   const setTageszeit = useCallback((stunde) => updateRoom(activeRoomId, { tageszeit: stunde }), [updateRoom, activeRoomId])
 
   const setBoden = useCallback((boden) => updateRoom(activeRoomId, { boden }), [updateRoom, activeRoomId])
+  const setWandmaterial = useCallback((wandmaterial) => updateRoom(activeRoomId, { wandmaterial }), [updateRoom, activeRoomId])
 
   const setWandfarbeFuer = useCallback((farbe) => {
     if (aktiveWand === 'alle') {
@@ -42,9 +43,11 @@ export function DesignProvider({ children }) {
     fussleisteFarbe, setFussleisteFarbe,
     aktiveWand, setAktiveWand,
     setBoden, setWandfarbeFuer, aktuelleWandfarbe,
+    setWandmaterial,
   }), [
     fussleiste, setFussleiste, raumHoehe, setRaumHoehe, tageszeit, setTageszeit,
     fussleisteFarbe, setFussleisteFarbe, aktiveWand, setBoden, setWandfarbeFuer, aktuelleWandfarbe,
+    setWandmaterial,
   ])
 
   return <DesignContext.Provider value={value}>{children}</DesignContext.Provider>
