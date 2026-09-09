@@ -1,4 +1,6 @@
+import { useEffect } from 'react'
 import RoomView3D from '../RoomView3D'
+import FensterTuerenAnsicht3D from './FensterTuerenAnsicht3D'
 import { moebelIconTyp, moebelShapes } from '../moebelIcons'
 import RotationsPanel from './RotationsPanel'
 import TrennwandPanel from './TrennwandPanel'
@@ -66,8 +68,16 @@ const wandStreifenStuecke = (segment, wandDicke, elemente) => {
 }
 
 export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, wandSegmente, innenEckpunkte }) {
-  const { ansicht } = useUI()
+  const { ansicht, setAnsicht } = useUI()
   const { schritt } = useWizard()
+
+  // Schritt 3 ("Fenster & Türen") soll immer direkt in der neuen 3D-Wand-Ansicht starten, ohne
+  // dass man erst manuell auf "3D" klicken muss. Reagiert nur auf schritt-Wechsel (nicht auf
+  // ansicht selbst) — wer während Schritt 3 manuell zurück auf 2D schaltet (z.B. um wie bisher
+  // Fenster/Türen per Drag & Drop zu setzen), wird dadurch nicht wieder zurückgeschnappt.
+  useEffect(() => {
+    if (schritt === 2) setAnsicht('3d')
+  }, [schritt, setAnsicht])
   const { activeRoom } = useRooms()
   const { fussleiste, fussleisteFarbe } = useDesign()
   const { furniture, selectedId, setSelectedId, handleDrag, removeFurniture } = useFurniture()
@@ -280,7 +290,7 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
           </div>
         ) : (
           <div style={{ position: 'absolute', inset: 0 }}>
-            <RoomView3D />
+            {schritt === 2 ? <FensterTuerenAnsicht3D /> : <RoomView3D />}
           </div>
         )}
       </div>

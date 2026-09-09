@@ -22,7 +22,6 @@ export function DesignProvider({ children }) {
   const setTageszeit = useCallback((stunde) => updateRoom(activeRoomId, { tageszeit: stunde }), [updateRoom, activeRoomId])
 
   const setBoden = useCallback((boden) => updateRoom(activeRoomId, { boden }), [updateRoom, activeRoomId])
-  const setWandmaterial = useCallback((wandmaterial) => updateRoom(activeRoomId, { wandmaterial }), [updateRoom, activeRoomId])
 
   const setWandfarbeFuer = useCallback((farbe) => {
     if (aktiveWand === 'alle') {
@@ -36,6 +35,18 @@ export function DesignProvider({ children }) {
     ? (activeRoom?.wandfarbe || '#FFFFFF')
     : (activeRoom?.wandfarben?.[aktiveWand] || activeRoom?.wandfarbe || '#FFFFFF')
 
+  const setWandmaterialFuer = useCallback((material) => {
+    if (aktiveWand === 'alle') {
+      updateRoom(activeRoomId, { wandmaterial: material, wandmaterialien: null })
+    } else {
+      updateRoom(activeRoomId, { wandmaterialien: { ...(activeRoom?.wandmaterialien || {}), [aktiveWand]: material } })
+    }
+  }, [updateRoom, activeRoomId, aktiveWand, activeRoom])
+
+  const aktuellesWandmaterial = aktiveWand === 'alle'
+    ? (activeRoom?.wandmaterial || 'wand-putz')
+    : (activeRoom?.wandmaterialien?.[aktiveWand] || activeRoom?.wandmaterial || 'wand-putz')
+
   const value = useMemo(() => ({
     fussleiste, setFussleiste,
     raumHoehe, setRaumHoehe,
@@ -43,11 +54,11 @@ export function DesignProvider({ children }) {
     fussleisteFarbe, setFussleisteFarbe,
     aktiveWand, setAktiveWand,
     setBoden, setWandfarbeFuer, aktuelleWandfarbe,
-    setWandmaterial,
+    setWandmaterialFuer, aktuellesWandmaterial,
   }), [
     fussleiste, setFussleiste, raumHoehe, setRaumHoehe, tageszeit, setTageszeit,
     fussleisteFarbe, setFussleisteFarbe, aktiveWand, setBoden, setWandfarbeFuer, aktuelleWandfarbe,
-    setWandmaterial,
+    setWandmaterialFuer, aktuellesWandmaterial,
   ])
 
   return <DesignContext.Provider value={value}>{children}</DesignContext.Provider>

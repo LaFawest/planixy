@@ -1,7 +1,7 @@
 import { useRooms } from '../context/RoomsContext'
 import { useDesign } from '../context/DesignContext'
 import { polygonFlaeche, rechteckPolygon, lFormPolygon, uFormPolygon, boundingBox } from '../raumPolygon'
-import { RAUM_FORMEN, L_FORM_ECKEN, U_FORM_SEITEN, MIN_RAUM_SCHENKEL_M } from '../constants'
+import { RAUM_FORMEN, L_FORM_ECKEN, U_FORM_SEITEN, MIN_RAUM_SCHENKEL_M, bodenBelaege } from '../constants'
 
 // Breite/Tiefe/Aussparung klemmen wir schon beim Tippen auf mindestens MIN_RAUM_SCHENKEL_M —
 // nicht wegen der Optik, sondern weil ein Zwischenwert, der einen Schenkel schmaler als die
@@ -57,7 +57,7 @@ const kachelLabelStyle = (aktiv) => ({
 
 export default function RaumSchritt() {
   const { activeRoom, activeRoomId, updateRoom, nachjustiereRaum } = useRooms()
-  const { raumHoehe, setRaumHoehe } = useDesign()
+  const { raumHoehe, setRaumHoehe, setBoden } = useDesign()
   const raumForm = activeRoom.raumForm || 'rechteck'
   const breite = activeRoom.breite || 6
   const tiefe = activeRoom.tiefe || 5
@@ -181,6 +181,25 @@ export default function RaumSchritt() {
             style={{ width: '48px', padding: '5px 6px', border: '1px solid #E8E6E0', borderRadius: '8px', fontSize: '12px', textAlign: 'center', outline: 'none', background: '#F7F6F2' }} />
           <span style={{ fontSize: '12px', color: '#888780' }}>m</span>
           <span style={{ marginLeft: 'auto', background: '#EAF3DE', color: '#3B6D11', fontSize: '11px', padding: '3px 8px', borderRadius: '20px', fontWeight: '500' }}>{Math.round(polygonFlaeche(activeRoom.eckpunkte || rechteckPolygon(breite, tiefe)) * 10) / 10} m²</span>
+        </div>
+      </div>
+
+      <div style={{ height: '1px', background: '#E8E6E0', margin: '4px 0' }}></div>
+
+      <div>
+        <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.06em' }}>BODENBELAG</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+          {bodenBelaege.map(boden => (
+            <div key={boden.name} onClick={() => setBoden(boden.klasse)} style={{
+              padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s',
+              border: `${(activeRoom?.boden || 'boden-standard') === boden.klasse ? '2px' : '1px'} solid ${(activeRoom?.boden || 'boden-standard') === boden.klasse ? '#185FA5' : '#E8E6E0'}`,
+              background: (activeRoom?.boden || 'boden-standard') === boden.klasse ? '#EEF4FC' : '#FAFAF8',
+              fontSize: '10px', color: (activeRoom?.boden || 'boden-standard') === boden.klasse ? '#185FA5' : '#444441',
+            }}>
+              <div style={{ fontSize: '18px', marginBottom: '4px' }}>{boden.icon}</div>
+              {boden.name}
+            </div>
+          ))}
         </div>
       </div>
     </>

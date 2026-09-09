@@ -1,17 +1,15 @@
 import { WIZARD_SCHRITTE } from '../constants'
 import { useWizard } from '../context/WizardContext'
 import RaumSchritt from './RaumSchritt'
-import FarbenBodenSchritt from './FarbenBodenSchritt'
 import FensterTuerenSchritt from './FensterTuerenSchritt'
 import LichtSchritt from './LichtSchritt'
 import MoebelDekoSchritt from './MoebelDekoSchritt'
 
 const SCHRITT_KOMPONENTEN = {
   1: RaumSchritt,
-  2: FarbenBodenSchritt,
-  3: FensterTuerenSchritt,
-  4: LichtSchritt,
-  5: MoebelDekoSchritt,
+  2: FensterTuerenSchritt,
+  3: LichtSchritt,
+  4: MoebelDekoSchritt,
 }
 
 const ERSTER_SCHRITT = WIZARD_SCHRITTE[0].nummer

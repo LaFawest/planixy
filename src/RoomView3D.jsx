@@ -11,7 +11,7 @@ import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
 
-export default function RoomView3D() {
+export default function RoomView3D({ fokusWand = null } = {}) {
   const { activeRoom: room } = useRooms()
   const { furniture } = useFurniture()
   const { fussleiste, fussleisteFarbe, raumHoehe, tageszeit } = useDesign()
@@ -25,6 +25,14 @@ export default function RoomView3D() {
   const [kameraModus, setKameraModus] = useState('rundumblick')
   const rundgangRef = useRef(null)
   const updateCameraRef = useRef(() => {})
+
+  // Analog zu kameraModusRef: ein reiner Wand-Wechsel soll NUR die Kamera neu positionieren,
+  // nicht die komplette Szene neu aufbauen (siehe waehleKameraModus-Pattern weiter unten).
+  const fokusWandRef = useRef(fokusWand)
+  useEffect(() => {
+    fokusWandRef.current = fokusWand
+    updateCameraRef.current?.()
+  }, [fokusWand])
 
   // Lädt die echten 3D-Modelle (siehe scene/modelle.js) einmalig beim ersten Mount. Sobald fertig,
   // triggert modelleBereit unten einen Neuaufbau der Szene, damit die Modelle auch dann erscheinen,
@@ -81,7 +89,8 @@ export default function RoomView3D() {
     // === TEXTUREN (einmal pro Szene erzeugt, mehrfach verwendet) ===
     const holzTextur = erzeugeHolzTextur()
     const stoffTextur = erzeugeStoffTextur()
-    const wandTextur = erzeugeWandTextur(room?.wandmaterial)
+    // wandTextur wird jetzt pro Wand einzeln über wandTexturFuer() erzeugt (siehe unten), da
+    // jede Wand ihr eigenes Material haben kann.
     scene.environment = erzeugeUmgebungsTextur()
 
     // === BELEUCHTUNG ===
@@ -124,10 +133,19 @@ export default function RoomView3D() {
     // Himmelsrichtung) — funktioniert damit für jede Segmentanzahl/-form, nicht nur für die vier
     // festen Rechteckwände.
     const wandFarbeFuer = (index) => room?.wandfarben?.[index] || room?.wandfarbe || '#FFFFFF'
-    // map + color: MeshStandardMaterial multipliziert beide miteinander, die Putzstruktur bleibt
+    const wandMaterialFuer = (index) => room?.wandmaterialien?.[index] || room?.wandmaterial || 'wand-putz'
+    // Textur pro tatsächlich verwendetem Material erzeugen und zwischenspeichern (Map), statt pro
+    // Wand neu — teilen sich z.B. 3 von 4 Wänden weiterhin Putz, entsteht dafür nur eine einzige
+    // Textur-Instanz statt drei identischer.
+    const wandTexturCache = new Map()
+    const wandTexturFuer = (material) => {
+      if (!wandTexturCache.has(material)) wandTexturCache.set(material, erzeugeWandTextur(material))
+      return wandTexturCache.get(material)
+    }
+    // map + color: MeshStandardMaterial multipliziert beide miteinander, die Musterstruktur bleibt
     // dadurch mit jeder der 27 Wandfarben einfärbbar, ohne dass die Farbwahl selbst hier angefasst
     // werden muss.
-    const wandMatFuer = (index) => new THREE.MeshStandardMaterial({ color: wandFarbeFuer(index), map: wandTextur, roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1 })
+    const wandMatFuer = (index) => new THREE.MeshStandardMaterial({ color: wandFarbeFuer(index), map: wandTexturFuer(wandMaterialFuer(index)), roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1 })
 
     const segmente = wandSegmente(eckpunkte)
     // Für updateCamera unten: pro Wand Mesh + 3D-Normale (2D-Normale direkt auf X/Z übernommen,
@@ -141,7 +159,7 @@ export default function RoomView3D() {
       wand.rotation.y = -Math.atan2(z2 - z1, x2 - x1)
       wand.receiveShadow = true
       scene.add(wand)
-      return { mesh: wand, normale: { x: segment.normale.x, z: segment.normale.y } }
+      return { mesh: wand, normale: { x: segment.normale.x, z: segment.normale.y }, laenge: segment.laenge }
     })
 
     // Sockelleisten — eine Leiste je Wandsegment, volle Segmentlänge, nach innen versetzt um die
@@ -263,7 +281,53 @@ export default function RoomView3D() {
       })
     }
 
+    // Positioniert die Kamera exakt senkrecht (kein Kippen/Schwenken) mittig vor einer Wand, so
+    // dass die gesamte Wandhöhe UND -breite ins Bild passt (klassisches "Objekt in Frustum
+    // einpassen" — Distanz = Maximum aus Höhen-Fit und Breiten-Fit, beide mit Rand-Puffer).
+    const berechneWandFokusZiel = (index) => {
+      const eintrag = wandMeshe[index]
+      if (!eintrag) return null
+      const { mesh, normale, laenge } = eintrag
+      const fovY = camera.fov * Math.PI / 180
+      const fovX = 2 * Math.atan(Math.tan(fovY / 2) * camera.aspect)
+      const RAND_FAKTOR = 1.2
+      const gewuenschteDistanz = Math.max(
+        (wandHoehe / 2) / Math.tan(fovY / 2),
+        (laenge / 2) / Math.tan(fovX / 2),
+      ) * RAND_FAKTOR
+      // Kamera darf nie so weit zurück, dass sie über die gegenüberliegende Seite des Raums
+      // hinausgeht (sonst landet sie fast auf/hinter der gegenüberliegenden Wand — sichtbar als
+      // extrem verzerrte Seitenwände und ein von hinten durchscheinendes Fenster/Tür dort, siehe
+      // Bug-Report). Alle Wände in den bisher unterstützten Raumformen (Rechteck/L/U) sind
+      // achsparallel, die Normale zeigt also rein in X- oder rein in Z-Richtung — die verfügbare
+      // Tiefe in Blickrichtung entspricht deshalb der Bounding-Box-Ausdehnung der jeweils anderen
+      // Achse (raumBreite bei einer Ost/West-Normale, raumTiefe bei einer Nord/Süd-Normale).
+      const raumTiefeInRichtung = Math.abs(normale.x) > Math.abs(normale.z) ? raumBreite : raumTiefe
+      const SICHERHEITSABSTAND = 0.4
+      const maxDistanz = Math.max(0.3, raumTiefeInRichtung - SICHERHEITSABSTAND)
+      const distanz = Math.min(gewuenschteDistanz, maxDistanz)
+      return {
+        x: mesh.position.x - normale.x * distanz,
+        z: mesh.position.z - normale.z * distanz,
+        zielX: mesh.position.x,
+        zielZ: mesh.position.z,
+      }
+    }
+
+    const updateWandFokusCamera = (index) => {
+      const ziel = berechneWandFokusZiel(index)
+      if (!ziel) return
+      camera.position.set(ziel.x, wandHoehe / 2, ziel.z)
+      camera.lookAt(ziel.zielX, wandHoehe / 2, ziel.zielZ)
+      // Im Wand-Fokus-Modus sollen Decke/Wände immer voll sichtbar sein (kein Ausblenden wie beim
+      // freien Rundumblick, wo die Kamerawinkel-abhängige Transparenz Durchblicke ermöglicht).
+      decke.material.opacity = 1
+      decke.material.transparent = false
+      wandMeshe.forEach(({ mesh }) => { mesh.material.opacity = 1; mesh.material.transparent = false })
+    }
+
     const updateCamera = () => {
+      if (fokusWandRef.current != null) { updateWandFokusCamera(fokusWandRef.current); return }
       if (kameraModusRef.current === 'rundgang') updateRundgangCamera()
       else updateOrbitCamera()
     }
@@ -300,6 +364,7 @@ export default function RoomView3D() {
     let rundgangZeiger = null // { startX, startY, letzteX, letzteY, bewegung, startZeit }
 
     const onMouseDown = (e) => {
+      if (fokusWandRef.current != null) return
       if (kameraModusRef.current === 'rundgang') {
         rundgangZeiger = { startX: e.clientX, startY: e.clientY, letzteX: e.clientX, letzteY: e.clientY, bewegung: 0, startZeit: performance.now() }
         return
@@ -342,6 +407,7 @@ export default function RoomView3D() {
       updateCamera()
     }
     const onWheel = (e) => {
+      if (fokusWandRef.current != null) return
       if (kameraModusRef.current === 'rundgang') return
       spherical.radius = Math.max(4, Math.min(30, spherical.radius + e.deltaY * 0.05))
       updateCamera()
@@ -349,6 +415,7 @@ export default function RoomView3D() {
 
     let lastTouch = null
     const onTouchStart = (e) => {
+      if (fokusWandRef.current != null) return
       if (kameraModusRef.current === 'rundgang') {
         const t = e.touches[0]
         rundgangZeiger = { startX: t.clientX, startY: t.clientY, letzteX: t.clientX, letzteY: t.clientY, bewegung: 0, startZeit: performance.now() }
@@ -461,19 +528,21 @@ return () => {
   }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleBereit])
 
   return (
-    <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: 'grab', position: 'relative' }}>
-      <div style={{ position: 'absolute', top: '12px', left: '12px', zIndex: 10, display: 'flex', border: '1px solid #E8E6E0', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-        {[
-          { key: 'rundumblick', label: 'Rundumblick' },
-          { key: 'rundgang', label: 'Rundgang' },
-        ].map(({ key, label }) => (
-          <button key={key} onClick={() => waehleKameraModus(key)} style={{
-            padding: '6px 14px', fontSize: '12px', fontFamily: "'DM Sans', sans-serif",
-            background: kameraModus === key ? '#2F4B39' : 'white', color: kameraModus === key ? 'white' : '#888780',
-            border: 'none', cursor: 'pointer', fontWeight: kameraModus === key ? '500' : '400',
-          }}>{label}</button>
-        ))}
-      </div>
+    <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: fokusWand == null ? 'grab' : 'default', position: 'relative' }}>
+      {fokusWand == null && (
+        <div style={{ position: 'absolute', top: '12px', left: '12px', zIndex: 10, display: 'flex', border: '1px solid #E8E6E0', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
+          {[
+            { key: 'rundumblick', label: 'Rundumblick' },
+            { key: 'rundgang', label: 'Rundgang' },
+          ].map(({ key, label }) => (
+            <button key={key} onClick={() => waehleKameraModus(key)} style={{
+              padding: '6px 14px', fontSize: '12px', fontFamily: "'DM Sans', sans-serif",
+              background: kameraModus === key ? '#2F4B39' : 'white', color: kameraModus === key ? 'white' : '#888780',
+              border: 'none', cursor: 'pointer', fontWeight: kameraModus === key ? '500' : '400',
+            }}>{label}</button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

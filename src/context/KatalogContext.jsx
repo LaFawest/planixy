@@ -8,14 +8,14 @@ const KatalogContext = createContext(null)
 
 const FENSTER_TUEREN_KATEGORIE = 'Fenster & Türen'
 const LICHT_KATEGORIE = 'Licht'
-const FENSTER_TUEREN_SCHRITT = 3
-const LICHT_SCHRITT = 4
-const MOEBEL_SCHRITT = 5
+const FENSTER_TUEREN_SCHRITT = 2
+const LICHT_SCHRITT = 3
+const MOEBEL_SCHRITT = 4
 
 // Der Katalog ist an die Wizard-Schritte gebunden, statt in jedem Schritt alles anzubieten —
 // sonst könnte man schon in Schritt 1 möblieren, was den Wizard sinnlos macht. Fenster & Türen
-// gehören zu Schritt 3, Leuchten zu Schritt 4, alles andere zu Schritt 5 — jeder dieser drei
-// Schritte bekommt hier seine eigene Kategorie-Filterregel; Schritt 1/2 haben keinen Katalog.
+// gehören zu Schritt 2, Leuchten zu Schritt 3, alles andere zu Schritt 4 — jeder dieser drei
+// Schritte bekommt hier seine eigene Kategorie-Filterregel; Schritt 1 hat keinen Katalog.
 const KATEGORIE_FILTER_JE_SCHRITT = {
   [FENSTER_TUEREN_SCHRITT]: (item) => item.kategorie === FENSTER_TUEREN_KATEGORIE,
   [LICHT_SCHRITT]: (item) => item.kategorie === LICHT_KATEGORIE,

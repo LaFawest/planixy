@@ -3,7 +3,6 @@ import { useRooms } from '../context/RoomsContext'
 import { useWizard } from '../context/WizardContext'
 import { useFurniture } from '../context/FurnitureContext'
 import RaumSchritt from './RaumSchritt'
-import FarbenBodenSchritt from './FarbenBodenSchritt'
 import FensterTuerenSchritt from './FensterTuerenSchritt'
 import LichtSchritt from './LichtSchritt'
 import MoebelDekoSchritt from './MoebelDekoSchritt'
@@ -11,10 +10,9 @@ import ProduktPanel from './ProduktPanel'
 
 const SCHRITT_KOMPONENTEN = {
   1: RaumSchritt,
-  2: FarbenBodenSchritt,
-  3: FensterTuerenSchritt,
-  4: LichtSchritt,
-  5: MoebelDekoSchritt,
+  2: FensterTuerenSchritt,
+  3: LichtSchritt,
+  4: MoebelDekoSchritt,
 }
 
 export default function PanelRechts() {
