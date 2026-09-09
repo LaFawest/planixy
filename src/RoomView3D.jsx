@@ -10,11 +10,15 @@ import { rechteckPolygon, boundingBox, wandSegmente, punktInPolygon, versetztesP
 import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
+import { wandMaterialien } from './constants'
 
 export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {}) {
   const { activeRoom: room } = useRooms()
   const { furniture } = useFurniture()
-  const { fussleiste, fussleisteFarbe, raumHoehe, tageszeit } = useDesign()
+  const {
+    fussleiste, fussleisteFarbe, raumHoehe, tageszeit,
+    wandBereiche, fuegeWandBereichHinzu, aktualisiereWandBereich, entferneWandBereich,
+  } = useDesign()
   const mountRef = useRef(null)
 
   // Kameramodus + Rundgang-Position leben unabhängig vom schweren Szenen-Effekt unten (der bei
@@ -39,6 +43,31 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
   const [bearbeiteWert, setBearbeiteWert] = useState('')
   const wandElementRechnerRef = useRef(() => {}) // setzeMass(id, seite, wertCm) — vom Effekt befüllt
 
+  // Ausgewählter Wandmaterial-Bereich (Teil 3, überarbeitet nach Hassans Feedback) — eigener
+  // Auswahlzustand, unabhängig von ausgewaehltesElementRef oben: ein Fenster/eine Tür und ein
+  // Bereich sind gegenseitig exklusiv auswählbar. Statt CAD-Maßlinien mit eintippbaren Zahlen gibt
+  // es jetzt vier Anfasser an den Ecken (wie eine Auswahl in einem Zeichenprogramm) — bereichAuswahl
+  // hält deren Bildschirmposition + die aktuelle Breite/Höhe fürs Live-Label beim Ziehen.
+  const ausgewaehlterBereichRef = useRef(null)
+  const [bereichAuswahl, setBereichAuswahl] = useState(null) // { id, ecken:{tl,tr,bl,br}, breiteCm, hoeheCm } | null
+  const wandBereichHandleStartRef = useRef(() => {}) // startBereichHandleDrag(id, ecke) — vom Effekt befüllt
+
+  // Zeichen-Modus (Teil 3, überarbeitet): ein Material aus der Palette "armiert" das
+  // Rechteck-Werkzeug — der nächste Ziehvorgang auf der fokussierten Wand zeichnet direkt einen
+  // neuen Bereich auf, wie das Rechteck-Werkzeug in Paint, statt über einen "+"-Button eine
+  // Default-Größe anzulegen. zeichenModusMaterialRef ist die vom Maus-Handler im Effekt gelesene
+  // Quelle der Wahrheit, der State daneben dient nur der Paletten-Optik (aktiver Swatch) und dem
+  // Cursor. Lebt aus demselben Grund wie die anderen Auswahl-Refs außerhalb des schweren Effekts.
+  const zeichenModusMaterialRef = useRef(null)
+  const [zeichenModusMaterial, setZeichenModusMaterialState] = useState(null)
+  const setZeichenModusMaterial = (material) => { zeichenModusMaterialRef.current = material; setZeichenModusMaterialState(material) }
+  const [zeichnenLiveGroesse, setZeichnenLiveGroesse] = useState(null) // { breiteCm, hoeheCm } | null, während des Aufziehens
+  // Bricht einen laufenden Zeichenvorgang ab (siehe Escape-Effect unten) — muss das
+  // Vorschau-Mesh und den wandZeichnenDrag-Zustand im Effekt-Scope erreichen, die als reine
+  // Closure-Variablen dort leben und sonst für einen separaten Effect unerreichbar wären. Analog
+  // zu wandElementRechnerRef/wandBereichHandleStartRef: vom schweren Effekt befüllt.
+  const wandZeichnenAbbrechenRef = useRef(() => {})
+
   // Analog zu kameraModusRef: ein reiner Wand-Wechsel soll NUR die Kamera neu positionieren,
   // nicht die komplette Szene neu aufbauen (siehe waehleKameraModus-Pattern weiter unten). Setzt
   // hier zugleich die Fenster/Tür-Auswahl zurück (reine Ref-Mutation, kein setState — deshalb als
@@ -47,6 +76,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
   useEffect(() => {
     fokusWandRef.current = fokusWand
     ausgewaehltesElementRef.current = null
+    ausgewaehlterBereichRef.current = null
+    zeichenModusMaterialRef.current = null
     updateCameraRef.current?.()
   }, [fokusWand])
 
@@ -60,6 +91,13 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     if (liveWerte !== null) setLiveWerte(null)
     if (massLinien !== null) setMassLinien(null)
     if (bearbeiteSeite !== null) setBearbeiteSeite(null)
+    if (bereichAuswahl !== null) setBereichAuswahl(null)
+    // Nur der State-Setter, nicht der Ref+State-Wrapper setZeichenModusMaterial — Refs dürfen
+    // laut react-hooks/refs nicht während des Renderns mutiert werden (dieser Reset läuft direkt
+    // im Render-Body, siehe Kommentar oben). Die Ref wird stattdessen im fokusWandRef-Sync-Effect
+    // oben zurückgesetzt (reine Ref-Mutation dort, unproblematisch).
+    if (zeichenModusMaterial !== null) setZeichenModusMaterialState(null)
+    if (zeichnenLiveGroesse !== null) setZeichnenLiveGroesse(null)
   }
 
   // Lädt die echten 3D-Modelle (siehe scene/modelle.js) einmalig beim ersten Mount. Sobald fertig,
@@ -70,11 +108,42 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     ladeModelle().then(() => setModelleBereit(true))
   }, [])
 
+  // Escape bricht den Zeichen-Modus ab (kein neuer Bereich wird angelegt) — nur registriert,
+  // solange ein Material armiert ist, damit dieser Listener nicht dauerhaft mitläuft.
+  useEffect(() => {
+    if (!zeichenModusMaterial) return
+    const onKeyDown = (e) => {
+      if (e.key !== 'Escape') return
+      setZeichenModusMaterial(null)
+      // Bricht auch einen bereits laufenden Ziehvorgang ab (mousedown ist schon passiert,
+      // wandZeichnenDrag im Effekt-Scope also schon gesetzt) — sonst würde ein nachfolgendes
+      // mouseup trotz Escape noch einen Bereich committen, da dessen Prüfung nichts von diesem
+      // State-Reset weiß (reine Closure-Variable, siehe wandZeichnenAbbrechenRef oben).
+      wandZeichnenAbbrechenRef.current?.()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [zeichenModusMaterial])
+
   const waehleKameraModus = (modus) => {
     if (modus === kameraModusRef.current) return
     kameraModusRef.current = modus
     setKameraModus(modus)
     updateCameraRef.current()
+  }
+
+  // Armiert/deaktiviert das Zeichnen-Werkzeug für ein Material — Klick auf denselben Swatch
+  // schaltet wieder aus (wie ein Werkzeug in der Toolbar an-/abwählen). Das eigentliche Aufziehen
+  // passiert per Maus direkt auf der Wand (siehe wandElementMausDown/Move/Up im Effekt unten).
+  const armeZeichenModus = (klasse) => {
+    setZeichenModusMaterial(zeichenModusMaterial === klasse ? null : klasse)
+  }
+
+  const loescheBereich = () => {
+    if (!bereichAuswahl) return
+    entferneWandBereich(bereichAuswahl.id)
+    ausgewaehlterBereichRef.current = null
+    setBereichAuswahl(null)
   }
 
   useEffect(() => {
@@ -226,6 +295,34 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
       } else {
         baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur)
       }
+    })
+
+    // Wandmaterial-Bereiche (Teil 3): je Bereich ein eigenes, kleines PlaneGeometry-Mesh mit dem
+    // gewählten Material als Textur (wandTexturFuer-Cache von oben wiederverwendet), leicht nach
+    // innen (-normale) versetzt gegen Z-Fighting mit der Basiswand darunter. u/v-Konvention wie
+    // bei Fenstern/Türen: u = Meter ab Segmentanfang zur LINKEN Kante, v = Meter über dem Boden
+    // zur UNTEREN Kante (nicht Mittelpunkt).
+    const WAND_BEREICH_VERSATZ = 0.01
+    // Mindestgröße beim Aufziehen/Skalieren (10cm) — verhindert Flächen mit Breite/Höhe 0 und
+    // unterscheidet einen echten Zeichenvorgang von einem versehentlichen Klick ohne Ziehen.
+    const MIN_BEREICH_GROESSE = 0.1
+    const wandBereichGruppen = []
+    wandBereiche.forEach(bereich => {
+      const segment = wandMeshe[bereich.wandSegment]
+      if (!segment) return
+      const geo = new THREE.PlaneGeometry(bereich.breite, bereich.hoehe)
+      const mat = new THREE.MeshStandardMaterial({ map: wandTexturFuer(bereich.material), roughness: 0.9, metalness: 0.0 })
+      const mesh = new THREE.Mesh(geo, mat)
+      const t = (bereich.u + bereich.breite / 2) / (segment.laenge || 1)
+      mesh.position.set(
+        segment.x1 + segment.dx * t - segment.normale.x * WAND_BEREICH_VERSATZ,
+        bereich.v + bereich.hoehe / 2,
+        segment.z1 + segment.dz * t - segment.normale.z * WAND_BEREICH_VERSATZ,
+      )
+      mesh.rotation.copy(segment.mesh.rotation)
+      mesh.userData.wandBereichId = bereich.id
+      scene.add(mesh)
+      wandBereichGruppen.push({ mesh, bereich, segment })
     })
 
     // === KAMERA STEUERUNG ===
@@ -462,7 +559,11 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     const TUER_HOEHE_3D = 2.1
 
     const wandElementRaycastZiele = wandElementGruppen.map(w => w.gruppe)
+    const wandBereichRaycastZiele = wandBereichGruppen.map(w => w.mesh)
     let wandElementDrag = null // { eintrag, segment, elBreite, elHoehe, offsetU, offsetV, bewegt }
+    let wandBereichDrag = null // { eintrag, offsetU, offsetV, bewegt, aktuellU, aktuellV } — Verschieben (Klick auf die Fläche)
+    let wandBereichHandleDrag = null // { eintrag, anchorU, anchorV, bewegt, aktuellU, aktuellV, aktuellBreite, aktuellHoehe } — Ecke ziehen
+    let wandZeichnenDrag = null // { segment, startU, startV, material, mesh, aktuellU, aktuellV, aktuellBreite, aktuellHoehe } — neuen Bereich aufziehen
 
     const ebeneFuerSegment = (segmentIndex) => {
       const w = wandMeshe[segmentIndex]
@@ -610,67 +711,323 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
       }
     }
 
+    // Ersetzt die bisherigen CAD-Maßlinien für einen ausgewählten Bereich (Teil 3, überarbeitet):
+    // liefert die Bildschirmposition der vier Eckpunkte (für den gestrichelten Rahmen + die
+    // Anfasser in der JSX unten) sowie die aktuelle Breite/Höhe in cm fürs Live-Label.
+    const berechneBereichAuswahl = (eintrag) => {
+      const { bereich, segment } = eintrag
+      const weltpunkt = (u, y) => {
+        const t = u / (segment.laenge || 1)
+        return new THREE.Vector3(segment.x1 + segment.dx * t, y, segment.z1 + segment.dz * t)
+      }
+      const oben = bereich.v + bereich.hoehe
+      const rechts = bereich.u + bereich.breite
+      setBereichAuswahl({
+        id: bereich.id,
+        ecken: {
+          tl: projiziere(weltpunkt(bereich.u, oben)),
+          tr: projiziere(weltpunkt(rechts, oben)),
+          bl: projiziere(weltpunkt(bereich.u, bereich.v)),
+          br: projiziere(weltpunkt(rechts, bereich.v)),
+        },
+        breiteCm: Math.round(bereich.breite * 100),
+        hoeheCm: Math.round(bereich.hoehe * 100),
+      })
+    }
+
+    // Startet das Ziehen an einer Ecke (siehe JSX unten, Anfasser-Divs) — der diagonal
+    // gegenüberliegende Punkt bleibt fix, dieselbe Logik wie ein Auswahlrechteck in einem
+    // Zeichenprogramm. In wandBereichHandleStartRef hinterlegt (analog zu wandElementRechnerRef),
+    // damit die JSX-Anfasser außerhalb dieses Effekts darauf zugreifen.
+    const startBereichHandleDrag = (id, ecke) => {
+      const eintrag = wandBereichGruppen.find(w => w.bereich.id === id)
+      if (!eintrag) return
+      const { bereich } = eintrag
+      const anchorU = (ecke === 'tl' || ecke === 'bl') ? bereich.u + bereich.breite : bereich.u
+      const anchorV = (ecke === 'bl' || ecke === 'br') ? bereich.v + bereich.hoehe : bereich.v
+      wandBereichHandleDrag = { eintrag, anchorU, anchorV, bewegt: false }
+    }
+    wandBereichHandleStartRef.current = startBereichHandleDrag
+
+    // Bricht einen laufenden Zeichenvorgang ab, ohne einen Bereich anzulegen (Escape, siehe
+    // Effect am Komponentenkopf) — entfernt das Vorschau-Mesh und setzt wandZeichnenDrag zurück,
+    // damit ein nachfolgendes mouseup (Maustaste war ja noch gedrückt) nichts mehr committet.
+    const abbrichZeichnen = () => {
+      if (!wandZeichnenDrag) return
+      if (wandZeichnenDrag.mesh) {
+        wandZeichnenDrag.mesh.geometry.dispose()
+        wandZeichnenDrag.mesh.material.dispose()
+        scene.remove(wandZeichnenDrag.mesh)
+      }
+      wandZeichnenDrag = null
+      setZeichnenLiveGroesse(null)
+    }
+    wandZeichnenAbbrechenRef.current = abbrichZeichnen
+
+    // Reselect nach Neuaufbau — analog zum Fenster/Tür-Block oben, für einen ausgewählten Bereich.
+    if (ausgewaehlterBereichRef.current) {
+      const ausgewaehlterBereichEintrag = wandBereichGruppen.find(w => w.bereich.id === ausgewaehlterBereichRef.current)
+      if (ausgewaehlterBereichEintrag && ausgewaehlterBereichEintrag.bereich.wandSegment === fokusWandRef.current) {
+        berechneBereichAuswahl(ausgewaehlterBereichEintrag)
+      } else {
+        ausgewaehlterBereichRef.current = null
+      }
+    }
+
     const wandElementMausDown = (clientX, clientY) => {
       if (wandFokusAnimation) return
+      setBearbeiteSeite(null)
+
+      // Zeichen-Modus (Teil 3, überarbeitet): ein Material ist über die Palette armiert — der
+      // nächste Ziehvorgang zeichnet direkt ein neues Rechteck auf der fokussierten Wand, wie das
+      // Rechteck-Werkzeug in Paint. Kein Raycast auf bestehende Fenster/Türen/Bereiche nötig, da
+      // im Zeichen-Modus jeder Klick auf die Wand einen neuen Bereich beginnt.
+      if (zeichenModusMaterialRef.current) {
+        const segment = wandMeshe[fokusWandRef.current]
+        const ebene = ebeneFuerSegment(fokusWandRef.current)
+        if (!segment || !ebene) return
+        const schnitt = zeigerAufWeltpunkt(clientX, clientY, ebene)
+        if (!schnitt) return
+        const { u, v } = weltpunktZuUV(schnitt, segment)
+        wandZeichnenDrag = {
+          segment,
+          startU: Math.max(0, Math.min(segment.laenge, u)),
+          startV: Math.max(0, Math.min(wandHoehe, v)),
+          material: zeichenModusMaterialRef.current,
+          mesh: null,
+        }
+        ausgewaehlterBereichRef.current = null
+        setBereichAuswahl(null)
+        setAusgewaehltesElement(null); setLiveWerte(null); setMassLinien(null)
+        return
+      }
+
       const rect = mount.getBoundingClientRect()
       zeigerNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1
       zeigerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1
       raycaster.setFromCamera(zeigerNDC, camera)
+
       const treffer = raycaster.intersectObjects(wandElementRaycastZiele, true)
-      setBearbeiteSeite(null)
-      if (treffer.length === 0) { setAusgewaehltesElement(null); setLiveWerte(null); setMassLinien(null); return }
-      let obj = treffer[0].object
-      while (obj && !obj.userData?.wandElementId) obj = obj.parent
-      const eintrag = wandElementGruppen.find(w => w.item.id === obj?.userData?.wandElementId)
+      if (treffer.length > 0) {
+        let obj = treffer[0].object
+        while (obj && !obj.userData?.wandElementId) obj = obj.parent
+        const eintrag = wandElementGruppen.find(w => w.item.id === obj?.userData?.wandElementId)
+        if (!eintrag) return
+        const segment = wandMeshe[eintrag.item.wandSegment]
+        const ebene = ebeneFuerSegment(eintrag.item.wandSegment)
+        if (!segment || !ebene) return
+        const schnitt = zeigerAufWeltpunkt(clientX, clientY, ebene)
+        if (!schnitt) return
+        const { u, v } = weltpunktZuUV(schnitt, segment)
+        const elBreite = eintrag.item.width / 60
+        const elHoehe = eintrag.item.typ === 'fenster' ? FENSTER_HOEHE_3D : TUER_HOEHE_3D
+        const mitteUAktuell = ((eintrag.gruppe.position.x - segment.x1) * segment.dx + (eintrag.gruppe.position.z - segment.z1) * segment.dz) / (segment.laenge || 1)
+        wandElementDrag = {
+          eintrag, segment, elBreite, elHoehe,
+          offsetU: mitteUAktuell - u,
+          offsetV: eintrag.gruppe.position.y - v,
+          bewegt: false,
+        }
+        setAusgewaehltesElement(eintrag.item.id)
+        ausgewaehlterBereichRef.current = null
+        setBereichAuswahl(null)
+        berechneAnzeige(eintrag, segment, elBreite)
+        return
+      }
+
+      // Kein Fenster/Tür getroffen — als Zweites gegen die Wandmaterial-Bereiche testen (Teil 3).
+      const bereichTreffer = raycaster.intersectObjects(wandBereichRaycastZiele, false)
+      if (bereichTreffer.length === 0) {
+        setAusgewaehltesElement(null); setLiveWerte(null); setMassLinien(null)
+        ausgewaehlterBereichRef.current = null; setBereichAuswahl(null)
+        return
+      }
+      const treffermesh = bereichTreffer[0].object
+      const eintrag = wandBereichGruppen.find(w => w.mesh === treffermesh)
       if (!eintrag) return
-      const segment = wandMeshe[eintrag.item.wandSegment]
-      const ebene = ebeneFuerSegment(eintrag.item.wandSegment)
-      if (!segment || !ebene) return
+      const ebene = ebeneFuerSegment(eintrag.bereich.wandSegment)
+      if (!ebene) return
       const schnitt = zeigerAufWeltpunkt(clientX, clientY, ebene)
       if (!schnitt) return
-      const { u, v } = weltpunktZuUV(schnitt, segment)
-      const elBreite = eintrag.item.width / 60
-      const elHoehe = eintrag.item.typ === 'fenster' ? FENSTER_HOEHE_3D : TUER_HOEHE_3D
-      const mitteUAktuell = ((eintrag.gruppe.position.x - segment.x1) * segment.dx + (eintrag.gruppe.position.z - segment.z1) * segment.dz) / (segment.laenge || 1)
-      wandElementDrag = {
-        eintrag, segment, elBreite, elHoehe,
-        offsetU: mitteUAktuell - u,
-        offsetV: eintrag.gruppe.position.y - v,
-        bewegt: false,
-      }
-      setAusgewaehltesElement(eintrag.item.id)
-      berechneAnzeige(eintrag, segment, elBreite)
+      const { u, v } = weltpunktZuUV(schnitt, eintrag.segment)
+      wandBereichDrag = { eintrag, offsetU: eintrag.bereich.u - u, offsetV: eintrag.bereich.v - v, bewegt: false }
+      ausgewaehlterBereichRef.current = eintrag.bereich.id
+      setAusgewaehltesElement(null)
+      setLiveWerte(null)
+      setMassLinien(null)
+      berechneBereichAuswahl(eintrag)
     }
 
     const wandElementMausMove = (clientX, clientY) => {
-      if (!wandElementDrag) return
-      const { eintrag, segment, elBreite, elHoehe, offsetU, offsetV } = wandElementDrag
-      const ebene = ebeneFuerSegment(eintrag.item.wandSegment)
+      if (!wandElementDrag && !wandBereichDrag && !wandBereichHandleDrag && !wandZeichnenDrag) return
+
+      if (wandElementDrag) {
+        const { eintrag, segment, elBreite, elHoehe, offsetU, offsetV } = wandElementDrag
+        const ebene = ebeneFuerSegment(eintrag.item.wandSegment)
+        const schnitt = zeigerAufWeltpunkt(clientX, clientY, ebene)
+        if (!schnitt) return
+        const { u, v } = weltpunktZuUV(schnitt, segment)
+        const mitteU = Math.max(elBreite / 2, Math.min(segment.laenge - elBreite / 2, u + offsetU))
+        const px = segment.x1 + segment.dx * (mitteU / segment.laenge)
+        const pz = segment.z1 + segment.dz * (mitteU / segment.laenge)
+        let neueY = eintrag.gruppe.position.y
+        if (eintrag.item.typ === 'fenster') {
+          neueY = Math.max(0, Math.min(wandHoehe - elHoehe, v + offsetV))
+        }
+        eintrag.gruppe.position.set(px, neueY, pz)
+        wandElementDrag.bewegt = true
+        berechneAnzeige(eintrag, segment, elBreite)
+        return
+      }
+
+      if (wandBereichHandleDrag) {
+        // Ecke ziehen (Teil 3, neu): der diagonal gegenüberliegende Punkt (anchorU/V) bleibt fix,
+        // die gezogene Ecke bestimmt die neue Breite/Höhe — Geometrie wird dafür pro Mousemove neu
+        // erzeugt (ein einfaches Plane, unkritisch teuer) statt versucht per scale zu verzerren.
+        const { eintrag, anchorU, anchorV } = wandBereichHandleDrag
+        const { bereich, segment, mesh } = eintrag
+        const ebene = ebeneFuerSegment(bereich.wandSegment)
+        const schnitt = zeigerAufWeltpunkt(clientX, clientY, ebene)
+        if (!schnitt) return
+        const { u, v } = weltpunktZuUV(schnitt, segment)
+        const uKlamm = Math.max(0, Math.min(segment.laenge, u))
+        const vKlamm = Math.max(0, Math.min(wandHoehe, v))
+        const neuU = Math.min(anchorU, uKlamm)
+        const neuBreite = Math.max(MIN_BEREICH_GROESSE, Math.abs(uKlamm - anchorU))
+        const neuV = Math.min(anchorV, vKlamm)
+        const neuHoehe = Math.max(MIN_BEREICH_GROESSE, Math.abs(vKlamm - anchorV))
+        wandBereichHandleDrag.aktuellU = neuU
+        wandBereichHandleDrag.aktuellV = neuV
+        wandBereichHandleDrag.aktuellBreite = neuBreite
+        wandBereichHandleDrag.aktuellHoehe = neuHoehe
+        mesh.geometry.dispose()
+        mesh.geometry = new THREE.PlaneGeometry(neuBreite, neuHoehe)
+        const t = (neuU + neuBreite / 2) / (segment.laenge || 1)
+        mesh.position.set(
+          segment.x1 + segment.dx * t - segment.normale.x * WAND_BEREICH_VERSATZ,
+          neuV + neuHoehe / 2,
+          segment.z1 + segment.dz * t - segment.normale.z * WAND_BEREICH_VERSATZ,
+        )
+        wandBereichHandleDrag.bewegt = true
+        berechneBereichAuswahl({ ...eintrag, bereich: { ...bereich, u: neuU, v: neuV, breite: neuBreite, hoehe: neuHoehe } })
+        return
+      }
+
+      if (wandZeichnenDrag) {
+        // Neuen Bereich aufziehen (Teil 3, neu): startU/startV ist die feste Anfangsecke, die
+        // aktuelle Mausposition die gegenüberliegende — daraus ergibt sich ein Live-Vorschau-Mesh
+        // (halbtransparent, depthTest aus + hohe renderOrder, damit es immer sichtbar bleibt), erst
+        // beim Loslassen wird daraus ein echter Bereich committet (siehe wandElementMausUp).
+        const { segment, startU, startV } = wandZeichnenDrag
+        const ebene = ebeneFuerSegment(fokusWandRef.current)
+        const schnitt = zeigerAufWeltpunkt(clientX, clientY, ebene)
+        if (!schnitt) return
+        const { u, v } = weltpunktZuUV(schnitt, segment)
+        const uKlamm = Math.max(0, Math.min(segment.laenge, u))
+        const vKlamm = Math.max(0, Math.min(wandHoehe, v))
+        const u0 = Math.min(startU, uKlamm)
+        const breite = Math.abs(uKlamm - startU)
+        const v0 = Math.min(startV, vKlamm)
+        const hoehe = Math.abs(vKlamm - startV)
+        wandZeichnenDrag.aktuellU = u0
+        wandZeichnenDrag.aktuellV = v0
+        wandZeichnenDrag.aktuellBreite = breite
+        wandZeichnenDrag.aktuellHoehe = hoehe
+
+        if (breite > 0.01 && hoehe > 0.01) {
+          if (!wandZeichnenDrag.mesh) {
+            const geo = new THREE.PlaneGeometry(breite, hoehe)
+            const mat = new THREE.MeshBasicMaterial({ color: '#185FA5', transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthTest: false })
+            wandZeichnenDrag.mesh = new THREE.Mesh(geo, mat)
+            wandZeichnenDrag.mesh.renderOrder = 999
+            wandZeichnenDrag.mesh.rotation.copy(segment.mesh.rotation)
+            scene.add(wandZeichnenDrag.mesh)
+          } else {
+            wandZeichnenDrag.mesh.geometry.dispose()
+            wandZeichnenDrag.mesh.geometry = new THREE.PlaneGeometry(breite, hoehe)
+          }
+          const t = (u0 + breite / 2) / (segment.laenge || 1)
+          wandZeichnenDrag.mesh.position.set(
+            segment.x1 + segment.dx * t - segment.normale.x * (WAND_BEREICH_VERSATZ * 2),
+            v0 + hoehe / 2,
+            segment.z1 + segment.dz * t - segment.normale.z * (WAND_BEREICH_VERSATZ * 2),
+          )
+        }
+        setZeichnenLiveGroesse({ breiteCm: Math.round(breite * 100), hoeheCm: Math.round(hoehe * 100) })
+        return
+      }
+
+      // Bereich verschieben (Klick auf die Fläche, nicht auf eine Ecke): bewegt die linke/untere
+      // Ecke, nicht den Mittelpunkt — dieselbe offsetU/offsetV-Logik wie bei Fenstern/Türen oben,
+      // nur ohne deren Sonderfälle. bereich selbst wird NICHT mutiert (bliebe sonst während des
+      // Ziehens ein direkt mutiertes React-State-Objekt) — die aktuelle Position lebt nur in
+      // wandBereichDrag.aktuellU/V und im Mesh, committed wird erst beim Loslassen.
+      const { eintrag, offsetU, offsetV } = wandBereichDrag
+      const { bereich, segment, mesh } = eintrag
+      const ebene = ebeneFuerSegment(bereich.wandSegment)
       const schnitt = zeigerAufWeltpunkt(clientX, clientY, ebene)
       if (!schnitt) return
       const { u, v } = weltpunktZuUV(schnitt, segment)
-      const mitteU = Math.max(elBreite / 2, Math.min(segment.laenge - elBreite / 2, u + offsetU))
-      const px = segment.x1 + segment.dx * (mitteU / segment.laenge)
-      const pz = segment.z1 + segment.dz * (mitteU / segment.laenge)
-      let neueY = eintrag.gruppe.position.y
-      if (eintrag.item.typ === 'fenster') {
-        neueY = Math.max(0, Math.min(wandHoehe - elHoehe, v + offsetV))
-      }
-      eintrag.gruppe.position.set(px, neueY, pz)
-      wandElementDrag.bewegt = true
-      berechneAnzeige(eintrag, segment, elBreite)
+      const neuU = Math.max(0, Math.min(segment.laenge - bereich.breite, u + offsetU))
+      const neuV = Math.max(0, Math.min(wandHoehe - bereich.hoehe, v + offsetV))
+      wandBereichDrag.aktuellU = neuU
+      wandBereichDrag.aktuellV = neuV
+      const t = (neuU + bereich.breite / 2) / (segment.laenge || 1)
+      mesh.position.set(
+        segment.x1 + segment.dx * t - segment.normale.x * WAND_BEREICH_VERSATZ,
+        neuV + bereich.hoehe / 2,
+        segment.z1 + segment.dz * t - segment.normale.z * WAND_BEREICH_VERSATZ,
+      )
+      wandBereichDrag.bewegt = true
+      berechneBereichAuswahl({ ...eintrag, bereich: { ...bereich, u: neuU, v: neuV } })
     }
 
     const wandElementMausUp = () => {
-      if (!wandElementDrag) return
-      const { eintrag, segment, elBreite } = wandElementDrag
-      if (wandElementDrag.bewegt) {
-        const mitteU = ((eintrag.gruppe.position.x - segment.x1) * segment.dx + (eintrag.gruppe.position.z - segment.z1) * segment.dz) / (segment.laenge || 1)
-        const patch = { wandPosition: mitteU - elBreite / 2 }
-        if (eintrag.item.typ === 'fenster') patch.bruestungshoehe = eintrag.gruppe.position.y
-        onWandElementBewegt?.(eintrag.item.id, patch)
+      if (wandElementDrag) {
+        const { eintrag, segment, elBreite } = wandElementDrag
+        if (wandElementDrag.bewegt) {
+          const mitteU = ((eintrag.gruppe.position.x - segment.x1) * segment.dx + (eintrag.gruppe.position.z - segment.z1) * segment.dz) / (segment.laenge || 1)
+          const patch = { wandPosition: mitteU - elBreite / 2 }
+          if (eintrag.item.typ === 'fenster') patch.bruestungshoehe = eintrag.gruppe.position.y
+          onWandElementBewegt?.(eintrag.item.id, patch)
+        }
+        wandElementDrag = null
+        return
       }
-      wandElementDrag = null
+      if (wandBereichHandleDrag) {
+        const { eintrag } = wandBereichHandleDrag
+        if (wandBereichHandleDrag.bewegt) {
+          aktualisiereWandBereich(eintrag.bereich.id, {
+            u: wandBereichHandleDrag.aktuellU, v: wandBereichHandleDrag.aktuellV,
+            breite: wandBereichHandleDrag.aktuellBreite, hoehe: wandBereichHandleDrag.aktuellHoehe,
+          })
+        }
+        wandBereichHandleDrag = null
+        return
+      }
+      if (wandZeichnenDrag) {
+        const { material, mesh, aktuellU, aktuellV, aktuellBreite, aktuellHoehe } = wandZeichnenDrag
+        if (mesh) { mesh.geometry.dispose(); mesh.material.dispose(); scene.remove(mesh) }
+        setZeichnenLiveGroesse(null)
+        // Zeichen-Modus deaktiviert sich nach einem Versuch selbst (erfolgreich oder nicht) — wie
+        // bei den meisten Zeichenprogrammen bleibt das Werkzeug nicht dauerhaft "scharf".
+        setZeichenModusMaterial(null)
+        if ((aktuellBreite || 0) >= MIN_BEREICH_GROESSE && (aktuellHoehe || 0) >= MIN_BEREICH_GROESSE) {
+          const id = fuegeWandBereichHinzu?.({
+            wandSegment: fokusWandRef.current, material,
+            u: aktuellU, v: aktuellV, breite: aktuellBreite, hoehe: aktuellHoehe,
+          })
+          if (id) ausgewaehlterBereichRef.current = id
+        }
+        wandZeichnenDrag = null
+        return
+      }
+      if (wandBereichDrag) {
+        if (wandBereichDrag.bewegt) {
+          aktualisiereWandBereich(wandBereichDrag.eintrag.bereich.id, { u: wandBereichDrag.aktuellU, v: wandBereichDrag.aktuellV })
+        }
+        wandBereichDrag = null
+      }
     }
 
     const onMouseDown = (e) => {
@@ -802,6 +1159,10 @@ const onResize = () => {
     const eintrag = wandElementGruppen.find(w => w.item.id === ausgewaehltesElementRef.current)
     if (eintrag) berechneAnzeige(eintrag, wandMeshe[eintrag.item.wandSegment], eintrag.item.width / 60)
   }
+  if (ausgewaehlterBereichRef.current) {
+    const eintrag = wandBereichGruppen.find(w => w.bereich.id === ausgewaehlterBereichRef.current)
+    if (eintrag) berechneBereichAuswahl(eintrag)
+  }
 }
 const resizeObserver = new ResizeObserver(onResize)
 resizeObserver.observe(mount)
@@ -860,10 +1221,79 @@ return () => {
   mount.removeChild(renderer.domElement)
   renderer.dispose()
 }
-  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleBereit, onWandElementBewegt])
+  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleBereit, onWandElementBewegt, wandBereiche, aktualisiereWandBereich, fuegeWandBereichHinzu])
 
   return (
-    <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: fokusWand == null ? 'grab' : 'default', position: 'relative' }}>
+    <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: fokusWand == null ? 'grab' : (zeichenModusMaterial ? 'crosshair' : 'default'), position: 'relative' }}>
+      {fokusWand != null && (
+        // left: 220px statt der sonst üblichen 12/16px am linken Rand — dort sitzt bereits die
+        // WandMiniKarte (190px breit, 16px Rand), siehe die Notiz dazu, die vorher beim
+        // "+ Bereich"-Button stand. Palette ersetzt den Button: ein Material anklicken armiert das
+        // Zeichen-Werkzeug (aktiver Swatch hervorgehoben), erneut anklicken oder Escape deaktiviert
+        // es wieder. Das Rechteck selbst wird direkt mit der Maus auf der Wand aufgezogen (wie in
+        // Paint), siehe wandElementMausDown/Move/Up.
+        <div style={{
+          position: 'absolute', top: '16px', left: '220px', zIndex: 10,
+          display: 'flex', alignItems: 'center', gap: '4px', padding: '6px',
+          background: 'white', border: '1px solid #E8E6E0', borderRadius: '10px',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+        }}>
+          {wandMaterialien.map(material => (
+            <div key={material.klasse} onClick={() => armeZeichenModus(material.klasse)} title={material.name} style={{
+              width: '26px', height: '26px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '14px', cursor: 'pointer',
+              border: `${zeichenModusMaterial === material.klasse ? '2px' : '1px'} solid ${zeichenModusMaterial === material.klasse ? '#185FA5' : '#E8E6E0'}`,
+              background: zeichenModusMaterial === material.klasse ? '#EEF4FC' : '#FAFAF8',
+            }}>{material.icon}</div>
+          ))}
+        </div>
+      )}
+      {fokusWand != null && zeichnenLiveGroesse && (
+        <div style={{
+          position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', zIndex: 10,
+          padding: '6px 14px', borderRadius: '20px', background: 'white', border: '1px solid #185FA5',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)', fontSize: '12px', color: '#185FA5',
+          fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap',
+        }}>
+          {zeichnenLiveGroesse.breiteCm} × {zeichnenLiveGroesse.hoeheCm} cm
+        </div>
+      )}
+      {fokusWand != null && bereichAuswahl && (
+        <>
+          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 9, pointerEvents: 'none' }}>
+            <polygon
+              points={`${bereichAuswahl.ecken.tl.x},${bereichAuswahl.ecken.tl.y} ${bereichAuswahl.ecken.tr.x},${bereichAuswahl.ecken.tr.y} ${bereichAuswahl.ecken.br.x},${bereichAuswahl.ecken.br.y} ${bereichAuswahl.ecken.bl.x},${bereichAuswahl.ecken.bl.y}`}
+              fill="none" stroke="#185FA5" strokeWidth={1.5} strokeDasharray="4 4" />
+          </svg>
+          {['tl', 'tr', 'bl', 'br'].map(ecke => (
+            <div key={ecke}
+              onMouseDown={() => wandBereichHandleStartRef.current(bereichAuswahl.id, ecke)}
+              onTouchStart={() => wandBereichHandleStartRef.current(bereichAuswahl.id, ecke)}
+              style={{
+                position: 'absolute', left: bereichAuswahl.ecken[ecke].x, top: bereichAuswahl.ecken[ecke].y,
+                transform: 'translate(-50%, -50%)', zIndex: 10,
+                width: '14px', height: '14px', borderRadius: '3px', background: 'white',
+                border: '2px solid #185FA5', cursor: ecke === 'tl' || ecke === 'br' ? 'nwse-resize' : 'nesw-resize',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+              }} />
+          ))}
+          <div onClick={loescheBereich} title="Bereich löschen" style={{
+            position: 'absolute', left: bereichAuswahl.ecken.tr.x, top: bereichAuswahl.ecken.tr.y,
+            transform: 'translate(-50%, -150%)', zIndex: 10,
+            width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '12px', color: 'white', background: '#B4322E', cursor: 'pointer',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+          }}>✕</div>
+          <div style={{
+            position: 'absolute',
+            left: (bereichAuswahl.ecken.tl.x + bereichAuswahl.ecken.tr.x) / 2,
+            top: Math.min(bereichAuswahl.ecken.tl.y, bereichAuswahl.ecken.tr.y) - 14,
+            transform: 'translate(-50%, -100%)', zIndex: 10, pointerEvents: 'none',
+            padding: '3px 8px', borderRadius: '10px', background: 'white', border: '1px solid #185FA5',
+            fontSize: '11px', color: '#185FA5', fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap',
+          }}>{bereichAuswahl.breiteCm} × {bereichAuswahl.hoeheCm} cm</div>
+        </>
+      )}
       {fokusWand == null && (
         <div style={{ position: 'absolute', top: '12px', left: '12px', zIndex: 10, display: 'flex', border: '1px solid #E8E6E0', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
           {[
