@@ -49,73 +49,183 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
     // gruppe.position.y oben, nicht mehr aus einer hier berechneten Weltkoordinate.
     const yPos = elHoehe / 2
 
-    const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, metalness: 0.1, map: holzTextur })
-    const rahmen = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.1), rahmenMat)
-    rahmen.position.set(0, yPos, 0)
-    rahmen.castShadow = true
-    gruppe.add(rahmen)
+    if (item.stil === 'doppel') {
+      // Doppelfenster: zwei Fenstereinheiten nebeneinander mit gemeinsamem Mittelpfosten — jede
+      // Hälfte baugleich zum bestehenden Einzelfenster unten (Rahmen+Glas+Sprosse), nur schmaler
+      // und um ±versatz von der Gruppen-Mitte verschoben.
+      const MITTELPFOSTEN_BREITE = 0.08
+      const halbBreite = (elBreite - MITTELPFOSTEN_BREITE) / 2
+      const versatz = (halbBreite + MITTELPFOSTEN_BREITE) / 2
+      ;[-versatz, versatz].forEach(x => {
+        const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, metalness: 0.1, map: holzTextur })
+        const rahmen = new THREE.Mesh(new THREE.BoxGeometry(halbBreite, elHoehe, 0.1), rahmenMat)
+        rahmen.position.set(x, yPos, 0)
+        rahmen.castShadow = true
+        gruppe.add(rahmen)
 
-    const glasMat = new THREE.MeshStandardMaterial({
-      color: '#A8D8F0', transparent: true, opacity: 0.35,
-      roughness: 0.0, metalness: 0.1,
-    })
-    const glas = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.08, elHoehe - 0.08, 0.02), glasMat)
-    glas.position.set(0, yPos, 0)
-    gruppe.add(glas)
+        const glasMat = new THREE.MeshStandardMaterial({
+          color: '#A8D8F0', transparent: true, opacity: 0.35,
+          roughness: 0.0, metalness: 0.1,
+        })
+        const glas = new THREE.Mesh(new THREE.BoxGeometry(halbBreite - 0.08, elHoehe - 0.08, 0.02), glasMat)
+        glas.position.set(x, yPos, 0)
+        gruppe.add(glas)
 
-    const strebeMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
-    const strebeH = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.06, 0.04, 0.06), strebeMat)
-    strebeH.position.set(0, yPos, 0.02)
-    gruppe.add(strebeH)
+        const strebeMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
+        const strebeH = new THREE.Mesh(new THREE.BoxGeometry(halbBreite - 0.06, 0.04, 0.06), strebeMat)
+        strebeH.position.set(x, yPos, 0.02)
+        gruppe.add(strebeH)
+      })
 
-    const strebeV = new THREE.Mesh(new THREE.BoxGeometry(0.04, elHoehe - 0.06, 0.06), strebeMat)
-    strebeV.position.set(0, yPos, 0.02)
-    gruppe.add(strebeV)
+      const pfostenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
+      const pfosten = new THREE.Mesh(new THREE.BoxGeometry(MITTELPFOSTEN_BREITE, elHoehe, 0.1), pfostenMat)
+      pfosten.position.set(0, yPos, 0)
+      gruppe.add(pfosten)
 
-    const bankMat = new THREE.MeshStandardMaterial({ color: '#E8E4DC', roughness: 0.4 })
-    const bank = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.1, 0.05, 0.15), bankMat)
-    bank.position.set(0, yPos - elHoehe/2 - 0.025, 0.08)
-    gruppe.add(bank)
+      const bankMat = new THREE.MeshStandardMaterial({ color: '#E8E4DC', roughness: 0.4 })
+      const bank = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.1, 0.05, 0.15), bankMat)
+      bank.position.set(0, yPos - elHoehe/2 - 0.025, 0.08)
+      gruppe.add(bank)
+    } else {
+      const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, metalness: 0.1, map: holzTextur })
+      const rahmen = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.1), rahmenMat)
+      rahmen.position.set(0, yPos, 0)
+      rahmen.castShadow = true
+      gruppe.add(rahmen)
+
+      const glasMat = new THREE.MeshStandardMaterial({
+        color: '#A8D8F0', transparent: true, opacity: 0.35,
+        roughness: 0.0, metalness: 0.1,
+      })
+      const glas = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.08, elHoehe - 0.08, 0.02), glasMat)
+      glas.position.set(0, yPos, 0)
+      gruppe.add(glas)
+
+      const strebeMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
+      const strebeH = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.06, 0.04, 0.06), strebeMat)
+      strebeH.position.set(0, yPos, 0.02)
+      gruppe.add(strebeH)
+
+      const strebeV = new THREE.Mesh(new THREE.BoxGeometry(0.04, elHoehe - 0.06, 0.06), strebeMat)
+      strebeV.position.set(0, yPos, 0.02)
+      gruppe.add(strebeV)
+
+      const bankMat = new THREE.MeshStandardMaterial({ color: '#E8E4DC', roughness: 0.4 })
+      const bank = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.1, 0.05, 0.15), bankMat)
+      bank.position.set(0, yPos - elHoehe/2 - 0.025, 0.08)
+      gruppe.add(bank)
+    }
 
   } else {
     const elHoehe = TUER_HOEHE
-    const tuerMat = new THREE.MeshStandardMaterial({ color: '#C8A97A', roughness: 0.7, metalness: 0.0, map: holzTextur })
 
-    const tuer = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.06), tuerMat)
-    tuer.position.set(0, elHoehe / 2, 0.03)
-    tuer.castShadow = true
-    gruppe.add(tuer)
+    if (item.stil === 'balkon-einzel') {
+      // Balkontür Einzelflügel: wie eine normale Tür aufgebaut (Rahmen, Griff), aber mit einer
+      // durchgehenden Glasscheibe statt der zwei Holzfüllungen.
+      const tuerMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.5, metalness: 0.1, map: holzTextur })
+      const tuer = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.06), tuerMat)
+      tuer.position.set(0, elHoehe / 2, 0.03)
+      tuer.castShadow = true
+      gruppe.add(tuer)
 
-    const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
-    const rahmenL = new THREE.Mesh(new THREE.BoxGeometry(0.08, elHoehe + 0.1, 0.15), rahmenMat)
-    rahmenL.position.set(-elBreite/2 - 0.04, elHoehe/2, 0)
-    gruppe.add(rahmenL)
+      const glasMat = new THREE.MeshStandardMaterial({ color: '#A8D8F0', transparent: true, opacity: 0.35, roughness: 0.0, metalness: 0.1 })
+      const glas = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.12, elHoehe - 0.12, 0.02), glasMat)
+      glas.position.set(0, elHoehe / 2, 0.06)
+      gruppe.add(glas)
 
-    const rahmenR = rahmenL.clone()
-    rahmenR.position.x = elBreite/2 + 0.04
-    gruppe.add(rahmenR)
+      const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
+      const rahmenL = new THREE.Mesh(new THREE.BoxGeometry(0.08, elHoehe + 0.1, 0.15), rahmenMat)
+      rahmenL.position.set(-elBreite/2 - 0.04, elHoehe/2, 0)
+      gruppe.add(rahmenL)
+      const rahmenR = rahmenL.clone()
+      rahmenR.position.x = elBreite/2 + 0.04
+      gruppe.add(rahmenR)
+      const rahmenO = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.16, 0.08, 0.15), rahmenMat)
+      rahmenO.position.set(0, elHoehe + 0.04, 0)
+      gruppe.add(rahmenO)
 
-    const rahmenO = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.16, 0.08, 0.15), rahmenMat)
-    rahmenO.position.set(0, elHoehe + 0.04, 0)
-    gruppe.add(rahmenO)
+      const griffMat = new THREE.MeshStandardMaterial({ color: '#888780', metalness: 0.8, roughness: 0.2 })
+      const griff = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.2, 0.03), griffMat)
+      griff.position.set(elBreite/2 - 0.1, elHoehe * 0.5, 0.09)
+      gruppe.add(griff)
+    } else if (item.stil === 'balkon-doppel') {
+      // Balkontür Doppelflügel: zwei Einzelflügel-Türen nebeneinander (je Hälfte baugleich zum
+      // Einzelflügel oben), Griffe zur Mitte hin gespiegelt — wie bei echten zweiflügligen Türen.
+      const MITTELPFOSTEN_BREITE = 0.08
+      const halbBreite = (elBreite - MITTELPFOSTEN_BREITE) / 2
+      const versatz = (halbBreite + MITTELPFOSTEN_BREITE) / 2
+      ;[-versatz, versatz].forEach(x => {
+        const tuerMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.5, metalness: 0.1, map: holzTextur })
+        const tuer = new THREE.Mesh(new THREE.BoxGeometry(halbBreite, elHoehe, 0.06), tuerMat)
+        tuer.position.set(x, elHoehe / 2, 0.03)
+        tuer.castShadow = true
+        gruppe.add(tuer)
 
-    const fuellungMat = new THREE.MeshStandardMaterial({ color: '#B8956A', roughness: 0.8, map: holzTextur })
-    const fuellung1 = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.2, elHoehe * 0.4, 0.02), fuellungMat)
-    fuellung1.position.set(0, elHoehe * 0.65, 0.06)
-    gruppe.add(fuellung1)
-    const fuellung2 = fuellung1.clone()
-    fuellung2.position.y = elHoehe * 0.25
-    gruppe.add(fuellung2)
+        const glasMat = new THREE.MeshStandardMaterial({ color: '#A8D8F0', transparent: true, opacity: 0.35, roughness: 0.0, metalness: 0.1 })
+        const glas = new THREE.Mesh(new THREE.BoxGeometry(halbBreite - 0.1, elHoehe - 0.12, 0.02), glasMat)
+        glas.position.set(x, elHoehe / 2, 0.06)
+        gruppe.add(glas)
 
-    const knaufMat = new THREE.MeshStandardMaterial({ color: '#C8A050', roughness: 0.1, metalness: 0.9 })
-    const knauf = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), knaufMat)
-    knauf.position.set(elBreite/2 - 0.12, elHoehe * 0.5, 0.08)
-    gruppe.add(knauf)
+        const griffMat = new THREE.MeshStandardMaterial({ color: '#888780', metalness: 0.8, roughness: 0.2 })
+        const griff = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.2, 0.03), griffMat)
+        griff.position.set(x > 0 ? x - halbBreite/2 + 0.06 : x + halbBreite/2 - 0.06, elHoehe * 0.5, 0.09)
+        gruppe.add(griff)
+      })
 
-    const schluesselMat = new THREE.MeshStandardMaterial({ color: '#888780', metalness: 0.8, roughness: 0.2 })
-    const schluessel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.02, 8), schluesselMat)
-    schluessel.position.set(elBreite/2 - 0.12, elHoehe * 0.5 - 0.08, 0.09)
-    gruppe.add(schluessel)
+      const pfostenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
+      const pfosten = new THREE.Mesh(new THREE.BoxGeometry(MITTELPFOSTEN_BREITE, elHoehe, 0.1), pfostenMat)
+      pfosten.position.set(0, elHoehe/2, 0)
+      gruppe.add(pfosten)
+
+      const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
+      const rahmenL = new THREE.Mesh(new THREE.BoxGeometry(0.08, elHoehe + 0.1, 0.15), rahmenMat)
+      rahmenL.position.set(-elBreite/2 - 0.04, elHoehe/2, 0)
+      gruppe.add(rahmenL)
+      const rahmenR = rahmenL.clone()
+      rahmenR.position.x = elBreite/2 + 0.04
+      gruppe.add(rahmenR)
+      const rahmenO = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.16, 0.08, 0.15), rahmenMat)
+      rahmenO.position.set(0, elHoehe + 0.04, 0)
+      gruppe.add(rahmenO)
+    } else {
+      const tuerMat = new THREE.MeshStandardMaterial({ color: '#C8A97A', roughness: 0.7, metalness: 0.0, map: holzTextur })
+
+      const tuer = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.06), tuerMat)
+      tuer.position.set(0, elHoehe / 2, 0.03)
+      tuer.castShadow = true
+      gruppe.add(tuer)
+
+      const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
+      const rahmenL = new THREE.Mesh(new THREE.BoxGeometry(0.08, elHoehe + 0.1, 0.15), rahmenMat)
+      rahmenL.position.set(-elBreite/2 - 0.04, elHoehe/2, 0)
+      gruppe.add(rahmenL)
+
+      const rahmenR = rahmenL.clone()
+      rahmenR.position.x = elBreite/2 + 0.04
+      gruppe.add(rahmenR)
+
+      const rahmenO = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.16, 0.08, 0.15), rahmenMat)
+      rahmenO.position.set(0, elHoehe + 0.04, 0)
+      gruppe.add(rahmenO)
+
+      const fuellungMat = new THREE.MeshStandardMaterial({ color: '#B8956A', roughness: 0.8, map: holzTextur })
+      const fuellung1 = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.2, elHoehe * 0.4, 0.02), fuellungMat)
+      fuellung1.position.set(0, elHoehe * 0.65, 0.06)
+      gruppe.add(fuellung1)
+      const fuellung2 = fuellung1.clone()
+      fuellung2.position.y = elHoehe * 0.25
+      gruppe.add(fuellung2)
+
+      const knaufMat = new THREE.MeshStandardMaterial({ color: '#C8A050', roughness: 0.1, metalness: 0.9 })
+      const knauf = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), knaufMat)
+      knauf.position.set(elBreite/2 - 0.12, elHoehe * 0.5, 0.08)
+      gruppe.add(knauf)
+
+      const schluesselMat = new THREE.MeshStandardMaterial({ color: '#888780', metalness: 0.8, roughness: 0.2 })
+      const schluessel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.02, 8), schluesselMat)
+      schluessel.position.set(elBreite/2 - 0.12, elHoehe * 0.5 - 0.08, 0.09)
+      gruppe.add(schluessel)
+    }
   }
 
   // Jedes Kind-Mesh bekommt die furniture-Item-ID — Grundlage fürs Anklicken/Ziehen im

@@ -102,7 +102,12 @@ export const wandElemente = [
   { name: 'Schiebetür',    typ: 'tuer',    width: 50, height: 10, color: '#FFF8E6', border: '#BA7517' },
   { name: 'Fenster klein', typ: 'fenster', width: 40, height: 10, color: '#E6F4FB', border: '#185FA5' },
   { name: 'Fenster groß',  typ: 'fenster', width: 70, height: 10, color: '#E6F4FB', border: '#185FA5' },
-  { name: 'Balkontür',     typ: 'tuer',    width: 44, height: 12, color: '#FFF8E6', border: '#BA7517' },
+  // Phase 4, Teil 1a: stil unterscheidet die 3D-Optik innerhalb desselben typ (siehe
+  // baueWandElement in scene/wandelemente.js) — bestehende Einträge ohne stil sind davon
+  // unberührt und laufen weiterhin durch den unveränderten Standard-Zweig.
+  { name: 'Doppelfenster',            typ: 'fenster', stil: 'doppel',        width: 120, height: 10, color: '#E6F4FB', border: '#185FA5' },
+  { name: 'Balkontür (Einzelflügel)', typ: 'tuer',    stil: 'balkon-einzel', width: 50,  height: 12, color: '#EAF6FB', border: '#0E7C9E' },
+  { name: 'Balkontür (Doppelflügel)', typ: 'tuer',    stil: 'balkon-doppel', width: 90,  height: 12, color: '#EAF6FB', border: '#0E7C9E' },
 ]
 export const alleKatalogItems = [...furnitureLibrary, ...wandElemente.map(w => ({ ...w, kategorie: 'Fenster & Türen' }))]
 
