@@ -108,6 +108,12 @@ export const wandElemente = [
   { name: 'Doppelfenster',            typ: 'fenster', stil: 'doppel',        width: 120, height: 10, color: '#E6F4FB', border: '#185FA5' },
   { name: 'Balkontür (Einzelflügel)', typ: 'tuer',    stil: 'balkon-einzel', width: 50,  height: 12, color: '#EAF6FB', border: '#0E7C9E' },
   { name: 'Balkontür (Doppelflügel)', typ: 'tuer',    stil: 'balkon-doppel', width: 90,  height: 12, color: '#EAF6FB', border: '#0E7C9E' },
+  // Phase 4, Teil 1b — hoeheReal (Meter) überschreibt optional die feste TUER_HOEHE aus
+  // wandelemente.js/RoomView3D.jsx (siehe dort); Einträge ohne hoeheReal sind unberührt.
+  { name: 'Hauseingangstür (Alu/Anthrazit)', typ: 'tuer', stil: 'haustuer',    width: 60, height: 12, color: '#E8E8E6', border: '#4A4A48', hoeheReal: 2.0 },
+  { name: 'Kassettentür',                    typ: 'tuer', stil: 'kassette',    width: 42, height: 12, color: '#FFF3DC', border: '#8B5E2B' },
+  { name: 'Glastür (Zimmertür)',              typ: 'tuer', stil: 'glas-zimmer', width: 42, height: 12, color: '#EFF7FA', border: '#4A90A4' },
+  { name: 'Landhaustür',                      typ: 'tuer', stil: 'landhaus',   width: 44, height: 12, color: '#FFFDF7', border: '#C8A97A' },
 ]
 export const alleKatalogItems = [...furnitureLibrary, ...wandElemente.map(w => ({ ...w, kategorie: 'Fenster & Türen' }))]
 

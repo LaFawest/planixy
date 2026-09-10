@@ -554,7 +554,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     // (teuren) Szenen-Aufbau-Effekt bei jeder Mausbewegung erneut auslösen (siehe Dependency-Array
     // ganz unten). Committed wird erst einmalig beim Loslassen über onWandElementBewegt.
     // FENSTER_HOEHE_3D/TUER_HOEHE_3D müssen mit FENSTER_HOEHE/TUER_HOEHE aus wandelemente.js
-    // übereinstimmen (dort nicht exportiert, deshalb hier separat dupliziert).
+    // übereinstimmen (dort nicht exportiert, deshalb hier separat dupliziert). Türen mit eigener
+    // Höhe (item.hoeheReal, z.B. Hauseingangstür) überschreiben TUER_HOEHE_3D an allen drei
+    // Verwendungsstellen unten.
     const FENSTER_HOEHE_3D = 1.2
     const TUER_HOEHE_3D = 2.1
 
@@ -624,7 +626,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     const berechneAnzeige = (eintrag, segment, elBreite) => {
       const mitteU = ((eintrag.gruppe.position.x - segment.x1) * segment.dx + (eintrag.gruppe.position.z - segment.z1) * segment.dz) / (segment.laenge || 1)
       const uStart = mitteU - elBreite / 2
-      const elHoehe = eintrag.item.typ === 'fenster' ? FENSTER_HOEHE_3D : TUER_HOEHE_3D
+      const elHoehe = eintrag.item.hoeheReal ?? (eintrag.item.typ === 'fenster' ? FENSTER_HOEHE_3D : TUER_HOEHE_3D)
       const elBoden = eintrag.item.typ === 'fenster' ? eintrag.gruppe.position.y : 0
 
       setLiveWerte({
@@ -681,7 +683,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
       const segment = wandMeshe[eintrag.item.wandSegment]
       if (!segment) return
       const elBreite = eintrag.item.width / 60
-      const elHoehe = eintrag.item.typ === 'fenster' ? FENSTER_HOEHE_3D : TUER_HOEHE_3D
+      const elHoehe = eintrag.item.hoeheReal ?? (eintrag.item.typ === 'fenster' ? FENSTER_HOEHE_3D : TUER_HOEHE_3D)
       const wertM = Math.max(0, wertCm) / 100
 
       if (seite === 'unten') {
@@ -820,7 +822,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
         if (!schnitt) return
         const { u, v } = weltpunktZuUV(schnitt, segment)
         const elBreite = eintrag.item.width / 60
-        const elHoehe = eintrag.item.typ === 'fenster' ? FENSTER_HOEHE_3D : TUER_HOEHE_3D
+        const elHoehe = eintrag.item.hoeheReal ?? (eintrag.item.typ === 'fenster' ? FENSTER_HOEHE_3D : TUER_HOEHE_3D)
         const mitteUAktuell = ((eintrag.gruppe.position.x - segment.x1) * segment.dx + (eintrag.gruppe.position.z - segment.z1) * segment.dz) / (segment.laenge || 1)
         wandElementDrag = {
           eintrag, segment, elBreite, elHoehe,

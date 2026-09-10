@@ -117,7 +117,7 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
     }
 
   } else {
-    const elHoehe = TUER_HOEHE
+    const elHoehe = item.hoeheReal ?? TUER_HOEHE
 
     if (item.stil === 'balkon-einzel') {
       // Balkontür Einzelflügel: wie eine normale Tür aufgebaut (Rahmen, Griff), aber mit einer
@@ -187,6 +187,139 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
       const rahmenO = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.16, 0.08, 0.15), rahmenMat)
       rahmenO.position.set(0, elHoehe + 0.04, 0)
       gruppe.add(rahmenO)
+    } else if (item.stil === 'haustuer') {
+      // Hauseingangstür Alu/Anthrazit: dunkle Anthrazit-Türfüllung in einem hellen Alu-Rahmen,
+      // schmaler vertikaler Glasstreifen nahe der Schlossseite (typisch für moderne Haustüren) und
+      // ein durchgehender Stoßgriff (Zylinder) statt Knauf.
+      const tuerMat = new THREE.MeshStandardMaterial({ color: '#3B3B39', roughness: 0.4, metalness: 0.3 })
+      const tuer = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.07), tuerMat)
+      tuer.position.set(0, elHoehe / 2, 0.035)
+      tuer.castShadow = true
+      gruppe.add(tuer)
+
+      const glasStreifenMat = new THREE.MeshStandardMaterial({ color: '#A8D8F0', transparent: true, opacity: 0.4, roughness: 0.0, metalness: 0.1 })
+      const glasStreifen = new THREE.Mesh(new THREE.BoxGeometry(elBreite * 0.12, elHoehe - 0.3, 0.02), glasStreifenMat)
+      glasStreifen.position.set(elBreite / 2 - elBreite * 0.18, elHoehe / 2, 0.075)
+      gruppe.add(glasStreifen)
+
+      const rahmenMat = new THREE.MeshStandardMaterial({ color: '#B8B8B4', roughness: 0.3, metalness: 0.7 })
+      const rahmenL = new THREE.Mesh(new THREE.BoxGeometry(0.09, elHoehe + 0.1, 0.16), rahmenMat)
+      rahmenL.position.set(-elBreite/2 - 0.045, elHoehe/2, 0)
+      gruppe.add(rahmenL)
+      const rahmenR = rahmenL.clone()
+      rahmenR.position.x = elBreite/2 + 0.045
+      gruppe.add(rahmenR)
+      const rahmenO = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.18, 0.09, 0.16), rahmenMat)
+      rahmenO.position.set(0, elHoehe + 0.045, 0)
+      gruppe.add(rahmenO)
+
+      const griffMat = new THREE.MeshStandardMaterial({ color: '#5A5A57', metalness: 0.85, roughness: 0.2 })
+      const griff = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, elHoehe * 0.45, 8), griffMat)
+      griff.position.set(elBreite/2 - 0.2, elHoehe * 0.5, 0.1)
+      gruppe.add(griff)
+    } else if (item.stil === 'kassette') {
+      // Kassettentür: wie die Standard-Tür aufgebaut (Rahmen, Knauf), aber mit drei gerahmten
+      // Kassetten-Feldern statt zwei einfachen Füllungen — jedes Feld bekommt einen schmalen Steg
+      // als Rahmen plus eine leicht abgesetzte Füllung, für den klassischen Kassettentür-Look.
+      const tuerMat = new THREE.MeshStandardMaterial({ color: '#E8C9A0', roughness: 0.6, map: holzTextur })
+      const tuer = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.06), tuerMat)
+      tuer.position.set(0, elHoehe / 2, 0.03)
+      tuer.castShadow = true
+      gruppe.add(tuer)
+
+      const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
+      const rahmenL = new THREE.Mesh(new THREE.BoxGeometry(0.08, elHoehe + 0.1, 0.15), rahmenMat)
+      rahmenL.position.set(-elBreite/2 - 0.04, elHoehe/2, 0)
+      gruppe.add(rahmenL)
+      const rahmenR = rahmenL.clone()
+      rahmenR.position.x = elBreite/2 + 0.04
+      gruppe.add(rahmenR)
+      const rahmenO = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.16, 0.08, 0.15), rahmenMat)
+      rahmenO.position.set(0, elHoehe + 0.04, 0)
+      gruppe.add(rahmenO)
+
+      const stegMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
+      const fuellungMat = new THREE.MeshStandardMaterial({ color: '#D9B181', roughness: 0.8, map: holzTextur })
+      ;[elHoehe * 0.82, elHoehe * 0.5, elHoehe * 0.18].forEach(y => {
+        const steg = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.14, elHoehe * 0.22, 0.03), stegMat)
+        steg.position.set(0, y, 0.06)
+        gruppe.add(steg)
+        const fuellung = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.24, elHoehe * 0.16, 0.02), fuellungMat)
+        fuellung.position.set(0, y, 0.07)
+        gruppe.add(fuellung)
+      })
+
+      const knaufMat = new THREE.MeshStandardMaterial({ color: '#C8A050', roughness: 0.1, metalness: 0.9 })
+      const knauf = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), knaufMat)
+      knauf.position.set(elBreite/2 - 0.12, elHoehe * 0.5, 0.08)
+      gruppe.add(knauf)
+    } else if (item.stil === 'glas-zimmer') {
+      // Glastür (Zimmertür): wie Balkontür-Einzelflügel aufgebaut, aber mit hellem/weißem Rahmen
+      // statt Holzoptik, mattierter (weniger transparenter) Glasfüllung und einem modernen
+      // Flachgriff statt des Balkontür-Griffs — für den Innenraum, nicht für den Wetterschutz.
+      const tuerMat = new THREE.MeshStandardMaterial({ color: '#FAFAF8', roughness: 0.4, metalness: 0.0 })
+      const tuer = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.05), tuerMat)
+      tuer.position.set(0, elHoehe / 2, 0.025)
+      tuer.castShadow = true
+      gruppe.add(tuer)
+
+      const glasMat = new THREE.MeshStandardMaterial({ color: '#DCE8F0', transparent: true, opacity: 0.55, roughness: 0.15, metalness: 0.0 })
+      const glas = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.1, elHoehe - 0.1, 0.02), glasMat)
+      glas.position.set(0, elHoehe / 2, 0.05)
+      gruppe.add(glas)
+
+      const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.5 })
+      const rahmenL = new THREE.Mesh(new THREE.BoxGeometry(0.06, elHoehe + 0.1, 0.13), rahmenMat)
+      rahmenL.position.set(-elBreite/2 - 0.03, elHoehe/2, 0)
+      gruppe.add(rahmenL)
+      const rahmenR = rahmenL.clone()
+      rahmenR.position.x = elBreite/2 + 0.03
+      gruppe.add(rahmenR)
+      const rahmenO = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.12, 0.06, 0.13), rahmenMat)
+      rahmenO.position.set(0, elHoehe + 0.03, 0)
+      gruppe.add(rahmenO)
+
+      const griffMat = new THREE.MeshStandardMaterial({ color: '#888780', metalness: 0.7, roughness: 0.3 })
+      const griff = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.025, 0.025), griffMat)
+      griff.position.set(elBreite/2 - 0.15, elHoehe * 0.5, 0.08)
+      gruppe.add(griff)
+    } else if (item.stil === 'landhaus') {
+      // Landhaustür: weiß lackierte Tür mit Sprossen-Gitter (2 senkrechte + 3 waagerechte Stege
+      // ergeben ein 6-Felder-Kassettierung), schmiedeeisen-artiger Knauf für den Landhausstil.
+      const tuerMat = new THREE.MeshStandardMaterial({ color: '#FFFDF7', roughness: 0.55 })
+      const tuer = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.06), tuerMat)
+      tuer.position.set(0, elHoehe / 2, 0.03)
+      tuer.castShadow = true
+      gruppe.add(tuer)
+
+      const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6 })
+      const rahmenL = new THREE.Mesh(new THREE.BoxGeometry(0.08, elHoehe + 0.1, 0.15), rahmenMat)
+      rahmenL.position.set(-elBreite/2 - 0.04, elHoehe/2, 0)
+      gruppe.add(rahmenL)
+      const rahmenR = rahmenL.clone()
+      rahmenR.position.x = elBreite/2 + 0.04
+      gruppe.add(rahmenR)
+      const rahmenO = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.16, 0.08, 0.15), rahmenMat)
+      rahmenO.position.set(0, elHoehe + 0.04, 0)
+      gruppe.add(rahmenO)
+
+      const stegMat = new THREE.MeshStandardMaterial({ color: '#EDE7DC', roughness: 0.6 })
+      const stegV1 = new THREE.Mesh(new THREE.BoxGeometry(0.03, elHoehe - 0.1, 0.02), stegMat)
+      stegV1.position.set(-elBreite/6, elHoehe/2, 0.06)
+      gruppe.add(stegV1)
+      const stegV2 = stegV1.clone()
+      stegV2.position.x = elBreite/6
+      gruppe.add(stegV2)
+      ;[0.2, 0.5, 0.8].forEach(f => {
+        const stegH = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.1, 0.03, 0.02), stegMat)
+        stegH.position.set(0, elHoehe * f, 0.06)
+        gruppe.add(stegH)
+      })
+
+      const griffMat = new THREE.MeshStandardMaterial({ color: '#2C2C2A', roughness: 0.4, metalness: 0.6 })
+      const griff = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 12), griffMat)
+      griff.position.set(elBreite/2 - 0.12, elHoehe * 0.5, 0.08)
+      gruppe.add(griff)
     } else {
       const tuerMat = new THREE.MeshStandardMaterial({ color: '#C8A97A', roughness: 0.7, metalness: 0.0, map: holzTextur })
 
