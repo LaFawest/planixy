@@ -3,8 +3,6 @@ import { himmelsrichtungAusNormale } from '../raumPolygon'
 import { useRooms } from '../context/RoomsContext'
 import { useDesign } from '../context/DesignContext'
 import { useRaumGeometrie } from '../context/useRaumGeometrie'
-import { useFurniture } from '../context/FurnitureContext'
-import ImRaumListe from './ImRaumListe'
 
 export default function FensterTuerenSchritt() {
   const { activeRoom } = useRooms()
@@ -14,8 +12,6 @@ export default function FensterTuerenSchritt() {
     aktiveWand, setAktiveWand, aktuelleWandfarbe, setWandfarbeFuer,
     aktuellesWandmaterial, setWandmaterialFuer,
   } = useDesign()
-  const { furniture, removeFurniture } = useFurniture()
-  const wandElemente = furniture.filter(f => f.istWandElement)
 
   // Chips nummeriert je Wandsegment, Himmelsrichtung als Zusatz aus der Segmentnormale
   // abgeleitet (himmelsrichtungAusNormale) — funktioniert für jede Raumform, nicht nur für
@@ -113,15 +109,6 @@ export default function FensterTuerenSchritt() {
           ))}
         </div>
       </div>
-
-      <div style={{ height: '1px', background: '#E8E6E0' }}></div>
-
-      <ImRaumListe
-        titel="FENSTER & TÜREN"
-        items={wandElemente}
-        removeFurniture={removeFurniture}
-        leerText="Noch keine Fenster oder Türen — links im Katalog auswählen"
-      />
     </>
   )
 }

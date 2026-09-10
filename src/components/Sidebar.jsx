@@ -1,11 +1,17 @@
 import KatalogPanel from './KatalogPanel'
 import LegalLinks from './LegalLinks'
+import ImRaumListe from './ImRaumListe'
 import { useUI } from '../context/UIContext'
 import { useRooms } from '../context/RoomsContext'
+import { useWizard } from '../context/WizardContext'
+import { useFurniture } from '../context/FurnitureContext'
 
 export default function Sidebar() {
   const { raumPanelOffen } = useUI()
   const { rooms, activeRoomId, waehleRaum, deleteRoom, addRoom } = useRooms()
+  const { schritt } = useWizard()
+  const { furniture, removeFurniture } = useFurniture()
+  const wandElemente = furniture.filter(f => f.istWandElement)
   return (
     <div className="sidebar" style={{ width: '260px', background: 'white', borderRight: '1px solid #E8E6E0', padding: '24px 16px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', boxShadow: '2px 0 8px rgba(0,0,0,0.04)' }}>
       <div style={{ padding: '0 8px', marginBottom: '28px' }}>
@@ -44,6 +50,18 @@ export default function Sidebar() {
       <div style={{ height: '1px', background: '#E8E6E0', margin: '18px 0' }}></div>
 
       <KatalogPanel spalten={2} />
+
+      {schritt === 2 && (
+        <>
+          <div style={{ height: '1px', background: '#E8E6E0', margin: '18px 0' }}></div>
+          <ImRaumListe
+            titel="FENSTER & TÜREN"
+            items={wandElemente}
+            removeFurniture={removeFurniture}
+            leerText="Noch keine Fenster oder Türen — oben im Katalog auswählen"
+          />
+        </>
+      )}
     </div>
   )
 }
