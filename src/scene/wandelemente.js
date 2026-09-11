@@ -38,13 +38,17 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
   // Fenster bis Boden) — item.bruestungshoehe, falls vom Nutzer im 3D-Editor gesetzt, sonst der
   // bisherige feste Wert als Fallback (keine optische Änderung an bereits platzierten Fenstern).
   // Türen bleiben bei y=0 (Bodenanschluss), wie bisher.
-  const bruestungshoeheFallback = wandHoehe * 0.55 - FENSTER_HOEHE / 2
+  // Phase 4, Teil 2: item.hoeheReal überschreibt optional die feste FENSTER_HOEHE (analog zum
+  // Tür-Ast unten) — gesetzt, sobald Hassan ein Fenster im 3D-Editor per Eck-Anfasser
+  // größenverändert hat (siehe RoomView3D.jsx).
+  const fensterElHoehe = item.hoeheReal ?? FENSTER_HOEHE
+  const bruestungshoeheFallback = wandHoehe * 0.55 - fensterElHoehe / 2
   const gruppenY = item.typ === 'fenster' ? (item.bruestungshoehe ?? bruestungshoeheFallback) : 0
   gruppe.position.set(px, gruppenY, pz)
   gruppe.rotation.y = ry
 
   if (item.typ === 'fenster') {
-    const elHoehe = FENSTER_HOEHE
+    const elHoehe = fensterElHoehe
     // Relativ zur Gruppe konstant (halbe Fensterhöhe) — die absolute Höhe kommt jetzt allein aus
     // gruppe.position.y oben, nicht mehr aus einer hier berechneten Weltkoordinate.
     const yPos = elHoehe / 2

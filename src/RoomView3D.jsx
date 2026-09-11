@@ -10,6 +10,7 @@ import { rechteckPolygon, boundingBox, wandSegmente, punktInPolygon, versetztesP
 import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
+import { useUI } from './context/UIContext'
 import { wandMaterialien } from './constants'
 
 export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {}) {
@@ -19,6 +20,13 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     fussleiste, fussleisteFarbe, raumHoehe, tageszeit,
     wandBereiche, fuegeWandBereichHinzu, aktualisiereWandBereich, entferneWandBereich,
   } = useDesign()
+  // Phase 4, Teil 2 (Seitenleiste): Setter für die geteilte Fenster-Auswahl — Sidebar.jsx ist ein
+  // Geschwister-Element ohne direkten Props-Weg zu dieser Komponente, liest von dort mit useUI().
+  const { setAusgewaehltesWandElement } = useUI()
+  // Beim Verlassen aufräumen (z.B. Schritt-Wechsel weg von „Fenster & Türen") — sonst bliebe eine
+  // alte Auswahl im geteilten Context hängen und die Seitenleiste würde beim nächsten Mal kurz
+  // veraltete Maße zeigen, obwohl im 3D-Bild nichts mehr ausgewählt ist.
+  useEffect(() => () => setAusgewaehltesWandElement(null), [setAusgewaehltesWandElement])
   const mountRef = useRef(null)
 
   // Kameramodus + Rundgang-Position leben unabhängig vom schweren Szenen-Effekt unten (der bei
@@ -42,6 +50,12 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
   const [bearbeiteSeite, setBearbeiteSeite] = useState(null) // 'links' | 'rechts' | 'unten' | null
   const [bearbeiteWert, setBearbeiteWert] = useState('')
   const wandElementRechnerRef = useRef(() => {}) // setzeMass(id, seite, wertCm) — vom Effekt befüllt
+
+  // Fenster-Größenänderung per Eck-Anfasser (Teil 2, gleiches Prinzip wie bereichAuswahl unten,
+  // nur für Fenster statt Wandmaterial-Bereiche und ohne Löschen-Badge — Löschen läuft weiter über
+  // die Liste im linken Panel). Nur für item.typ === 'fenster' befüllt, nie für Türen.
+  const wandElementHandleStartRef = useRef(() => {}) // startElementHandleDrag(id, ecke) — vom Effekt befüllt
+  const [fensterAuswahl, setFensterAuswahl] = useState(null) // { id, ecken:{tl,tr,bl,br}, breiteCm, hoeheCm } | null
 
   // Ausgewählter Wandmaterial-Bereich (Teil 3, überarbeitet nach Hassans Feedback) — eigener
   // Auswahlzustand, unabhängig von ausgewaehltesElementRef oben: ein Fenster/eine Tür und ein
@@ -92,6 +106,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     if (massLinien !== null) setMassLinien(null)
     if (bearbeiteSeite !== null) setBearbeiteSeite(null)
     if (bereichAuswahl !== null) setBereichAuswahl(null)
+    if (fensterAuswahl !== null) setFensterAuswahl(null)
+    setAusgewaehltesWandElement(null)
     // Nur der State-Setter, nicht der Ref+State-Wrapper setZeichenModusMaterial — Refs dürfen
     // laut react-hooks/refs nicht während des Renderns mutiert werden (dieser Reset läuft direkt
     // im Render-Body, siehe Kommentar oben). Die Ref wird stattdessen im fokusWandRef-Sync-Effect
@@ -422,10 +438,10 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
       if (!eintrag) return null
       const { mesh, normale, laenge } = eintrag
       const fovY = camera.fov * Math.PI / 180
-      const fovX = 2 * Math.atan(Math.tan(fovY / 2) * camera.aspect)
       const RAND_FAKTOR = 1.2
+      // fovY/hoehenFitDistanz hängen NICHT von camera.aspect ab — die Höhen-Einpassung ist also
+      // bei jedem Fensterformat automatisch korrekt, unverändert zu vorher.
       const hoehenFitDistanz = (wandHoehe / 2) / Math.tan(fovY / 2)
-      const breitenFitDistanz = (laenge / 2) / Math.tan(fovX / 2)
       // Bei den meisten Räumen ist eine Wand deutlich breiter als hoch — reines "ganze Wand ins
       // Bild einpassen" würde dann von der Breite dominiert, die Kamera müsste so weit zurück,
       // dass oben/unten ein großer leerer Decken-/Boden-Streifen sichtbar wird (siehe Hassans
@@ -434,11 +450,30 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
       // sehr breiten Wänden ist dadurch nicht mehr zwingend die komplette Breite im Bild, dafür
       // füllt die Wand den Ausschnitt vertikal wie gewünscht. Bei normalen/schmalen Wänden (Höhen-
       // Fit ohnehin schon der größere Wert) ändert sich nichts.
+      //
+      // WICHTIG (Bugfix): diese Breiten-Entscheidung wird an einem FESTEN Referenz-Seitenverhältnis
+      // getroffen, nicht am aktuellen Browserfenster (camera.aspect) — sonst würde ein schmaleres
+      // Fenster rückwirkend weniger Wandbreite erlauben und die Wand seitlich abschneiden, obwohl
+      // bei einem breiteren Fenster genug Platz da wäre (genau der gemeldete Bug: kleiner Monitor
+      // schneidet ab, größerer nicht). Das Referenz-Verhältnis legt nur fest, wie viele Meter
+      // Wandbreite mindestens sichtbar sein sollen — am tatsächlich aktuellen Fensterformat wird
+      // weiter unten die Distanz gesucht, die diese Breite auch wirklich zeigt.
       const MAX_BREITEN_AUFSCHLAG = 1.35
-      const gewuenschteDistanz = Math.min(
-        Math.max(hoehenFitDistanz, breitenFitDistanz),
+      const REFERENZ_ASPEKT = 16 / 9
+      const fovXReferenz = 2 * Math.atan(Math.tan(fovY / 2) * REFERENZ_ASPEKT)
+      const breitenFitDistanzReferenz = (laenge / 2) / Math.tan(fovXReferenz / 2)
+      const zielDistanzOhneRand = Math.min(
+        Math.max(hoehenFitDistanz, breitenFitDistanzReferenz),
         hoehenFitDistanz * MAX_BREITEN_AUFSCHLAG,
-      ) * RAND_FAKTOR
+      )
+      const zielBreiteMeter = 2 * zielDistanzOhneRand * Math.tan(fovXReferenz / 2)
+
+      // Am AKTUELLEN Seitenverhältnis die Distanz finden, die mindestens zielBreiteMeter zeigt —
+      // ist das Fenster schmaler als die Referenz, muss die Kamera weiter zurück; ist es breiter,
+      // reicht schon zielDistanzOhneRand selbst (Math.max greift dann nicht).
+      const fovXAktuell = 2 * Math.atan(Math.tan(fovY / 2) * camera.aspect)
+      const distanzFuerZielBreiteAktuell = zielBreiteMeter / (2 * Math.tan(fovXAktuell / 2))
+      const gewuenschteDistanz = Math.max(zielDistanzOhneRand, distanzFuerZielBreiteAktuell) * RAND_FAKTOR
       // Kamera darf nie so weit zurück, dass sie über die gegenüberliegende Seite des Raums
       // hinausgeht (sonst landet sie fast auf/hinter der gegenüberliegenden Wand — sichtbar als
       // extrem verzerrte Seitenwände und ein von hinten durchscheinendes Fenster/Tür dort, siehe
@@ -559,6 +594,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     // Verwendungsstellen unten.
     const FENSTER_HOEHE_3D = 1.2
     const TUER_HOEHE_3D = 2.1
+    const MIN_FENSTER_GROESSE = 0.3
 
     const wandElementRaycastZiele = wandElementGruppen.map(w => w.gruppe)
     const wandBereichRaycastZiele = wandBereichGruppen.map(w => w.mesh)
@@ -566,6 +602,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     let wandBereichDrag = null // { eintrag, offsetU, offsetV, bewegt, aktuellU, aktuellV } — Verschieben (Klick auf die Fläche)
     let wandBereichHandleDrag = null // { eintrag, anchorU, anchorV, bewegt, aktuellU, aktuellV, aktuellBreite, aktuellHoehe } — Ecke ziehen
     let wandZeichnenDrag = null // { segment, startU, startV, material, mesh, aktuellU, aktuellV, aktuellBreite, aktuellHoehe } — neuen Bereich aufziehen
+    let wandElementHandleDrag = null // { eintrag, segment, anchorU, anchorV, urspruenglicheBreite, urspruenglicheHoehe, bewegt, aktuellU, aktuellV, aktuellBreite, aktuellHoehe } — Fenster-Ecke ziehen
 
     const ebeneFuerSegment = (segmentIndex) => {
       const w = wandMeshe[segmentIndex]
@@ -700,6 +737,60 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     }
     wandElementRechnerRef.current = setzeMass
 
+    // Fenster-Eck-Anfasser (Teil 2): liefert Bildschirmposition der vier Ecken + aktuelle
+    // Breite/Höhe in cm fürs Live-Label — analog zu berechneBereichAuswahl weiter unten, aber aus
+    // Fenster-Position/-Breite/-Höhe abgeleitet statt aus einem eigenen bereich-Objekt.
+    const berechneElementAuswahl = (eintrag, segment, elBreite, elHoehe) => {
+      const mitteU = ((eintrag.gruppe.position.x - segment.x1) * segment.dx + (eintrag.gruppe.position.z - segment.z1) * segment.dz) / (segment.laenge || 1)
+      const uStart = mitteU - elBreite / 2
+      const vUnten = eintrag.gruppe.position.y
+      const weltpunkt = (u, y) => {
+        const t = u / (segment.laenge || 1)
+        return new THREE.Vector3(segment.x1 + segment.dx * t, y, segment.z1 + segment.dz * t)
+      }
+      const uEnde = uStart + elBreite
+      const vOben = vUnten + elHoehe
+      const breiteCm = Math.round(elBreite * 100)
+      const hoeheCm = Math.round(elHoehe * 100)
+      setFensterAuswahl({
+        id: eintrag.item.id,
+        ecken: {
+          tl: projiziere(weltpunkt(uStart, vOben)),
+          tr: projiziere(weltpunkt(uEnde, vOben)),
+          bl: projiziere(weltpunkt(uStart, vUnten)),
+          br: projiziere(weltpunkt(uEnde, vUnten)),
+        },
+        breiteCm,
+        hoeheCm,
+      })
+      // Teil 2, Seitenleiste: dieselben Maße zusätzlich in den geteilten UI-Context schreiben,
+      // damit Sidebar.jsx sie fürs Breite/Höhe-Bedienfeld lesen kann.
+      setAusgewaehltesWandElement({ id: eintrag.item.id, breiteCm, hoeheCm })
+    }
+
+    // Startet das Ziehen an einer Fenster-Ecke (siehe JSX unten) — der diagonal gegenüberliegende
+    // Punkt (anchorU/V) bleibt fix. Nur für Fenster, kein No-Op-Aufruf für Türen möglich (die JSX
+    // rendert die Anfasser nur wenn fensterAuswahl gesetzt ist, und das passiert nur für Fenster).
+    const startElementHandleDrag = (id, ecke) => {
+      const eintrag = wandElementGruppen.find(w => w.item.id === id)
+      if (!eintrag || eintrag.item.typ !== 'fenster') return
+      const segment = wandMeshe[eintrag.item.wandSegment]
+      if (!segment) return
+      const elBreite = eintrag.item.width / 60
+      const elHoehe = eintrag.item.hoeheReal ?? FENSTER_HOEHE_3D
+      const mitteU = ((eintrag.gruppe.position.x - segment.x1) * segment.dx + (eintrag.gruppe.position.z - segment.z1) * segment.dz) / (segment.laenge || 1)
+      const uStart = mitteU - elBreite / 2
+      const vUnten = eintrag.gruppe.position.y
+      const anchorU = (ecke === 'tl' || ecke === 'bl') ? uStart + elBreite : uStart
+      const anchorV = (ecke === 'bl' || ecke === 'br') ? vUnten + elHoehe : vUnten
+      wandElementHandleDrag = {
+        eintrag, segment, anchorU, anchorV,
+        urspruenglicheBreite: elBreite, urspruenglicheHoehe: elHoehe,
+        bewegt: false,
+      }
+    }
+    wandElementHandleStartRef.current = startElementHandleDrag
+
     // Nach einem Neuaufbau (z.B. durch das Committen einer Zahlen-Eingabe oder eines Zieh-
     // vorgangs, beides ändert `furniture` und löst dadurch diesen ganzen Effekt erneut aus) die
     // Auswahl/Maßlinien-Anzeige mit den neuen Werten auffrischen — nur wenn das Element noch
@@ -707,7 +798,12 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     if (ausgewaehltesElementRef.current) {
       const ausgewaehlterEintrag = wandElementGruppen.find(w => w.item.id === ausgewaehltesElementRef.current)
       if (ausgewaehlterEintrag && ausgewaehlterEintrag.item.wandSegment === fokusWandRef.current) {
-        berechneAnzeige(ausgewaehlterEintrag, wandMeshe[ausgewaehlterEintrag.item.wandSegment], ausgewaehlterEintrag.item.width / 60)
+        const segment = wandMeshe[ausgewaehlterEintrag.item.wandSegment]
+        const elBreite = ausgewaehlterEintrag.item.width / 60
+        berechneAnzeige(ausgewaehlterEintrag, segment, elBreite)
+        if (ausgewaehlterEintrag.item.typ === 'fenster') {
+          berechneElementAuswahl(ausgewaehlterEintrag, segment, elBreite, ausgewaehlterEintrag.item.hoeheReal ?? FENSTER_HOEHE_3D)
+        }
       } else {
         ausgewaehltesElementRef.current = null
       }
@@ -801,6 +897,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
         ausgewaehlterBereichRef.current = null
         setBereichAuswahl(null)
         setAusgewaehltesElement(null); setLiveWerte(null); setMassLinien(null)
+        setFensterAuswahl(null)
+        setAusgewaehltesWandElement(null)
         return
       }
 
@@ -834,6 +932,12 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
         ausgewaehlterBereichRef.current = null
         setBereichAuswahl(null)
         berechneAnzeige(eintrag, segment, elBreite)
+        if (eintrag.item.typ === 'fenster') {
+          berechneElementAuswahl(eintrag, segment, elBreite, elHoehe)
+        } else {
+          setFensterAuswahl(null)
+          setAusgewaehltesWandElement(null)
+        }
         return
       }
 
@@ -842,6 +946,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
       if (bereichTreffer.length === 0) {
         setAusgewaehltesElement(null); setLiveWerte(null); setMassLinien(null)
         ausgewaehlterBereichRef.current = null; setBereichAuswahl(null)
+        setFensterAuswahl(null)
+        setAusgewaehltesWandElement(null)
         return
       }
       const treffermesh = bereichTreffer[0].object
@@ -857,11 +963,13 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
       setAusgewaehltesElement(null)
       setLiveWerte(null)
       setMassLinien(null)
+      setFensterAuswahl(null)
+      setAusgewaehltesWandElement(null)
       berechneBereichAuswahl(eintrag)
     }
 
     const wandElementMausMove = (clientX, clientY) => {
-      if (!wandElementDrag && !wandBereichDrag && !wandBereichHandleDrag && !wandZeichnenDrag) return
+      if (!wandElementDrag && !wandElementHandleDrag && !wandBereichDrag && !wandBereichHandleDrag && !wandZeichnenDrag) return
 
       if (wandElementDrag) {
         const { eintrag, segment, elBreite, elHoehe, offsetU, offsetV } = wandElementDrag
@@ -879,6 +987,36 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
         eintrag.gruppe.position.set(px, neueY, pz)
         wandElementDrag.bewegt = true
         berechneAnzeige(eintrag, segment, elBreite)
+        return
+      }
+
+      if (wandElementHandleDrag) {
+        // Ecke eines Fensters ziehen (Teil 2) — gleiches Prinzip wie beim Wandmaterial-Bereich
+        // unten: der diagonal gegenüberliegende Punkt (anchorU/V) bleibt fix. Die Gruppe wird für
+        // die Live-Vorschau nur skaliert+neu positioniert statt neu gebaut (siehe Kommentar oben
+        // im Architektur-Überblick) — exakt wird es erst beim Loslassen.
+        const { eintrag, segment, anchorU, anchorV, urspruenglicheBreite, urspruenglicheHoehe } = wandElementHandleDrag
+        const ebene = ebeneFuerSegment(eintrag.item.wandSegment)
+        const schnitt = zeigerAufWeltpunkt(clientX, clientY, ebene)
+        if (!schnitt) return
+        const { u, v } = weltpunktZuUV(schnitt, segment)
+        const uKlamm = Math.max(0, Math.min(segment.laenge, u))
+        const vKlamm = Math.max(0, Math.min(wandHoehe, v))
+        const neuU = Math.min(anchorU, uKlamm)
+        const neuBreite = Math.max(MIN_FENSTER_GROESSE, Math.abs(uKlamm - anchorU))
+        const neuV = Math.min(anchorV, vKlamm)
+        const neuHoehe = Math.max(MIN_FENSTER_GROESSE, Math.abs(vKlamm - anchorV))
+        wandElementHandleDrag.aktuellU = neuU
+        wandElementHandleDrag.aktuellV = neuV
+        wandElementHandleDrag.aktuellBreite = neuBreite
+        wandElementHandleDrag.aktuellHoehe = neuHoehe
+        eintrag.gruppe.scale.x = neuBreite / urspruenglicheBreite
+        eintrag.gruppe.scale.y = neuHoehe / urspruenglicheHoehe
+        const mitteU = neuU + neuBreite / 2
+        const t = mitteU / (segment.laenge || 1)
+        eintrag.gruppe.position.set(segment.x1 + segment.dx * t, neuV, segment.z1 + segment.dz * t)
+        wandElementHandleDrag.bewegt = true
+        berechneElementAuswahl(eintrag, segment, neuBreite, neuHoehe)
         return
       }
 
@@ -994,6 +1132,23 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
           onWandElementBewegt?.(eintrag.item.id, patch)
         }
         wandElementDrag = null
+        return
+      }
+      if (wandElementHandleDrag) {
+        const { eintrag } = wandElementHandleDrag
+        if (wandElementHandleDrag.bewegt) {
+          onWandElementBewegt?.(eintrag.item.id, {
+            width: Math.round(wandElementHandleDrag.aktuellBreite * 60),
+            hoeheReal: wandElementHandleDrag.aktuellHoehe,
+            wandPosition: wandElementHandleDrag.aktuellU,
+            bruestungshoehe: wandElementHandleDrag.aktuellV,
+          })
+        } else {
+          // Reiner Klick auf den Anfasser ohne Ziehen — Live-Skalierung zurücksetzen, sonst bliebe
+          // sie bis zum nächsten Szenen-Neuaufbau sichtbar stehen.
+          eintrag.gruppe.scale.set(1, 1, 1)
+        }
+        wandElementHandleDrag = null
         return
       }
       if (wandBereichHandleDrag) {
@@ -1157,9 +1312,28 @@ const onResize = () => {
   camera.aspect = neueBreite / neueHoehe
   camera.updateProjectionMatrix()
   renderer.setSize(neueBreite, neueHoehe)
+  // Wand-Fokus-Kamera neu einpassen — die Distanz aus berechneWandFokusZiel hängt über fovX von
+  // camera.aspect ab, sonst bleibt die Kamera bei einem schmaleren Fenster auf der alten Distanz
+  // stehen und die Wand ragt seitlich aus dem Bild. Direkt per setzeWandFokusKamera statt über
+  // updateWandFokusCamera/wandFokusAnimation — ein Resize ist keine bewusste Wandwahl, soll also
+  // sofort neu einpassen statt den weichen Schwenk auszulösen.
+  if (fokusWandRef.current != null) {
+    const ziel = berechneWandFokusZiel(fokusWandRef.current)
+    if (ziel) {
+      setzeWandFokusKamera({ x: ziel.x, z: ziel.z }, { x: ziel.zielX, z: ziel.zielZ })
+      letztesFokusZiel = { x: ziel.zielX, z: ziel.zielZ }
+    }
+  }
   if (ausgewaehltesElementRef.current) {
     const eintrag = wandElementGruppen.find(w => w.item.id === ausgewaehltesElementRef.current)
-    if (eintrag) berechneAnzeige(eintrag, wandMeshe[eintrag.item.wandSegment], eintrag.item.width / 60)
+    if (eintrag) {
+      const segment = wandMeshe[eintrag.item.wandSegment]
+      const elBreite = eintrag.item.width / 60
+      berechneAnzeige(eintrag, segment, elBreite)
+      if (eintrag.item.typ === 'fenster') {
+        berechneElementAuswahl(eintrag, segment, elBreite, eintrag.item.hoeheReal ?? FENSTER_HOEHE_3D)
+      }
+    }
   }
   if (ausgewaehlterBereichRef.current) {
     const eintrag = wandBereichGruppen.find(w => w.bereich.id === ausgewaehlterBereichRef.current)
@@ -1223,7 +1397,7 @@ return () => {
   mount.removeChild(renderer.domElement)
   renderer.dispose()
 }
-  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleBereit, onWandElementBewegt, wandBereiche, aktualisiereWandBereich, fuegeWandBereichHinzu])
+  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleBereit, onWandElementBewegt, wandBereiche, aktualisiereWandBereich, fuegeWandBereichHinzu, setAusgewaehltesWandElement])
 
   return (
     <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: fokusWand == null ? 'grab' : (zeichenModusMaterial ? 'crosshair' : 'default'), position: 'relative' }}>
@@ -1359,6 +1533,35 @@ return () => {
               </div>
             )
           })}
+        </>
+      )}
+      {fokusWand != null && fensterAuswahl && (
+        <>
+          <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 9, pointerEvents: 'none' }}>
+            <polygon
+              points={`${fensterAuswahl.ecken.tl.x},${fensterAuswahl.ecken.tl.y} ${fensterAuswahl.ecken.tr.x},${fensterAuswahl.ecken.tr.y} ${fensterAuswahl.ecken.br.x},${fensterAuswahl.ecken.br.y} ${fensterAuswahl.ecken.bl.x},${fensterAuswahl.ecken.bl.y}`}
+              fill="none" stroke="#185FA5" strokeWidth={1.5} strokeDasharray="4 4" />
+          </svg>
+          {['tl', 'tr', 'bl', 'br'].map(ecke => (
+            <div key={ecke}
+              onMouseDown={() => wandElementHandleStartRef.current(fensterAuswahl.id, ecke)}
+              onTouchStart={() => wandElementHandleStartRef.current(fensterAuswahl.id, ecke)}
+              style={{
+                position: 'absolute', left: fensterAuswahl.ecken[ecke].x, top: fensterAuswahl.ecken[ecke].y,
+                transform: 'translate(-50%, -50%)', zIndex: 10,
+                width: '14px', height: '14px', borderRadius: '3px', background: 'white',
+                border: '2px solid #185FA5', cursor: ecke === 'tl' || ecke === 'br' ? 'nwse-resize' : 'nesw-resize',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+              }} />
+          ))}
+          <div style={{
+            position: 'absolute',
+            left: (fensterAuswahl.ecken.tl.x + fensterAuswahl.ecken.tr.x) / 2,
+            top: Math.min(fensterAuswahl.ecken.tl.y, fensterAuswahl.ecken.tr.y) - 14,
+            transform: 'translate(-50%, -100%)', zIndex: 10, pointerEvents: 'none',
+            padding: '3px 8px', borderRadius: '10px', background: 'white', border: '1px solid #185FA5',
+            fontSize: '11px', color: '#185FA5', fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap',
+          }}>{fensterAuswahl.breiteCm} × {fensterAuswahl.hoeheCm} cm</div>
         </>
       )}
     </div>

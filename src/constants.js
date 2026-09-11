@@ -114,6 +114,9 @@ export const wandElemente = [
   { name: 'Kassettentür',                    typ: 'tuer', stil: 'kassette',    width: 42, height: 12, color: '#FFF3DC', border: '#8B5E2B' },
   { name: 'Glastür (Zimmertür)',              typ: 'tuer', stil: 'glas-zimmer', width: 42, height: 12, color: '#EFF7FA', border: '#4A90A4' },
   { name: 'Landhaustür',                      typ: 'tuer', stil: 'landhaus',   width: 44, height: 12, color: '#FFFDF7', border: '#C8A97A' },
+  // Phase 4, Teil 2: kein eigener stil nötig — jedes Fenster (auch die vier oben) ist jetzt per
+  // Eck-Anfasser im 3D-Editor frei größenänderbar, dieser Eintrag ist nur ein neutraler Startpunkt.
+  { name: 'Individuelles Fenster', typ: 'fenster', width: 50, height: 10, color: '#E6F4FB', border: '#185FA5' },
 ]
 export const alleKatalogItems = [...furnitureLibrary, ...wandElemente.map(w => ({ ...w, kategorie: 'Fenster & Türen' }))]
 

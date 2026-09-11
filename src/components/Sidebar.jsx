@@ -6,11 +6,13 @@ import { useRooms } from '../context/RoomsContext'
 import { useWizard } from '../context/WizardContext'
 import { useFurniture } from '../context/FurnitureContext'
 
+const MIN_FENSTER_GROESSE_CM = 30 // muss zu MIN_FENSTER_GROESSE (0.3m) in RoomView3D.jsx passen
+
 export default function Sidebar() {
-  const { raumPanelOffen } = useUI()
+  const { raumPanelOffen, ausgewaehltesWandElement } = useUI()
   const { rooms, activeRoomId, waehleRaum, deleteRoom, addRoom } = useRooms()
   const { schritt } = useWizard()
-  const { furniture, removeFurniture } = useFurniture()
+  const { furniture, removeFurniture, positioniereWandElement } = useFurniture()
   const wandElemente = furniture.filter(f => f.istWandElement)
   return (
     <div className="sidebar" style={{ width: '260px', background: 'white', borderRight: '1px solid #E8E6E0', padding: '24px 16px', flexShrink: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto', boxShadow: '2px 0 8px rgba(0,0,0,0.04)' }}>
@@ -60,6 +62,39 @@ export default function Sidebar() {
             removeFurniture={removeFurniture}
             leerText="Noch keine Fenster oder Türen — oben im Katalog auswählen"
           />
+        </>
+      )}
+
+      {schritt === 2 && ausgewaehltesWandElement && (
+        <>
+          <div style={{ height: '1px', background: '#E8E6E0', margin: '18px 0' }}></div>
+          <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '8px', letterSpacing: '0.08em', padding: '0 8px' }}>FENSTERGRÖSSE</p>
+          <div style={{ display: 'flex', gap: '10px', padding: '0 8px' }}>
+            <label style={{ flex: 1 }}>
+              <span style={{ fontSize: '11px', color: '#888780', display: 'block', marginBottom: '4px' }}>Breite (cm)</span>
+              <input
+                key={`breite-${ausgewaehltesWandElement.id}-${ausgewaehltesWandElement.breiteCm}`}
+                type="number" min={MIN_FENSTER_GROESSE_CM} defaultValue={ausgewaehltesWandElement.breiteCm}
+                onBlur={e => {
+                  const cm = Math.max(MIN_FENSTER_GROESSE_CM, Number(e.target.value) || MIN_FENSTER_GROESSE_CM)
+                  positioniereWandElement(ausgewaehltesWandElement.id, { width: Math.round(cm * 0.6) })
+                }}
+                onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                style={{ width: '100%', fontSize: '13px', padding: '6px 8px', borderRadius: '8px', border: '1px solid #D3D1C7', boxSizing: 'border-box' }} />
+            </label>
+            <label style={{ flex: 1 }}>
+              <span style={{ fontSize: '11px', color: '#888780', display: 'block', marginBottom: '4px' }}>Höhe (cm)</span>
+              <input
+                key={`hoehe-${ausgewaehltesWandElement.id}-${ausgewaehltesWandElement.hoeheCm}`}
+                type="number" min={MIN_FENSTER_GROESSE_CM} defaultValue={ausgewaehltesWandElement.hoeheCm}
+                onBlur={e => {
+                  const cm = Math.max(MIN_FENSTER_GROESSE_CM, Number(e.target.value) || MIN_FENSTER_GROESSE_CM)
+                  positioniereWandElement(ausgewaehltesWandElement.id, { hoeheReal: cm / 100 })
+                }}
+                onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                style={{ width: '100%', fontSize: '13px', padding: '6px 8px', borderRadius: '8px', border: '1px solid #D3D1C7', boxSizing: 'border-box' }} />
+            </label>
+          </div>
         </>
       )}
     </div>
