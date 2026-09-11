@@ -120,6 +120,17 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
       gruppe.add(bank)
     }
 
+  } else if (item.typ === 'durchgang') {
+    // Offener Durchgang (Phase 4, Teil 3a): kein Türblatt/Rahmen — das eigentliche "Loch" entsteht
+    // direkt in der Wandgeometrie (siehe RoomView3D.jsx, wandGeometrieFuerSegment). Hier nur eine
+    // unsichtbare Klickfläche in Elementgröße, damit der Durchgang im 3D-Bild trotzdem anklickbar/
+    // verschiebbar/größenänderbar bleibt — ein reines Loch hat sonst keine Geometrie zum Anklicken.
+    const elHoehe = item.hoeheReal ?? TUER_HOEHE
+    const klickMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })
+    const klickflaeche = new THREE.Mesh(new THREE.PlaneGeometry(elBreite, elHoehe), klickMat)
+    klickflaeche.position.set(0, elHoehe / 2, 0)
+    gruppe.add(klickflaeche)
+
   } else {
     const elHoehe = item.hoeheReal ?? TUER_HOEHE
 

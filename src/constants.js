@@ -117,6 +117,10 @@ export const wandElemente = [
   // Phase 4, Teil 2: kein eigener stil nötig — jedes Fenster (auch die vier oben) ist jetzt per
   // Eck-Anfasser im 3D-Editor frei größenänderbar, dieser Eintrag ist nur ein neutraler Startpunkt.
   { name: 'Individuelles Fenster', typ: 'fenster', width: 50, height: 10, color: '#E6F4FB', border: '#185FA5' },
+  // Phase 4, Teil 3a: offener Durchgang — kein Türblatt, echtes Loch in der Wand (siehe
+  // RoomView3D.jsx/wandelemente.js). Breite UND Höhe frei per Eck-Anfasser/Seitenleiste änderbar,
+  // genau wie beim individuellen Fenster, nur bodenbündig (kein Brüstungshöhe-Feld).
+  { name: 'Offener Durchgang', typ: 'durchgang', width: 72, height: 10, color: '#FAFAF8', border: '#B4B2A9' },
 ]
 export const alleKatalogItems = [...furnitureLibrary, ...wandElemente.map(w => ({ ...w, kategorie: 'Fenster & Türen' }))]
 

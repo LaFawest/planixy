@@ -261,12 +261,61 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     const wandMatFuer = (index) => new THREE.MeshStandardMaterial({ color: wandFarbeFuer(index), map: wandTexturFuer(wandMaterialFuer(index)), roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1 })
 
     const segmente = wandSegmente(eckpunkte)
+
+    // FENSTER_HOEHE_3D/TUER_HOEHE_3D müssen mit FENSTER_HOEHE/TUER_HOEHE aus wandelemente.js
+    // übereinstimmen (dort nicht exportiert, deshalb hier separat dupliziert). Türen mit eigener
+    // Höhe (item.hoeheReal, z.B. Hauseingangstür) überschreiben TUER_HOEHE_3D an allen
+    // Verwendungsstellen unten. Schon hier oben deklariert (statt erst bei der Fenster/Tür-
+    // Anklicken-Logik weiter unten wie bisher), weil wandGeometrieFuerSegment direkt darunter
+    // (Phase 4, Teil 3a) schon einen Höhen-Fallback für offene Durchgänge braucht.
+    const FENSTER_HOEHE_3D = 1.2
+    const TUER_HOEHE_3D = 2.1
+    const MIN_FENSTER_GROESSE = 0.3
+
+    // Offener Durchgang (Phase 4, Teil 3a): baut die Geometrie eines Wandsegments — normalerweise
+    // ein einfaches Rechteck, bei einem oder mehreren offenen Durchgängen auf diesem Segment ein
+    // Rechteck MIT rechteckigen Löchern darin (THREE.Shape + shape.holes, dieselbe Technik wie
+    // schon beim Boden per ShapeGeometry, siehe Kommentar dort — nur mit Loch). Zentriert wie
+    // PlaneGeometry (Ursprung in der Mitte), damit wand.position.set(...) unten unverändert
+    // funktioniert und die UV-Koordinaten (an der Bounding-Box der äußeren Kontur orientiert) mit
+    // der bisherigen PlaneGeometry deckungsgleich bleiben. `live` überschreibt währenddessen
+    // optional EINEN Durchgang (während eines laufenden Zieh-Vorgangs in wandElementMausMove) mit
+    // den aktuellen, noch nicht committeten Werten — alle anderen Durchgänge auf dem Segment
+    // kommen unverändert aus furniture.
+    const wandGeometrieFuerSegment = (segmentIndex, seg, live) => {
+      const durchgaenge = furniture.filter(f => f.istWandElement && f.typ === 'durchgang' && f.wandSegment === segmentIndex)
+      if (durchgaenge.length === 0) return new THREE.PlaneGeometry(seg.laenge, wandHoehe)
+      const halbBreite = seg.laenge / 2
+      const halbHoehe = wandHoehe / 2
+      const shape = new THREE.Shape([
+        new THREE.Vector2(-halbBreite, -halbHoehe),
+        new THREE.Vector2(halbBreite, -halbHoehe),
+        new THREE.Vector2(halbBreite, halbHoehe),
+        new THREE.Vector2(-halbBreite, halbHoehe),
+      ])
+      durchgaenge.forEach(item => {
+        const werte = (live && live.id === item.id)
+          ? live
+          : { u: item.wandPosition || 0, breite: item.width / 60, hoehe: item.hoeheReal ?? TUER_HOEHE_3D }
+        const uLinks = Math.max(0, Math.min(werte.u, seg.laenge - werte.breite))
+        const uRechts = uLinks + werte.breite
+        const vOben = Math.min(wandHoehe, werte.hoehe)
+        shape.holes.push(new THREE.Path([
+          new THREE.Vector2(uLinks - halbBreite, -halbHoehe),
+          new THREE.Vector2(uRechts - halbBreite, -halbHoehe),
+          new THREE.Vector2(uRechts - halbBreite, vOben - halbHoehe),
+          new THREE.Vector2(uLinks - halbBreite, vOben - halbHoehe),
+        ]))
+      })
+      return new THREE.ShapeGeometry(shape)
+    }
+
     // Für updateCamera unten: pro Wand Mesh + 3D-Normale (2D-Normale direkt auf X/Z übernommen,
     // wie schon bei allen anderen Konvertierungen in dieser Datei/trennwaende.js/wandelemente.js).
     const wandMeshe = segmente.map(segment => {
       const x1 = segment.start.x - mitteX, z1 = segment.start.y - mitteZ
       const x2 = segment.ende.x - mitteX, z2 = segment.ende.y - mitteZ
-      const wandGeo = new THREE.PlaneGeometry(segment.laenge, wandHoehe)
+      const wandGeo = wandGeometrieFuerSegment(segment.index, segment)
       const wand = new THREE.Mesh(wandGeo, wandMatFuer(segment.index))
       wand.position.set((x1 + x2) / 2, wandHoehe / 2, (z1 + z2) / 2)
       wand.rotation.y = -Math.atan2(z2 - z1, x2 - x1)
@@ -588,13 +637,6 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     // updateFurniture pro Mousemove, das würde `furniture` ändern und dadurch diesen kompletten
     // (teuren) Szenen-Aufbau-Effekt bei jeder Mausbewegung erneut auslösen (siehe Dependency-Array
     // ganz unten). Committed wird erst einmalig beim Loslassen über onWandElementBewegt.
-    // FENSTER_HOEHE_3D/TUER_HOEHE_3D müssen mit FENSTER_HOEHE/TUER_HOEHE aus wandelemente.js
-    // übereinstimmen (dort nicht exportiert, deshalb hier separat dupliziert). Türen mit eigener
-    // Höhe (item.hoeheReal, z.B. Hauseingangstür) überschreiben TUER_HOEHE_3D an allen drei
-    // Verwendungsstellen unten.
-    const FENSTER_HOEHE_3D = 1.2
-    const TUER_HOEHE_3D = 2.1
-    const MIN_FENSTER_GROESSE = 0.3
 
     const wandElementRaycastZiele = wandElementGruppen.map(w => w.gruppe)
     const wandBereichRaycastZiele = wandBereichGruppen.map(w => w.mesh)
@@ -754,6 +796,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
       const hoeheCm = Math.round(elHoehe * 100)
       setFensterAuswahl({
         id: eintrag.item.id,
+        typ: eintrag.item.typ,
         ecken: {
           tl: projiziere(weltpunkt(uStart, vOben)),
           tr: projiziere(weltpunkt(uEnde, vOben)),
@@ -768,16 +811,17 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
       setAusgewaehltesWandElement({ id: eintrag.item.id, breiteCm, hoeheCm })
     }
 
-    // Startet das Ziehen an einer Fenster-Ecke (siehe JSX unten) — der diagonal gegenüberliegende
-    // Punkt (anchorU/V) bleibt fix. Nur für Fenster, kein No-Op-Aufruf für Türen möglich (die JSX
-    // rendert die Anfasser nur wenn fensterAuswahl gesetzt ist, und das passiert nur für Fenster).
+    // Startet das Ziehen an einer Fenster-/Durchgang-Ecke (siehe JSX unten) — der diagonal
+    // gegenüberliegende Punkt (anchorU/V) bleibt fix. Nur für Fenster und offene Durchgänge, kein
+    // No-Op-Aufruf für Türen möglich (die JSX rendert die Anfasser nur wenn fensterAuswahl gesetzt
+    // ist, und das passiert nur für diese beiden Typen).
     const startElementHandleDrag = (id, ecke) => {
       const eintrag = wandElementGruppen.find(w => w.item.id === id)
-      if (!eintrag || eintrag.item.typ !== 'fenster') return
+      if (!eintrag || (eintrag.item.typ !== 'fenster' && eintrag.item.typ !== 'durchgang')) return
       const segment = wandMeshe[eintrag.item.wandSegment]
       if (!segment) return
       const elBreite = eintrag.item.width / 60
-      const elHoehe = eintrag.item.hoeheReal ?? FENSTER_HOEHE_3D
+      const elHoehe = eintrag.item.hoeheReal ?? (eintrag.item.typ === 'fenster' ? FENSTER_HOEHE_3D : TUER_HOEHE_3D)
       const mitteU = ((eintrag.gruppe.position.x - segment.x1) * segment.dx + (eintrag.gruppe.position.z - segment.z1) * segment.dz) / (segment.laenge || 1)
       const uStart = mitteU - elBreite / 2
       const vUnten = eintrag.gruppe.position.y
@@ -801,8 +845,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
         const segment = wandMeshe[ausgewaehlterEintrag.item.wandSegment]
         const elBreite = ausgewaehlterEintrag.item.width / 60
         berechneAnzeige(ausgewaehlterEintrag, segment, elBreite)
-        if (ausgewaehlterEintrag.item.typ === 'fenster') {
-          berechneElementAuswahl(ausgewaehlterEintrag, segment, elBreite, ausgewaehlterEintrag.item.hoeheReal ?? FENSTER_HOEHE_3D)
+        if (ausgewaehlterEintrag.item.typ === 'fenster' || ausgewaehlterEintrag.item.typ === 'durchgang') {
+          const elHoehe = ausgewaehlterEintrag.item.hoeheReal ?? (ausgewaehlterEintrag.item.typ === 'fenster' ? FENSTER_HOEHE_3D : TUER_HOEHE_3D)
+          berechneElementAuswahl(ausgewaehlterEintrag, segment, elBreite, elHoehe)
         }
       } else {
         ausgewaehltesElementRef.current = null
@@ -932,7 +977,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
         ausgewaehlterBereichRef.current = null
         setBereichAuswahl(null)
         berechneAnzeige(eintrag, segment, elBreite)
-        if (eintrag.item.typ === 'fenster') {
+        if (eintrag.item.typ === 'fenster' || eintrag.item.typ === 'durchgang') {
           berechneElementAuswahl(eintrag, segment, elBreite, elHoehe)
         } else {
           setFensterAuswahl(null)
@@ -985,16 +1030,28 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
           neueY = Math.max(0, Math.min(wandHoehe - elHoehe, v + offsetV))
         }
         eintrag.gruppe.position.set(px, neueY, pz)
+        // Offener Durchgang (Teil 3a): das "Loch" steckt in der Wandgeometrie selbst, nicht in der
+        // (unsichtbaren) Gruppe — beim Verschieben muss deshalb die Wand live mitgeschnitten
+        // werden, sonst bliebe das alte Loch stehen, während nur die unsichtbare Klickfläche
+        // mitwandert.
+        if (eintrag.item.typ === 'durchgang') {
+          segment.mesh.geometry.dispose()
+          segment.mesh.geometry = wandGeometrieFuerSegment(eintrag.item.wandSegment, segment, {
+            id: eintrag.item.id, u: mitteU - elBreite / 2, breite: elBreite, hoehe: elHoehe,
+          })
+        }
         wandElementDrag.bewegt = true
         berechneAnzeige(eintrag, segment, elBreite)
         return
       }
 
       if (wandElementHandleDrag) {
-        // Ecke eines Fensters ziehen (Teil 2) — gleiches Prinzip wie beim Wandmaterial-Bereich
-        // unten: der diagonal gegenüberliegende Punkt (anchorU/V) bleibt fix. Die Gruppe wird für
-        // die Live-Vorschau nur skaliert+neu positioniert statt neu gebaut (siehe Kommentar oben
-        // im Architektur-Überblick) — exakt wird es erst beim Loslassen.
+        // Ecke eines Fensters/Durchgangs ziehen (Teil 2 / Teil 3a) — gleiches Prinzip wie beim
+        // Wandmaterial-Bereich unten: der diagonal gegenüberliegende Punkt (anchorU/V) bleibt fix.
+        // Die Gruppe wird für die Live-Vorschau nur skaliert+neu positioniert statt neu gebaut
+        // (siehe Kommentar oben im Architektur-Überblick) — exakt wird es erst beim Loslassen. Bei
+        // einem Durchgang wird zusätzlich die Wandgeometrie selbst live mitgeschnitten (siehe unten,
+        // anders als beim Fenster ist das hier günstig genug für jeden Mousemove).
         const { eintrag, segment, anchorU, anchorV, urspruenglicheBreite, urspruenglicheHoehe } = wandElementHandleDrag
         const ebene = ebeneFuerSegment(eintrag.item.wandSegment)
         const schnitt = zeigerAufWeltpunkt(clientX, clientY, ebene)
@@ -1015,6 +1072,12 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
         const mitteU = neuU + neuBreite / 2
         const t = mitteU / (segment.laenge || 1)
         eintrag.gruppe.position.set(segment.x1 + segment.dx * t, neuV, segment.z1 + segment.dz * t)
+        if (eintrag.item.typ === 'durchgang') {
+          segment.mesh.geometry.dispose()
+          segment.mesh.geometry = wandGeometrieFuerSegment(eintrag.item.wandSegment, segment, {
+            id: eintrag.item.id, u: neuU, breite: neuBreite, hoehe: neuHoehe,
+          })
+        }
         wandElementHandleDrag.bewegt = true
         berechneElementAuswahl(eintrag, segment, neuBreite, neuHoehe)
         return
@@ -1330,8 +1393,9 @@ const onResize = () => {
       const segment = wandMeshe[eintrag.item.wandSegment]
       const elBreite = eintrag.item.width / 60
       berechneAnzeige(eintrag, segment, elBreite)
-      if (eintrag.item.typ === 'fenster') {
-        berechneElementAuswahl(eintrag, segment, elBreite, eintrag.item.hoeheReal ?? FENSTER_HOEHE_3D)
+      if (eintrag.item.typ === 'fenster' || eintrag.item.typ === 'durchgang') {
+        const elHoehe = eintrag.item.hoeheReal ?? (eintrag.item.typ === 'fenster' ? FENSTER_HOEHE_3D : TUER_HOEHE_3D)
+        berechneElementAuswahl(eintrag, segment, elBreite, elHoehe)
       }
     }
   }
@@ -1542,7 +1606,9 @@ return () => {
               points={`${fensterAuswahl.ecken.tl.x},${fensterAuswahl.ecken.tl.y} ${fensterAuswahl.ecken.tr.x},${fensterAuswahl.ecken.tr.y} ${fensterAuswahl.ecken.br.x},${fensterAuswahl.ecken.br.y} ${fensterAuswahl.ecken.bl.x},${fensterAuswahl.ecken.bl.y}`}
               fill="none" stroke="#185FA5" strokeWidth={1.5} strokeDasharray="4 4" />
           </svg>
-          {['tl', 'tr', 'bl', 'br'].map(ecke => (
+          {/* Bei einem Durchgang nur die zwei OBEREN Anfasser — die Unterkante bleibt immer am
+              Boden (Bodenanschluss wie bei Türen), kein Hochziehen der Unterkante möglich. */}
+          {(fensterAuswahl.typ === 'durchgang' ? ['tl', 'tr'] : ['tl', 'tr', 'bl', 'br']).map(ecke => (
             <div key={ecke}
               onMouseDown={() => wandElementHandleStartRef.current(fensterAuswahl.id, ecke)}
               onTouchStart={() => wandElementHandleStartRef.current(fensterAuswahl.id, ecke)}

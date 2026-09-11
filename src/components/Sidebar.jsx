@@ -68,7 +68,7 @@ export default function Sidebar() {
       {schritt === 2 && ausgewaehltesWandElement && (
         <>
           <div style={{ height: '1px', background: '#E8E6E0', margin: '18px 0' }}></div>
-          <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '8px', letterSpacing: '0.08em', padding: '0 8px' }}>FENSTERGRÖSSE</p>
+          <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '8px', letterSpacing: '0.08em', padding: '0 8px' }}>GRÖSSE</p>
           <div style={{ display: 'flex', gap: '10px', padding: '0 8px' }}>
             <label style={{ flex: 1 }}>
               <span style={{ fontSize: '11px', color: '#888780', display: 'block', marginBottom: '4px' }}>Breite (cm)</span>
