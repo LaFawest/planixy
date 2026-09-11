@@ -10,13 +10,20 @@ export function UIProvider({ children }) {
   // hoeheCm } | null — von RoomView3D.jsx geschrieben, von Sidebar.jsx gelesen fürs
   // Breite/Höhe-Bedienfeld. Die beiden Komponenten sind Geschwister ohne direkten Props-Weg.
   const [ausgewaehltesWandElement, setAusgewaehltesWandElement] = useState(null)
+  // Welches Wandsegment gerade in der 3D-Wandfokus-Ansicht (Schritt "Fenster & Türen")
+  // angezeigt wird, null wenn keine Wand fokussiert ist — von FensterTuerenAnsicht3D.jsx
+  // geschrieben, von FurnitureContext.jsx (addWandElement) gelesen, damit ein neu aus dem
+  // Katalog hinzugefügtes Fenster/Tür/Durchgang auf der gerade betrachteten Wand landet statt
+  // immer auf der nächstgelegenen (meist der Nord-)Wand.
+  const [fokusWandIndex, setFokusWandIndex] = useState(null)
 
   const value = useMemo(() => ({
     ansicht, setAnsicht,
     raumPanelOffen, setRaumPanelOffen,
     aktiverTab, setAktiverTab,
     ausgewaehltesWandElement, setAusgewaehltesWandElement,
-  }), [ansicht, raumPanelOffen, aktiverTab, ausgewaehltesWandElement])
+    fokusWandIndex, setFokusWandIndex,
+  }), [ansicht, raumPanelOffen, aktiverTab, ausgewaehltesWandElement, fokusWandIndex])
 
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>
 }

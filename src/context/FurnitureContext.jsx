@@ -3,8 +3,9 @@ import { alleKatalogItems } from '../constants'
 import { produktAufKatalogItemAnwenden } from '../data/produktAuswahl'
 import { useRooms } from './RoomsContext'
 import { useRaumGeometrie } from './useRaumGeometrie'
+import { useUI } from './UIContext'
 import { vergibMoebelId } from './idZaehler'
-import { snappeWandElement, naechsteFreieEcke, snappeAnFreieKante } from '../raumPolygon'
+import { snappeWandElement, naechsteFreieEcke, snappeAnFreieKante, platziereAufWandSegment } from '../raumPolygon'
 
 const FurnitureContext = createContext(null)
 
@@ -21,7 +22,8 @@ function klemmeMitSlide(kandidatLinks, kandidatOben, letzteLinks, letzteOben, bo
 
 export function FurnitureProvider({ children }) {
   const { activeRoom, activeRoomId, updateRoom } = useRooms()
-  const { grenzB, grenzT, grenzStart, grenzeEckpunkte, innenEckpunkte, wandDicke, rechteckInPolygon } = useRaumGeometrie()
+  const { grenzB, grenzT, grenzStart, grenzeEckpunkte, innenEckpunkte, wandDicke, rechteckInPolygon, wandSegmente } = useRaumGeometrie()
+  const { fokusWandIndex } = useUI()
   const [selectedId, setSelectedId] = useState(null)
 
   const furniture = useMemo(() => activeRoom?.furniture || [], [activeRoom])
@@ -66,6 +68,23 @@ export function FurnitureProvider({ children }) {
   // Wandinnenkante), nicht auf grenzeEckpunkte (die um die Fußleiste verkleinerte Möbelgrenze) —
   // sonst sitzt das Element sichtbar neben statt in der Wand.
   const addWandElement = useCallback((item) => {
+    // Ist gerade eine Wand im 3D-Fokus (Schritt "Fenster & Türen"), soll ein neu hinzugefügtes
+    // Element genau dort landen — nicht auf der zufällig nächstgelegenen Wand von einem festen
+    // Startpunkt aus (das war der Bug: es landete dadurch praktisch immer auf der Nordwand).
+    // Mittig auf dem Segment platziert, sofern es dort in der Breite passt.
+    if (fokusWandIndex != null && wandSegmente[fokusWandIndex]) {
+      const segment = wandSegmente[fokusWandIndex]
+      const wandPositionM = Math.max(0, (segment.laenge - item.width) / 2) / 60
+      const platziert = platziereAufWandSegment(fokusWandIndex, wandPositionM, item.width, item.height, innenEckpunkte, wandDicke)
+      if (platziert) {
+        updateFurniture([...(activeRoom?.furniture || []), {
+          ...item, id: vergibMoebelId(),
+          left: platziert.left, top: platziert.top, rotation: platziert.rotation,
+          istWandElement: true, wandSegment: platziert.wandSegment, wandPosition: platziert.wandPosition,
+        }])
+        return
+      }
+    }
     const cx = grenzStart + 20 + Math.random() * 100
     const cy = grenzStart
     const { left, top, wandSegment, wandPosition, rotation } = snappeWandElement(cx, cy, item.width, item.height, innenEckpunkte, wandDicke)
@@ -73,7 +92,7 @@ export function FurnitureProvider({ children }) {
       ...item, id: vergibMoebelId(),
       left, top, rotation, istWandElement: true, wandSegment, wandPosition,
     }])
-  }, [updateFurniture, activeRoom, innenEckpunkte, wandDicke, grenzStart])
+  }, [updateFurniture, activeRoom, innenEckpunkte, wandDicke, grenzStart, wandSegmente, fokusWandIndex])
 
   const removeFurniture = useCallback((id) => {
     updateFurniture((activeRoom?.furniture || []).filter(f => f.id !== id))
