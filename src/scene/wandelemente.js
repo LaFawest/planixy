@@ -7,7 +7,7 @@ const TUER_HOEHE = 2.1
 // === WANDELEMENTE (Tür/Fenster) ===
 // holzTextur (erzeugeHolzTextur aus texturen.js, wie schon bei Möbel-Holzbeinen in moebel.js)
 // ersetzt die bisherigen flachen Farben an Tür/Rahmen/Fensterrahmen durch eine Holzmaserung.
-export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur) {
+export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur) {
   const elBreite = item.width / 60
   const gruppe = new THREE.Group()
 
@@ -121,15 +121,65 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
     }
 
   } else if (item.typ === 'durchgang') {
-    // Offener Durchgang (Phase 4, Teil 3a): kein Türblatt/Rahmen — das eigentliche "Loch" entsteht
-    // direkt in der Wandgeometrie (siehe RoomView3D.jsx, wandGeometrieFuerSegment). Hier nur eine
-    // unsichtbare Klickfläche in Elementgröße, damit der Durchgang im 3D-Bild trotzdem anklickbar/
-    // verschiebbar/größenänderbar bleibt — ein reines Loch hat sonst keine Geometrie zum Anklicken.
+    // Offener Durchgang (Phase 4, Teil 3a/3b): kein Türblatt/Rahmen — das eigentliche "Loch"
+    // entsteht direkt in der Wandgeometrie (siehe RoomView3D.jsx, wandGeometrieFuerSegment). Hier
+    // nur eine unsichtbare Klickfläche in Elementgröße, damit der Durchgang im 3D-Bild trotzdem
+    // anklickbar/verschiebbar/größenänderbar bleibt — ein reines Loch hat sonst keine Geometrie
+    // zum Anklicken. Beim Rundbogen (Teil 3b) zusätzlich optional eine sichtbare
+    // Backstein-Einfassung.
     const elHoehe = item.hoeheReal ?? TUER_HOEHE
     const klickMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })
-    const klickflaeche = new THREE.Mesh(new THREE.PlaneGeometry(elBreite, elHoehe), klickMat)
-    klickflaeche.position.set(0, elHoehe / 2, 0)
-    gruppe.add(klickflaeche)
+
+    if (item.stil === 'bogen') {
+      // elHoehe ist hier immer die feste Kämpferhöhe (nie per Maus verändert, siehe
+      // RoomView3D.jsx). Radius = halbe Breite, Gesamthöhe = Kämpferhöhe + Radius — die
+      // Klickfläche deckt die volle Öffnung inkl. Bogen ab, damit auch der gewölbte obere Teil
+      // anklickbar ist.
+      const radius = elBreite / 2
+      const gesamtHoehe = elHoehe + radius
+      const klickflaeche = new THREE.Mesh(new THREE.PlaneGeometry(elBreite, gesamtHoehe), klickMat)
+      klickflaeche.position.set(0, gesamtHoehe / 2, 0)
+      gruppe.add(klickflaeche)
+
+      if (item.backstein) {
+        // Optionale Ziegel-Einfassung: flaches Ring-Shape (Öffnungs-Kontur als Loch, um
+        // RAHMEN_BREITE nach außen versetzte, gleich aufgebaute Kontur als Außenrand — siehe
+        // Kommentar bei wandGeometrieFuerSegment in RoomView3D.jsx, warum ein größerer Radius um
+        // denselben Kreismittelpunkt nahtlos an die versetzten geraden Seiten anschließt),
+        // extrudiert auf Rahmentiefe und wie die Tür-Rahmenboxen oben auf der Wandebene
+        // zentriert.
+        const RAHMEN_BREITE = 0.12
+        const RAHMEN_TIEFE = 0.14
+        const radiusAussen = radius + RAHMEN_BREITE
+        const halbBreiteAussen = elBreite / 2 + RAHMEN_BREITE
+
+        const innerPfad = new THREE.Path()
+        innerPfad.moveTo(-elBreite / 2, 0)
+        innerPfad.lineTo(elBreite / 2, 0)
+        innerPfad.lineTo(elBreite / 2, elHoehe)
+        innerPfad.absarc(0, elHoehe, radius, 0, Math.PI, false)
+        innerPfad.lineTo(-elBreite / 2, 0)
+
+        const aussenShape = new THREE.Shape()
+        aussenShape.moveTo(-halbBreiteAussen, 0)
+        aussenShape.lineTo(halbBreiteAussen, 0)
+        aussenShape.lineTo(halbBreiteAussen, elHoehe)
+        aussenShape.absarc(0, elHoehe, radiusAussen, 0, Math.PI, false)
+        aussenShape.lineTo(-halbBreiteAussen, 0)
+        aussenShape.holes.push(innerPfad)
+
+        const rahmenGeo = new THREE.ExtrudeGeometry(aussenShape, { depth: RAHMEN_TIEFE, bevelEnabled: false })
+        rahmenGeo.translate(0, 0, -RAHMEN_TIEFE / 2)
+        const rahmenMat = new THREE.MeshStandardMaterial({ map: backsteinTextur, roughness: 0.95, metalness: 0.0 })
+        const rahmen = new THREE.Mesh(rahmenGeo, rahmenMat)
+        rahmen.castShadow = true
+        gruppe.add(rahmen)
+      }
+    } else {
+      const klickflaeche = new THREE.Mesh(new THREE.PlaneGeometry(elBreite, elHoehe), klickMat)
+      klickflaeche.position.set(0, elHoehe / 2, 0)
+      gruppe.add(klickflaeche)
+    }
 
   } else {
     const elHoehe = item.hoeheReal ?? TUER_HOEHE

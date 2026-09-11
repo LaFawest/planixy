@@ -83,18 +83,45 @@ export default function Sidebar() {
                 style={{ width: '100%', fontSize: '13px', padding: '6px 8px', borderRadius: '8px', border: '1px solid #D3D1C7', boxSizing: 'border-box' }} />
             </label>
             <label style={{ flex: 1 }}>
-              <span style={{ fontSize: '11px', color: '#888780', display: 'block', marginBottom: '4px' }}>Höhe (cm)</span>
-              <input
-                key={`hoehe-${ausgewaehltesWandElement.id}-${ausgewaehltesWandElement.hoeheCm}`}
-                type="number" min={MIN_FENSTER_GROESSE_CM} defaultValue={ausgewaehltesWandElement.hoeheCm}
-                onBlur={e => {
-                  const cm = Math.max(MIN_FENSTER_GROESSE_CM, Number(e.target.value) || MIN_FENSTER_GROESSE_CM)
-                  positioniereWandElement(ausgewaehltesWandElement.id, { hoeheReal: cm / 100 })
-                }}
-                onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
-                style={{ width: '100%', fontSize: '13px', padding: '6px 8px', borderRadius: '8px', border: '1px solid #D3D1C7', boxSizing: 'border-box' }} />
+              <span style={{ fontSize: '11px', color: '#888780', display: 'block', marginBottom: '4px' }}>
+                Höhe (cm){ausgewaehltesWandElement.bogenDurchgang ? ' · Bogen' : ''}
+              </span>
+              {ausgewaehltesWandElement.bogenDurchgang ? (
+                // Rundbogen-Durchgang (Teil 3b): Höhe ergibt sich automatisch aus der Breite
+                // (Kämpferhöhe + Radius), kein editierbares Feld — nur zur Information.
+                <div style={{ width: '100%', fontSize: '13px', padding: '6px 8px', borderRadius: '8px', border: '1px solid #E8E6E0', boxSizing: 'border-box', color: '#888780', background: '#FAFAF8' }}>
+                  {ausgewaehltesWandElement.hoeheCm}
+                </div>
+              ) : (
+                <input
+                  key={`hoehe-${ausgewaehltesWandElement.id}-${ausgewaehltesWandElement.hoeheCm}`}
+                  type="number" min={MIN_FENSTER_GROESSE_CM} defaultValue={ausgewaehltesWandElement.hoeheCm}
+                  onBlur={e => {
+                    const cm = Math.max(MIN_FENSTER_GROESSE_CM, Number(e.target.value) || MIN_FENSTER_GROESSE_CM)
+                    positioniereWandElement(ausgewaehltesWandElement.id, { hoeheReal: cm / 100 })
+                  }}
+                  onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                  style={{ width: '100%', fontSize: '13px', padding: '6px 8px', borderRadius: '8px', border: '1px solid #D3D1C7', boxSizing: 'border-box' }} />
+              )}
             </label>
           </div>
+          {ausgewaehltesWandElement.bogenDurchgang && (
+            <div style={{ padding: '10px 8px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '11px', color: '#888780' }}>Backstein-Einfassung</span>
+                <div onClick={() => positioniereWandElement(ausgewaehltesWandElement.id, { backstein: !ausgewaehltesWandElement.backstein })} style={{
+                  width: '36px', height: '20px', borderRadius: '10px', cursor: 'pointer', transition: 'background 0.2s',
+                  background: ausgewaehltesWandElement.backstein ? '#185FA5' : '#E8E6E0', position: 'relative',
+                }}>
+                  <div style={{
+                    position: 'absolute', top: '2px', left: ausgewaehltesWandElement.backstein ? '18px' : '2px',
+                    width: '16px', height: '16px', borderRadius: '50%', background: 'white',
+                    transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                  }}></div>
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

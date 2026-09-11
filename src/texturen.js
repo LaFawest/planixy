@@ -291,6 +291,35 @@ export function erzeugeWandTextur(wandTyp) {
   return erzeugeWandputzTextur()
 }
 
+// Backstein-Einfassung für den Rundbogen-Durchgang (Phase 4, Teil 3b) — Ziegelsteine im
+// klassischen Läuferverband (jede zweite Reihe um einen halben Stein versetzt), nach demselben
+// Canvas-Zeichnen-Muster wie erzeugeHolzpaneeleTextur/erzeugeStreifenTapete oben, nur als
+// eigenständiges Muster statt Teil des wandMaterialien-Auswahl-Dispatchers.
+export function erzeugeBacksteinTextur() {
+  const breite = 256, hoehe = 128
+  const canvas = document.createElement('canvas')
+  canvas.width = breite
+  canvas.height = hoehe
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = '#B0806A' // Fugenfarbe (Mörtel)
+  ctx.fillRect(0, 0, breite, hoehe)
+  const steinBreite = 32, steinHoehe = 14, fuge = 3
+  for (let y = 0, reihe = 0; y < hoehe; y += steinHoehe + fuge, reihe++) {
+    const versatz = (reihe % 2) * (steinBreite / 2)
+    for (let x = -steinBreite; x < breite + steinBreite; x += steinBreite + fuge) {
+      const helligkeit = 0.85 + Math.random() * 0.3
+      const r = Math.round(150 * helligkeit), g = Math.round(78 * helligkeit), b = Math.round(58 * helligkeit)
+      ctx.fillStyle = `rgb(${r},${g},${b})`
+      ctx.fillRect(x + versatz, y, steinBreite, steinHoehe)
+    }
+  }
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+  texture.repeat.set(2, 1)
+  texture.colorSpace = THREE.SRGBColorSpace
+  return texture
+}
+
 export function erzeugeUmgebungsTextur() {
   const canvas = document.createElement('canvas')
   canvas.width = 16

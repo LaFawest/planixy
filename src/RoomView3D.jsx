@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandTextur } from './texturen'
+import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandTextur, erzeugeBacksteinTextur } from './texturen'
 import { baueTrennwaende } from './scene/trennwaende'
 import { baueWandElement } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
@@ -202,6 +202,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     // === TEXTUREN (einmal pro Szene erzeugt, mehrfach verwendet) ===
     const holzTextur = erzeugeHolzTextur()
     const stoffTextur = erzeugeStoffTextur()
+    const backsteinTextur = erzeugeBacksteinTextur()
     // wandTextur wird jetzt pro Wand einzeln über wandTexturFuer() erzeugt (siehe unten), da
     // jede Wand ihr eigenes Material haben kann.
     scene.environment = erzeugeUmgebungsTextur()
@@ -299,13 +300,33 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
           : { u: item.wandPosition || 0, breite: item.width / 60, hoehe: item.hoeheReal ?? TUER_HOEHE_3D }
         const uLinks = Math.max(0, Math.min(werte.u, seg.laenge - werte.breite))
         const uRechts = uLinks + werte.breite
-        const vOben = Math.min(wandHoehe, werte.hoehe)
-        shape.holes.push(new THREE.Path([
-          new THREE.Vector2(uLinks - halbBreite, -halbHoehe),
-          new THREE.Vector2(uRechts - halbBreite, -halbHoehe),
-          new THREE.Vector2(uRechts - halbBreite, vOben - halbHoehe),
-          new THREE.Vector2(uLinks - halbBreite, vOben - halbHoehe),
-        ]))
+        if (item.stil === 'bogen') {
+          // Rundbogen-Durchgang (Phase 4, Teil 3b): gerade Seiten bis zur Kämpferhöhe
+          // (werte.hoehe — bei diesem Stil immer eine feste Konstante, nie per Maus verändert,
+          // siehe berechneElementAuswahl weiter unten), darüber ein Halbkreisbogen mit Radius =
+          // halbe Breite. Der nach außen versetzte Rand für die optionale Backstein-Einfassung
+          // (scene/wandelemente.js) verwendet denselben Kreismittelpunkt, nur mit größerem
+          // Radius — das ergibt an den Kämpferpunkten einen nahtlosen Übergang, weil die geraden
+          // Seiten dort tangential zum Kreis liegen.
+          const radius = werte.breite / 2
+          const uMitte = (uLinks + uRechts) / 2
+          const vSpring = Math.max(0, Math.min(wandHoehe - radius, werte.hoehe))
+          const pfad = new THREE.Path()
+          pfad.moveTo(uLinks - halbBreite, -halbHoehe)
+          pfad.lineTo(uRechts - halbBreite, -halbHoehe)
+          pfad.lineTo(uRechts - halbBreite, vSpring - halbHoehe)
+          pfad.absarc(uMitte - halbBreite, vSpring - halbHoehe, radius, 0, Math.PI, false)
+          pfad.lineTo(uLinks - halbBreite, -halbHoehe)
+          shape.holes.push(pfad)
+        } else {
+          const vOben = Math.min(wandHoehe, werte.hoehe)
+          shape.holes.push(new THREE.Path([
+            new THREE.Vector2(uLinks - halbBreite, -halbHoehe),
+            new THREE.Vector2(uRechts - halbBreite, -halbHoehe),
+            new THREE.Vector2(uRechts - halbBreite, vOben - halbHoehe),
+            new THREE.Vector2(uLinks - halbBreite, vOben - halbHoehe),
+          ]))
+        }
       })
       return new THREE.ShapeGeometry(shape)
     }
@@ -355,7 +376,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     const wandElementGruppen = []
     furniture.forEach(item => {
       if (item.istWandElement) {
-        const gruppe = baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur)
+        const gruppe = baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur)
         wandElementGruppen.push({ gruppe, item })
       } else {
         baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur)
@@ -793,7 +814,13 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
       const uEnde = uStart + elBreite
       const vOben = vUnten + elHoehe
       const breiteCm = Math.round(elBreite * 100)
-      const hoeheCm = Math.round(elHoehe * 100)
+      // Rundbogen-Durchgang (Teil 3b): elHoehe ist hier immer die feste Kämpferhöhe (siehe
+      // wandGeometrieFuerSegment weiter oben) — angezeigt wird stattdessen die tatsächliche
+      // Gesamthöhe (Kämpferhöhe + Radius), rein informativ, da die Höhe beim Rundbogen nicht
+      // separat einstellbar ist, nur die Breite (die den Radius und damit indirekt die
+      // Gesamthöhe bestimmt).
+      const istBogenDurchgang = eintrag.item.typ === 'durchgang' && eintrag.item.stil === 'bogen'
+      const hoeheCm = Math.round((istBogenDurchgang ? elHoehe + elBreite / 2 : elHoehe) * 100)
       setFensterAuswahl({
         id: eintrag.item.id,
         typ: eintrag.item.typ,
@@ -807,8 +834,14 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
         hoeheCm,
       })
       // Teil 2, Seitenleiste: dieselben Maße zusätzlich in den geteilten UI-Context schreiben,
-      // damit Sidebar.jsx sie fürs Breite/Höhe-Bedienfeld lesen kann.
-      setAusgewaehltesWandElement({ id: eintrag.item.id, breiteCm, hoeheCm })
+      // damit Sidebar.jsx sie fürs Breite/Höhe-Bedienfeld lesen kann. Teil 3b: zusätzlich
+      // bogenDurchgang (Höhe dort nur informativ, nicht editierbar) und der aktuelle
+      // Backstein-Status fürs Umschalten in der Seitenleiste.
+      setAusgewaehltesWandElement({
+        id: eintrag.item.id, breiteCm, hoeheCm,
+        bogenDurchgang: istBogenDurchgang,
+        backstein: istBogenDurchgang ? !!eintrag.item.backstein : undefined,
+      })
     }
 
     // Startet das Ziehen an einer Fenster-/Durchgang-Ecke (siehe JSX unten) — der diagonal
@@ -1059,10 +1092,24 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
         const { u, v } = weltpunktZuUV(schnitt, segment)
         const uKlamm = Math.max(0, Math.min(segment.laenge, u))
         const vKlamm = Math.max(0, Math.min(wandHoehe, v))
-        const neuU = Math.min(anchorU, uKlamm)
-        const neuBreite = Math.max(MIN_FENSTER_GROESSE, Math.abs(uKlamm - anchorU))
+        let neuBreite = Math.max(MIN_FENSTER_GROESSE, Math.abs(uKlamm - anchorU))
         const neuV = Math.min(anchorV, vKlamm)
-        const neuHoehe = Math.max(MIN_FENSTER_GROESSE, Math.abs(vKlamm - anchorV))
+        let neuHoehe = Math.max(MIN_FENSTER_GROESSE, Math.abs(vKlamm - anchorV))
+        // Rundbogen-Durchgang (Teil 3b): Höhe ist die feste Kämpferhöhe, nicht per Maus ziehbar —
+        // nur die Breite folgt der Maus, die Gesamthöhe (Kämpferhöhe + halbe Breite als Radius)
+        // ergibt sich automatisch daraus. Stattdessen wird hier die Breite gegen die Decke
+        // geklemmt (sonst würde der Bogen oben aus der Wand herausragen) — das passiert beim
+        // Rechteck schon implizit über die vKlamm-Deckenklemmung der Höhe.
+        if (eintrag.item.typ === 'durchgang' && eintrag.item.stil === 'bogen') {
+          neuHoehe = urspruenglicheHoehe
+          const maxBreiteDecke = Math.max(MIN_FENSTER_GROESSE, 2 * (wandHoehe - urspruenglicheHoehe))
+          neuBreite = Math.min(neuBreite, maxBreiteDecke)
+        }
+        // Verankerten Gegenpunkt (anchorU) exakt halten, auch wenn neuBreite oben gerade wegen der
+        // Deckenklemmung verkleinert wurde — sonst würde sich beim Ziehen der linken Ecke die
+        // rechte (eigentlich fixe) Kante mitverschieben.
+        const ziehtLinkeKante = uKlamm < anchorU
+        const neuU = ziehtLinkeKante ? anchorU - neuBreite : anchorU
         wandElementHandleDrag.aktuellU = neuU
         wandElementHandleDrag.aktuellV = neuV
         wandElementHandleDrag.aktuellBreite = neuBreite

@@ -121,6 +121,11 @@ export const wandElemente = [
   // RoomView3D.jsx/wandelemente.js). Breite UND Höhe frei per Eck-Anfasser/Seitenleiste änderbar,
   // genau wie beim individuellen Fenster, nur bodenbündig (kein Brüstungshöhe-Feld).
   { name: 'Offener Durchgang', typ: 'durchgang', width: 72, height: 10, color: '#FAFAF8', border: '#B4B2A9' },
+  // Phase 4, Teil 3b: Rundbogen-Durchgang — gerade Seiten bis zur (festen) Kämpferhöhe, darüber
+  // ein Halbkreisbogen (Radius = halbe Breite), optional mit Backstein-Einfassung (siehe
+  // scene/wandelemente.js). Nur die Breite ist einstellbar, die Gesamthöhe ergibt sich
+  // automatisch daraus (siehe RoomView3D.jsx).
+  { name: 'Rundbogen-Durchgang', typ: 'durchgang', stil: 'bogen', width: 48, height: 10, color: '#FAF6EE', border: '#B4784A' },
 ]
 export const alleKatalogItems = [...furnitureLibrary, ...wandElemente.map(w => ({ ...w, kategorie: 'Fenster & Türen' }))]
 

@@ -293,7 +293,7 @@ export function FurnitureProvider({ children }) {
   // Übernimmt Position/Brüstungshöhe eines Fenster/Tür-Elements NACH einem Ziehvorgang im
   // 3D-Wand-Fokus-Editor (RoomView3D, fokusWand-Modus) — bleibt auf demselben Wandsegment, dafür
   // weiterhin die bestehende 2D-Ansicht/handleDrag nutzen (Wandwechsel, Erstplatzierung).
-  const positioniereWandElement = useCallback((id, { wandPosition, bruestungshoehe, width, hoeheReal }) => {
+  const positioniereWandElement = useCallback((id, { wandPosition, bruestungshoehe, width, hoeheReal, backstein }) => {
     updateFurniture((activeRoom?.furniture || []).map(f => {
       if (f.id !== id) return f
       const patch = {}
@@ -301,6 +301,7 @@ export function FurnitureProvider({ children }) {
       if (bruestungshoehe !== undefined) patch.bruestungshoehe = bruestungshoehe
       if (width !== undefined) patch.width = width
       if (hoeheReal !== undefined) patch.hoeheReal = hoeheReal
+      if (backstein !== undefined) patch.backstein = backstein
       return { ...f, ...patch }
     }))
   }, [updateFurniture, activeRoom])
