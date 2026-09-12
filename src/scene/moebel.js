@@ -533,6 +533,52 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       baueStandardBox(gruppe, moebelBreite, moebelHoehe, moebelTiefe, mat)
     }
 
+  } else if (name.includes('spot-reihe')) {
+    // Spot-Reihe (Phase 6, Teilschritt 2): mehrere kleine Einbaustrahler in einer Reihe, Anzahl
+    // (1-6) über item.spotAnzahl wählbar (Dropdown in LichtSchritt.jsx, Default 3). Jeder Spot
+    // bekommt sein eigenes PointLight an seiner eigenen Position statt der gemeinsamen
+    // baueGluehlampe()-Hilfsfunktion (die eine Lichtquelle immer mittig auf die ganze Gruppe legt).
+    // Die Reihe erstreckt sich über die volle Katalog-Breite (moebelBreite) entlang der lokalen
+    // X-Achse — die Gruppen-Rotation weiter oben dreht die ganze Reihe wie jedes andere Möbelstück.
+    const spotAnzahl = Math.min(6, Math.max(1, item.spotAnzahl || 3))
+    const spotRadius = Math.min(0.045, moebelTiefe / 2)
+    for (let i = 0; i < spotAnzahl; i++) {
+      const versatz = spotAnzahl === 1 ? 0 : -moebelBreite / 2 + (moebelBreite / (spotAnzahl - 1)) * i
+      const spotGlowMat = new THREE.MeshStandardMaterial({ color: '#FFF3D0', emissive: lichtFarbe, emissiveIntensity: lichtAn ? 0.9 : 0 })
+      const bezel = new THREE.Mesh(new THREE.CylinderGeometry(spotRadius, spotRadius, 0.02, 20), borderMat)
+      bezel.position.set(versatz, -0.01, 0)
+      gruppe.add(bezel)
+      const linse = new THREE.Mesh(new THREE.CircleGeometry(spotRadius * 0.7, 20), spotGlowMat)
+      linse.rotation.x = Math.PI / 2
+      linse.position.set(versatz, -0.021, 0)
+      gruppe.add(linse)
+      if (lichtAn) {
+        const spotLicht = new THREE.PointLight(lichtFarbe, 0.5, Math.max(raumBreite, raumTiefe) * 0.5)
+        spotLicht.position.set(versatz, -0.05, 0)
+        gruppe.add(spotLicht)
+      }
+    }
+
+  } else if (name.includes('spot')) {
+    // Einzelner Deckenspot (Phase 6, Teilschritt 2): kleiner flacher Einbaustrahler, frei auf der
+    // Decke verschiebbar (siehe RoomView3D.jsx) statt fest/mittig wie Kronleuchter/Pendelleuchte/
+    // Deckenlampe. Muss NACH 'spot-reihe' stehen, sonst würde dieser Zweig bereits jede Spot-Reihe
+    // abfangen (deren Name enthält ebenfalls "spot").
+    const spotRadius = Math.min(0.05, moebelBreite / 2, moebelTiefe / 2)
+    const spotGlowMat = new THREE.MeshStandardMaterial({ color: '#FFF3D0', emissive: lichtFarbe, emissiveIntensity: lichtAn ? 0.9 : 0 })
+    const bezel = new THREE.Mesh(new THREE.CylinderGeometry(spotRadius, spotRadius, 0.02, 24), borderMat)
+    bezel.position.set(0, -0.01, 0)
+    gruppe.add(bezel)
+    const linse = new THREE.Mesh(new THREE.CircleGeometry(spotRadius * 0.65, 24), spotGlowMat)
+    linse.rotation.x = Math.PI / 2
+    linse.position.set(0, -0.021, 0)
+    gruppe.add(linse)
+    if (lichtAn) {
+      const spotLicht = new THREE.PointLight(lichtFarbe, 0.6, Math.max(raumBreite, raumTiefe) * 0.55)
+      spotLicht.position.set(0, -0.05, 0)
+      gruppe.add(spotLicht)
+    }
+
   } else if (name.includes('kronleuchter')) {
     const radius = Math.min(moebelBreite, moebelTiefe) / 2
     const kabelLaenge = 0.25

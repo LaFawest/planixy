@@ -16,7 +16,7 @@ const tageszeitIcon = (stunde) => {
 }
 
 export default function LichtSchritt() {
-  const { furniture, removeFurniture, updateFurniture, selectedId, setSelectedId } = useFurniture()
+  const { furniture, removeFurniture, updateFurniture, rotateFurniture, selectedId, setSelectedId } = useFurniture()
   const { tageszeit, setTageszeit } = useDesign()
   const leuchten = furniture.filter(f => f.kategorie === 'Licht')
 
@@ -104,6 +104,26 @@ export default function LichtSchritt() {
                         }}></span>
                       </button>
                     ))}
+                  </div>
+                )}
+                {/* Spot-Reihe (Phase 6, Teilschritt 2): Anzahl (1-6) per Dropdown, Ausrichtung per
+                    Rotations-Regler — beides nur für diesen einen Leuchtentyp relevant. */}
+                {item.name === 'Spot-Reihe' && (
+                  <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '2px 10px 8px' }}>
+                    <span style={{ fontSize: '10px', color: '#B4B2A9', flexShrink: 0 }}>Anzahl</span>
+                    <select
+                      value={Math.min(6, Math.max(1, item.spotAnzahl || 3))}
+                      onChange={e => updateFurniture(furniture.map(f => f.id === item.id ? { ...f, spotAnzahl: Number(e.target.value) } : f))}
+                      style={{ fontSize: '11px', border: '1px solid #E8E6E0', borderRadius: '6px', padding: '2px 4px', color: '#444441', background: 'white', flexShrink: 0 }}>
+                      {[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                    <span style={{ fontSize: '10px', color: '#B4B2A9', flexShrink: 0, marginLeft: '4px' }}>Ausrichtung</span>
+                    <input type="range" min="0" max="359"
+                      value={item.rotation || 0}
+                      onChange={e => rotateFurniture(item.id, Number(e.target.value))}
+                      style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '11px', color: '#185FA5', minWidth: '30px', textAlign: 'right', flexShrink: 0 }}>{item.rotation || 0}°</span>
                   </div>
                 )}
               </div>

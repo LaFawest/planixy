@@ -324,11 +324,24 @@ export function FurnitureProvider({ children }) {
     }))
   }, [updateFurniture, activeRoom])
 
+  // Übernimmt Position eines frei verschiebbaren Deckenlicht-Typs (Spot/Spot-Reihe, Phase 6
+  // Teilschritt 2) NACH einem Ziehvorgang in der 3D-Decken-Ansicht (RoomView3D, deckenFokus-Modus)
+  // — analog zu positioniereWandElement oben, nur für top/left statt Wandposition.
+  const positioniereDeckenleuchte = useCallback((id, { top, left }) => {
+    updateFurniture((activeRoom?.furniture || []).map(f => {
+      if (f.id !== id) return f
+      const patch = {}
+      if (top !== undefined) patch.top = top
+      if (left !== undefined) patch.left = left
+      return { ...f, ...patch }
+    }))
+  }, [updateFurniture, activeRoom])
+
   const value = useMemo(() => ({
     furniture, selectedId, setSelectedId,
     updateFurniture, addFurniture, addWandElement, removeFurniture, rotateFurniture, handleDrag, wechsleProdukt,
-    positioniereWandElement,
-  }), [furniture, selectedId, updateFurniture, addFurniture, addWandElement, removeFurniture, rotateFurniture, handleDrag, wechsleProdukt, positioniereWandElement])
+    positioniereWandElement, positioniereDeckenleuchte,
+  }), [furniture, selectedId, updateFurniture, addFurniture, addWandElement, removeFurniture, rotateFurniture, handleDrag, wechsleProdukt, positioniereWandElement, positioniereDeckenleuchte])
 
   return <FurnitureContext.Provider value={value}>{children}</FurnitureContext.Provider>
 }

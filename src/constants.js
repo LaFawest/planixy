@@ -73,6 +73,8 @@ export const furnitureLibrary = [
   { name: 'Pendelleuchte',  kategorie: 'Licht',      width: 25,  height: 25,  color: '#FAC775', border: '#BA7517' },
   { name: 'Wandleuchte',    kategorie: 'Deko',       width: 20,  height: 10,  color: '#FAC775', border: '#BA7517' },
   { name: 'Kronleuchter',   kategorie: 'Licht',      width: 45,  height: 45,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Spot',           kategorie: 'Licht',      width: 14,  height: 14,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Spot-Reihe',     kategorie: 'Licht',      width: 70,  height: 14,  color: '#FAC775', border: '#BA7517' },
   { name: 'Tischlampe',     kategorie: 'Deko',       width: 18,  height: 18,  color: '#FAC775', border: '#BA7517' },
   { name: 'Lautsprecher',   kategorie: 'Elektrogeräte', width: 20, height: 20, color: '#E8E6E0', border: '#444441' },
   { name: 'Spielekonsole',  kategorie: 'Elektrogeräte', width: 34, height: 24, color: '#E8E6E0', border: '#444441' },
@@ -183,7 +185,15 @@ export const FARBTEMPERATUREN = [
 // anklickbaren Gruppen (RoomView3D) gebraucht wird.
 export function istDeckenleuchte(name) {
   const n = name.toLowerCase()
-  return n.includes('deckenlampe') || n.includes('pendelleuchte') || n.includes('kronleuchter')
+  return n.includes('deckenlampe') || n.includes('pendelleuchte') || n.includes('kronleuchter') || n.includes('spot')
+}
+
+// Frei verschiebbare Deckenleuchten (Phase 6, Teilschritt 2): im Unterschied zu den fest/mittig
+// platzierten Kronleuchter/Pendelleuchte/Deckenlampe oben lassen sich Spot und Spot-Reihe frei auf
+// der Decke verschieben (siehe RoomView3D.jsx deckenleuchteMausDown/-Move/-Up) — sie sollen gezielt
+// über bestimmten Bereichen sitzen (z.B. über der Kücheninsel), nicht immer mittig im Raum.
+export function istVerschiebbareDeckenleuchte(name) {
+  return name.toLowerCase().includes('spot')
 }
 
 export const HIMMELSRICHTUNG_NAME = { nord: 'Nord', ost: 'Ost', sued: 'Süd', west: 'West' }

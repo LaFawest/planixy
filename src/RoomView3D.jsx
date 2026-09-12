@@ -11,9 +11,9 @@ import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
 import { useUI } from './context/UIContext'
-import { wandMaterialien, istDeckenleuchte } from './constants'
+import { wandMaterialien, istDeckenleuchte, istVerschiebbareDeckenleuchte, berechneInnenmasse } from './constants'
 
-export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deckenFokus = false, onDeckenleuchteAusgewaehlt } = {}) {
+export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deckenFokus = false, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt } = {}) {
   const { activeRoom: room } = useRooms()
   const { furniture } = useFurniture()
   const {
@@ -723,12 +723,20 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     const raycaster = new THREE.Raycaster()
     const zeigerNDC = new THREE.Vector2()
 
-    // === DECKENLEUCHTE ANKLICKEN (nur im Decken-Fokus-Modus, Phase 6 Teilschritt 1) ===
-    // Reine Auswahl per Klick — kein Ziehen/Resizen, die Leuchten sind fest/mittig platziert
-    // (siehe FurnitureContext.addFurniture). Nutzt dieselbe geteilte Auswahl (selectedId/
-    // setSelectedId aus FurnitureContext) wie der Rest der App, damit z.B. die Leuchten-Liste im
-    // Licht-Schritt (LichtSchritt.jsx) dieselbe Auswahl auch farblich hervorheben kann. Ein
-    // Ring-Mesh knapp unter der Decke markiert die aktuell ausgewählte Leuchte visuell.
+    // === DECKENLEUCHTE ANKLICKEN + VERSCHIEBEN (Decken-Fokus-Modus, Phase 6) ===
+    // Teilschritt 1: reine Auswahl per Klick für Kronleuchter/Pendelleuchte/Deckenlampe — die
+    // bleiben fest/mittig platziert (siehe FurnitureContext.addFurniture), kein Ziehen nötig.
+    // Teilschritt 2: Spot und Spot-Reihe sind zusätzlich frei auf der Decke verschiebbar (siehe
+    // istVerschiebbareDeckenleuchte in constants.js) — deckenleuchteMausDown erkennt das, merkt
+    // sich den Versatz zwischen Klickpunkt und Möbelmittelpunkt in deckenleuchteDrag,
+    // deckenleuchteMausMove schneidet den Mauszeiger laufend gegen eine horizontale Ebene auf
+    // Deckenhöhe (deckenEbene, gleiches Prinzip wie ebeneFuerSegment für Wände) und rechnet den
+    // Treffpunkt über dieselbe px<->Meter-Formel wie scene/moebel.js (berechneInnenmasse) in
+    // item.left/item.top um, deckenleuchteMausUp committed einmalig über onDeckenleuchteBewegt
+    // (Vorbild: onWandElementBewegt beim Wand-Fokus-Ziehen). Nutzt dieselbe geteilte Auswahl
+    // (selectedId/setSelectedId aus FurnitureContext) wie der Rest der App, damit z.B. die
+    // Leuchten-Liste im Licht-Schritt (LichtSchritt.jsx) dieselbe Auswahl auch farblich hervorheben
+    // kann. Ein Ring-Mesh knapp unter der Decke markiert die aktuell ausgewählte Leuchte visuell.
     const deckenleuchteRing = new THREE.Mesh(
       new THREE.RingGeometry(0.18, 0.24, 32),
       new THREE.MeshBasicMaterial({ color: '#185FA5', side: THREE.DoubleSide, transparent: true, opacity: 0.6 }),
@@ -736,6 +744,10 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     deckenleuchteRing.rotation.x = -Math.PI / 2
     deckenleuchteRing.visible = false
     if (deckenFokusRef.current) scene.add(deckenleuchteRing)
+
+    const deckenEbene = new THREE.Plane(new THREE.Vector3(0, 1, 0), -wandHoehe)
+    const { innenBpx: deckenInnenBpx, innenTpx: deckenInnenTpx } = berechneInnenmasse(raumBreite, raumTiefe)
+    let deckenleuchteDrag = null // { eintrag, offsetX, offsetZ, bewegt, neueX, neueZ }
 
     const deckenleuchteMausDown = (clientX, clientY) => {
       const rect = mount.getBoundingClientRect()
@@ -758,6 +770,48 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       deckenleuchteRing.position.set(eintrag.gruppe.position.x, wandHoehe - 0.02, eintrag.gruppe.position.z)
       deckenleuchteRing.visible = true
       onDeckenleuchteAusgewaehlt?.(eintrag.item.id)
+
+      if (istVerschiebbareDeckenleuchte(eintrag.item.name)) {
+        const schnitt = zeigerAufWeltpunkt(clientX, clientY, deckenEbene)
+        if (schnitt) {
+          deckenleuchteDrag = {
+            eintrag,
+            offsetX: eintrag.gruppe.position.x - schnitt.x,
+            offsetZ: eintrag.gruppe.position.z - schnitt.z,
+            bewegt: false,
+          }
+        }
+      }
+    }
+
+    const deckenleuchteMausMove = (clientX, clientY) => {
+      if (!deckenleuchteDrag) return
+      const schnitt = zeigerAufWeltpunkt(clientX, clientY, deckenEbene)
+      if (!schnitt) return
+      const { eintrag, offsetX, offsetZ } = deckenleuchteDrag
+      const neueX = Math.max(-raumBreite / 2, Math.min(raumBreite / 2, schnitt.x + offsetX))
+      const neueZ = Math.max(-raumTiefe / 2, Math.min(raumTiefe / 2, schnitt.z + offsetZ))
+      eintrag.gruppe.position.set(neueX, wandHoehe, neueZ)
+      deckenleuchteRing.position.set(neueX, wandHoehe - 0.02, neueZ)
+      deckenleuchteDrag.bewegt = true
+      deckenleuchteDrag.neueX = neueX
+      deckenleuchteDrag.neueZ = neueZ
+    }
+
+    const deckenleuchteMausUp = () => {
+      if (!deckenleuchteDrag) return
+      const { eintrag, bewegt, neueX, neueZ } = deckenleuchteDrag
+      if (bewegt) {
+        // Rückrechnung Welt-Meter -> px, exaktes Gegenstück zu centerXpx/centerZpx in
+        // scene/moebel.js (baueMoebel) — dieselbe berechneInnenmasse()-Basis wie dort.
+        const rad = ((eintrag.item.rotation || 0) * Math.PI) / 180
+        const boundWpx = eintrag.item.width * Math.abs(Math.cos(rad)) + eintrag.item.height * Math.abs(Math.sin(rad))
+        const boundHpx = eintrag.item.width * Math.abs(Math.sin(rad)) + eintrag.item.height * Math.abs(Math.cos(rad))
+        const centerXpx = ((neueX + raumBreite / 2) / raumBreite) * deckenInnenBpx
+        const centerZpx = ((neueZ + raumTiefe / 2) / raumTiefe) * deckenInnenTpx
+        onDeckenleuchteBewegt?.(eintrag.item.id, { left: centerXpx - boundWpx / 2, top: centerZpx - boundHpx / 2 })
+      }
+      deckenleuchteDrag = null
     }
 
     let laufAnimation = null // { startX, startZ, zielX, zielZ, startZeit, dauer }
@@ -1444,7 +1498,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
     const onMouseUp = () => {
       if (fokusWandRef.current != null) { wandElementMausUp(); return }
-      if (deckenFokusRef.current) return
+      if (deckenFokusRef.current) { deckenleuchteMausUp(); return }
       if (kameraModusRef.current === 'rundgang') {
         if (rundgangZeiger) {
           const dauer = performance.now() - rundgangZeiger.startZeit
@@ -1459,7 +1513,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
     const onMouseMove = (e) => {
       if (fokusWandRef.current != null) { wandElementMausMove(e.clientX, e.clientY); return }
-      if (deckenFokusRef.current) return
+      if (deckenFokusRef.current) { deckenleuchteMausMove(e.clientX, e.clientY); return }
       if (kameraModusRef.current === 'rundgang') {
         if (!rundgangZeiger) return
         const dx = e.clientX - rundgangZeiger.letzteX
@@ -1504,7 +1558,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
     const onTouchMove  = (e) => {
       if (fokusWandRef.current != null) { wandElementMausMove(e.touches[0].clientX, e.touches[0].clientY); return }
-      if (deckenFokusRef.current) return
+      if (deckenFokusRef.current) { deckenleuchteMausMove(e.touches[0].clientX, e.touches[0].clientY); return }
       if (kameraModusRef.current === 'rundgang') {
         if (!rundgangZeiger) return
         const t = e.touches[0]
@@ -1528,7 +1582,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
     const onTouchEnd = () => {
       if (fokusWandRef.current != null) { wandElementMausUp(); return }
-      if (deckenFokusRef.current) return
+      if (deckenFokusRef.current) { deckenleuchteMausUp(); return }
       if (kameraModusRef.current === 'rundgang') {
         if (rundgangZeiger) {
           const dauer = performance.now() - rundgangZeiger.startZeit
@@ -1644,7 +1698,7 @@ return () => {
   mount.removeChild(renderer.domElement)
   renderer.dispose()
 }
-  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleBereit, onWandElementBewegt, wandBereiche, aktualisiereWandBereich, fuegeWandBereichHinzu, setAusgewaehltesWandElement, onDeckenleuchteAusgewaehlt])
+  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleBereit, onWandElementBewegt, wandBereiche, aktualisiereWandBereich, fuegeWandBereichHinzu, setAusgewaehltesWandElement, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt])
 
   return (
     <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: deckenFokus ? 'default' : (fokusWand == null ? 'grab' : (zeichenModusMaterial ? 'crosshair' : 'default')), position: 'relative' }}>
