@@ -55,8 +55,8 @@ export const furnitureLibrary = [
   { name: 'Bidet',          kategorie: 'Badezimmer', width: 36,  height: 48,  color: '#f0f0f0', border: '#B4B2A9' },
   { name: 'Pflanze',        kategorie: 'Deko',       width: 30,  height: 30,  color: '#C0DD97', border: '#3B6D11' },
   { name: 'Großpflanze',    kategorie: 'Deko',       width: 44,  height: 44,  color: '#C0DD97', border: '#3B6D11' },
-  { name: 'Lampe',          kategorie: 'Licht',      width: 32,  height: 32,  color: '#FAC775', border: '#BA7517' },
-  { name: 'Stehlampe',      kategorie: 'Licht',      width: 20,  height: 20,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Lampe',          kategorie: 'Deko',       width: 32,  height: 32,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Stehlampe',      kategorie: 'Deko',       width: 20,  height: 20,  color: '#FAC775', border: '#BA7517' },
   { name: 'Teppich klein',  kategorie: 'Deko',       width: 80,  height: 60,  color: '#F4C0D1', border: '#993556' },
   { name: 'Teppich groß',   kategorie: 'Deko',       width: 140, height: 100, color: '#F4C0D1', border: '#993556' },
   { name: 'Bild',           kategorie: 'Deko',       width: 40,  height: 30,  color: '#E1D4F4', border: '#7F77DD' },
@@ -71,9 +71,9 @@ export const furnitureLibrary = [
   { name: 'Lichterkette',   kategorie: 'Deko',       width: 40,  height: 10,  color: '#FAC775', border: '#BA7517' },
   { name: 'Deckenlampe',    kategorie: 'Licht',      width: 35,  height: 35,  color: '#FAC775', border: '#BA7517' },
   { name: 'Pendelleuchte',  kategorie: 'Licht',      width: 25,  height: 25,  color: '#FAC775', border: '#BA7517' },
-  { name: 'Wandleuchte',    kategorie: 'Licht',      width: 20,  height: 10,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Wandleuchte',    kategorie: 'Deko',       width: 20,  height: 10,  color: '#FAC775', border: '#BA7517' },
   { name: 'Kronleuchter',   kategorie: 'Licht',      width: 45,  height: 45,  color: '#FAC775', border: '#BA7517' },
-  { name: 'Tischlampe',     kategorie: 'Licht',      width: 18,  height: 18,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Tischlampe',     kategorie: 'Deko',       width: 18,  height: 18,  color: '#FAC775', border: '#BA7517' },
   { name: 'Lautsprecher',   kategorie: 'Elektrogeräte', width: 20, height: 20, color: '#E8E6E0', border: '#444441' },
   { name: 'Spielekonsole',  kategorie: 'Elektrogeräte', width: 34, height: 24, color: '#E8E6E0', border: '#444441' },
   { name: 'Laptop',         kategorie: 'Elektrogeräte', width: 34, height: 24, color: '#E8E6E0', border: '#444441' },
@@ -174,6 +174,17 @@ export const FARBTEMPERATUREN = [
   { name: 'Neutralweiß', farbe: '#fff8ec' },
   { name: 'Kaltweiß', farbe: '#e8f0ff' },
 ]
+
+// Deckenmontierte Leuchtentypen (Phase 6, Teilschritt 1): werden fest/mittig platziert statt frei
+// verschiebbar wie normale Möbel, und im 2D-Grundriss ausgeblendet (nur noch über die neue 3D-
+// Decken-Ansicht bzw. die Leuchten-Liste im Licht-Schritt sichtbar/verwaltbar). Bisher nur lokal in
+// scene/moebel.js definiert (dort für die Deckenhöhe beim 3D-Bauen) — jetzt hier zentral, weil sie
+// jetzt auch beim Platzieren (FurnitureContext), beim Ausblenden (Canvas2D) und beim Einsammeln der
+// anklickbaren Gruppen (RoomView3D) gebraucht wird.
+export function istDeckenleuchte(name) {
+  const n = name.toLowerCase()
+  return n.includes('deckenlampe') || n.includes('pendelleuchte') || n.includes('kronleuchter')
+}
 
 export const HIMMELSRICHTUNG_NAME = { nord: 'Nord', ost: 'Ost', sued: 'Süd', west: 'West' }
 

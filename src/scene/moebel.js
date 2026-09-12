@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { getMoebelHoehe } from '../texturen'
-import { berechneInnenmasse } from '../constants'
+import { berechneInnenmasse, istDeckenleuchte } from '../constants'
 import { getModell, MODELL_HOEHE_UEBERSCHREIBUNG } from './modelle'
 
 function baueBeine(gruppe, positionen, radius, hoehe, farbe, holzTextur, { segmente = 10, roughness = 0.55, castShadow = false } = {}) {
@@ -92,7 +92,8 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
   const centerZpx = item.top  + boundHpx / 2
 
   const name = item.name.toLowerCase()
-  const istDeckenleuchte = name.includes('deckenlampe') || name.includes('pendelleuchte') || name.includes('kronleuchter')
+  // istDeckenleuchte() jetzt zentral in constants.js (Phase 6, Teilschritt 1) — dort auch
+  // ausführlicher kommentiert, wer sie noch braucht.
   // Nur für Leuchten (kategorie 'Licht') relevant — an/aus und Farbe je Leuchte, mit Warmweiß-
   // Default, solange der Licht-Schritt (Schritt 4f) noch keinen eigenen Regler dafür anbietet.
   const lichtAn = item.lichtAn !== false
@@ -100,7 +101,7 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
 
   const x = -raumBreite / 2 + (centerXpx / innenBpx) * raumBreite
   const z = -raumTiefe  / 2 + (centerZpx / innenTpx) * raumTiefe
-  const y = istDeckenleuchte ? wandHoehe : (item.kategorie === 'Elektrogeräte' ? traegerHoehe(item, centerXpx, centerZpx) : 0)
+  const y = istDeckenleuchte(item.name) ? wandHoehe : (item.kategorie === 'Elektrogeräte' ? traegerHoehe(item, centerXpx, centerZpx) : 0)
   const rotation = -(item.rotation || 0) * Math.PI / 180
   const gruppe = new THREE.Group()
   gruppe.position.set(x, y, z)
@@ -136,8 +137,12 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
     modell.traverse(obj => { if (obj.isMesh) { obj.castShadow = true; obj.receiveShadow = true } })
     gruppe.add(modell)
     gruppe.castShadow = true
+    // id am Gruppen-Root hinterlegen + zurückgeben — Grundlage fürs Anklicken in der neuen
+    // Decken-Ansicht (RoomView3D.jsx, Phase 6 Teilschritt 1). Für alle anderen Möbeltypen bisher
+    // ungenutzt, aber unschädlich.
+    gruppe.userData.id = item.id
     scene.add(gruppe)
-    return
+    return gruppe
   }
 
   const mat = new THREE.MeshStandardMaterial({
@@ -554,7 +559,7 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       gruppe.add(bulb)
     }
 
-  } else if (istDeckenleuchte) {
+  } else if (istDeckenleuchte(item.name)) {
     // Deckenlampe / Pendelleuchte
     const radius = Math.min(moebelBreite, moebelTiefe) / 2
     const kabelLaenge = name.includes('pendelleuchte') ? 0.4 : 0.08
@@ -1201,5 +1206,8 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
   }
 
   gruppe.castShadow = true
+  // Siehe Kommentar im modellVorlage-Zweig weiter oben.
+  gruppe.userData.id = item.id
   scene.add(gruppe)
+  return gruppe
 }

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import RoomView3D from '../RoomView3D'
 import FensterTuerenAnsicht3D from './FensterTuerenAnsicht3D'
+import DeckenAnsicht3D from './DeckenAnsicht3D'
 import { moebelIconTyp, moebelShapes } from '../moebelIcons'
 import RotationsPanel from './RotationsPanel'
 import TrennwandPanel from './TrennwandPanel'
@@ -10,6 +11,7 @@ import { useDesign } from '../context/DesignContext'
 import { useFurniture } from '../context/FurnitureContext'
 import { useTrennwand } from '../context/TrennwandContext'
 import { useWizard } from '../context/WizardContext'
+import { istDeckenleuchte } from '../constants'
 
 const wandFarbeFuer = (room, index) => room?.wandfarben?.[index] || room?.wandfarbe || '#FFFFFF'
 
@@ -71,12 +73,13 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
   const { ansicht, setAnsicht } = useUI()
   const { schritt } = useWizard()
 
-  // Schritt 3 ("Fenster & Türen") soll immer direkt in der neuen 3D-Wand-Ansicht starten, ohne
-  // dass man erst manuell auf "3D" klicken muss. Reagiert nur auf schritt-Wechsel (nicht auf
-  // ansicht selbst) — wer während Schritt 3 manuell zurück auf 2D schaltet (z.B. um wie bisher
-  // Fenster/Türen per Drag & Drop zu setzen), wird dadurch nicht wieder zurückgeschnappt.
+  // Schritt "Fenster & Türen" (2) UND jetzt auch "Licht" (3, Phase 6 Teilschritt 1) sollen immer
+  // direkt in ihrer eigenen 3D-Ansicht starten, ohne dass man erst manuell auf "3D" klicken muss.
+  // Reagiert nur auf schritt-Wechsel (nicht auf ansicht selbst) — wer manuell zurück auf 2D
+  // schaltet (z.B. um wie bisher eine Stehlampe per Drag & Drop zu setzen), wird dadurch nicht
+  // wieder zurückgeschnappt.
   useEffect(() => {
-    if (schritt === 2) setAnsicht('3d')
+    if (schritt === 2 || schritt === 3) setAnsicht('3d')
   }, [schritt, setAnsicht])
   const { activeRoom } = useRooms()
   const { fussleiste, fussleisteFarbe } = useDesign()
@@ -89,7 +92,9 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
     <>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#F5F4F0', position: 'relative' }}>
         <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', fontSize: '11px', color: '#B4B2A9', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid #E8E6E0', zIndex: 10, whiteSpace: 'nowrap' }}>
-          {ansicht === '2d' ? (wandVorschau ? 'Oben bestätigen oder verwerfen' : zeichneWand ? 'Wand ziehen · Winkel schnappt bei 45° · Esc zum Beenden' : 'Doppelklick auf Raumnamen · Blau = Drehen · Rot = Löschen') : 'Maus ziehen = Kamera drehen · Scrollrad = Zoom'}
+          {ansicht === '2d'
+            ? (wandVorschau ? 'Oben bestätigen oder verwerfen' : zeichneWand ? 'Wand ziehen · Winkel schnappt bei 45° · Esc zum Beenden' : 'Doppelklick auf Raumnamen · Blau = Drehen · Rot = Löschen')
+            : schritt === 3 ? 'Leuchte anklicken zum Auswählen' : 'Maus ziehen = Kamera drehen · Scrollrad = Zoom'}
         </div>
         {ansicht === '2d' && schritt === 1 && (
           <div onClick={() => { setZeichneWand(z => !z); setSelectedWandId(null); setSelectedId(null); setWandVorschau(null) }}
@@ -199,7 +204,7 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
                 <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '8px', background: fussleisteFarbe, zIndex: 2 }}></div>
               </>
             )}
-            {furniture.map(item => {
+            {furniture.filter(item => !istDeckenleuchte(item.name)).map(item => {
               const W = item.origWidth || item.width
               const H = item.origHeight || item.height
               const isEcksofa = item.name.toLowerCase().includes('ecksofa')
@@ -290,7 +295,7 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
           </div>
         ) : (
           <div style={{ position: 'absolute', inset: 0 }}>
-            {schritt === 2 ? <FensterTuerenAnsicht3D /> : <RoomView3D />}
+            {schritt === 2 ? <FensterTuerenAnsicht3D /> : schritt === 3 ? <DeckenAnsicht3D /> : <RoomView3D />}
           </div>
         )}
       </div>

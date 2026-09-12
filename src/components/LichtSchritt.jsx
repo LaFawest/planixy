@@ -16,7 +16,7 @@ const tageszeitIcon = (stunde) => {
 }
 
 export default function LichtSchritt() {
-  const { furniture, removeFurniture, updateFurniture } = useFurniture()
+  const { furniture, removeFurniture, updateFurniture, selectedId, setSelectedId } = useFurniture()
   const { tageszeit, setTageszeit } = useDesign()
   const leuchten = furniture.filter(f => f.kategorie === 'Licht')
 
@@ -46,8 +46,17 @@ export default function LichtSchritt() {
           : leuchten.map(item => {
             const an = item.lichtAn !== false
             const farbe = item.farbtemperatur || '#fff0c8'
+            const ausgewaehlt = selectedId === item.id
+            // Zeile anklickbar (Phase 6, Teilschritt 1): wählt dieselbe geteilte Auswahl wie ein
+            // Klick auf eine Deckenleuchte in der neuen 3D-Decken-Ansicht (RoomView3D.jsx) —
+            // funktioniert deshalb in beide Richtungen, auch für die übrigen (frei platzierbaren)
+            // Licht-Typen, die es dort (noch) nicht gibt.
             return (
-              <div key={item.id} style={{ padding: '4px 0 4px 10px', background: '#FAFAF8', borderRadius: '8px', marginBottom: '6px', border: '1px solid #E8E6E0' }}>
+              <div key={item.id} onClick={() => setSelectedId(item.id)} style={{
+                padding: '4px 0 4px 10px', borderRadius: '8px', marginBottom: '6px', cursor: 'pointer',
+                background: ausgewaehlt ? '#EEF4FC' : '#FAFAF8',
+                border: `1px solid ${ausgewaehlt ? '#185FA5' : '#E8E6E0'}`,
+              }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
                     <div style={{ width: '10px', height: '10px', background: item.color, border: `1px solid ${item.border}`, borderRadius: '3px', flexShrink: 0 }}></div>

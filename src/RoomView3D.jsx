@@ -11,9 +11,9 @@ import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
 import { useUI } from './context/UIContext'
-import { wandMaterialien } from './constants'
+import { wandMaterialien, istDeckenleuchte } from './constants'
 
-export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {}) {
+export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deckenFokus = false, onDeckenleuchteAusgewaehlt } = {}) {
   const { activeRoom: room } = useRooms()
   const { furniture } = useFurniture()
   const {
@@ -94,6 +94,15 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     zeichenModusMaterialRef.current = null
     updateCameraRef.current?.()
   }, [fokusWand])
+
+  // Decken-Fokus (Phase 6, Teilschritt 1): analog zu fokusWandRef oben — ändert sich bei
+  // DeckenAnsicht3D zwar praktisch nie während der Lebenszeit der Komponente (die Prop ist dort
+  // immer `true`), lebt aber aus Konsistenzgründen nach demselben Muster als Ref, damit der schwere
+  // Szenen-Effekt unten ihn lesen kann, ohne ihn als Dependency zu führen.
+  const deckenFokusRef = useRef(deckenFokus)
+  useEffect(() => {
+    deckenFokusRef.current = deckenFokus
+  }, [deckenFokus])
 
   // Wandwechsel (Mini-Karte) oder Verlassen des Wand-Fokus-Modus: Live-Anzeige zurücksetzen.
   // Direkt beim Rendern verglichen (React-empfohlenes Muster fürs Zurücksetzen von State bei
@@ -198,6 +207,47 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     const raumTiefe = box.tiefe
     const mitteX = box.minX + raumBreite / 2
     const mitteZ = box.minY + raumTiefe / 2
+
+    // Decken-Fokus (Phase 6, Teilschritt 1 — 4. Nachbesserung nach Hassans Feedback "lieber zoom
+    // etwas weiter raus und der Blickwinkel weiter runter"): die vorherige Zielwinkel-Rechnung
+    // (28° anvisiert, aber per min() auf den Sicherheitsabstand-Deckel begrenzt) wurde bei
+    // realistischen Raumtiefen so gut wie immer vom Deckel überschrieben — real gerendert kam dabei
+    // eher ein ~45°-Winkel heraus, nie die anvisierten 28°. Ein weiteres Absenken des Zielwinkels
+    // hätte deshalb nichts mehr bewirkt. Stattdessen jetzt direkt: (1) der maximal sichere Versatz
+    // wird IMMER voll ausgenutzt (kein Zielwinkel-Zwischenschritt mehr, kein Deckel-Überraschungseffekt),
+    // (2) die Kamera steht spürbar höher über dem Boden, was den Höhenunterschied zur Decke und
+    // damit den Aufwinkel bei gleichem Versatz zusätzlich verringert, (3) ein engeres Sichtfeld nur
+    // in diesem Modus (Tele-Effekt) lässt die Szene komprimierter/weiter entfernt wirken und nimmt
+    // der Weitwinkel-Perspektive die Verzerrung — ohne dass die Kamera den Raum verlassen müsste.
+    // Sicherheitsabstand bleibt dem SICHERHEITSABSTAND-Muster von berechneWandFokusZiel weiter unten
+    // treu, nur etwas knapper gefasst, um mehr Rückzugsraum zu gewinnen.
+    if (deckenFokusRef.current) {
+      // 8. Nachbesserung nach Hassans Referenz-Screenshot ("das ist der Blickwinkel den ich sehen
+      // möchte"): Kamera steht jetzt wieder außerhalb des Raums (wie in der 2. Nachbesserung), dieses
+      // Mal aber mit derselben bewährten "Ziel in den Frustum einpassen"-Technik wie beim Wand-Fokus
+      // (berechneWandFokusZiel weiter unten) statt einer festen Distanz: die Distanz wird so gewählt,
+      // dass sowohl die volle Deckenhöhe (hoehenFitDistanz) als auch die volle Raumbreite
+      // (breitenFitDistanzReferenz, am festen 16:9-Referenzformat entschieden und danach aufs aktuelle
+      // Seitenverhältnis übertragen — derselbe Trick, der dort schon ein Abschneiden bei schmalen
+      // Fenstern verhindert) ins Bild passen. Kamera auf halber Wandhöhe statt knapp über dem Boden —
+      // dadurch sind Boden und Decke symmetrisch im Bild verteilt (Blick ist waagerecht, kein
+      // Winkelhalbierende-Trick mehr nötig wie in der 7. Nachbesserung). Kein Sicherheitsabstand/keine
+      // Raumgrenze mehr nötig, die Kamera darf jetzt bewusst außerhalb des Raums stehen. Die vordere
+      // Wand wird weiter unten direkt nach dem Wände-Bauen ausgeblendet.
+      const fovY = camera.fov * Math.PI / 180
+      const hoehenFitDistanz = (wandHoehe / 2) / Math.tan(fovY / 2)
+      const REFERENZ_ASPEKT = 16 / 9
+      const fovXReferenz = 2 * Math.atan(Math.tan(fovY / 2) * REFERENZ_ASPEKT)
+      const breitenFitDistanzReferenz = (raumBreite / 2) / Math.tan(fovXReferenz / 2)
+      const zielDistanzOhneRand = Math.max(hoehenFitDistanz, breitenFitDistanzReferenz)
+      const zielBreiteMeter = 2 * zielDistanzOhneRand * Math.tan(fovXReferenz / 2)
+      const fovXAktuell = 2 * Math.atan(Math.tan(fovY / 2) * camera.aspect)
+      const distanzFuerZielBreiteAktuell = zielBreiteMeter / (2 * Math.tan(fovXAktuell / 2))
+      const RAND_FAKTOR = 1.6
+      const deckenFokusVersatz = Math.max(zielDistanzOhneRand, distanzFuerZielBreiteAktuell) * RAND_FAKTOR
+      camera.position.set(0, wandHoehe / 2, deckenFokusVersatz)
+      camera.lookAt(0, wandHoehe / 2, 0)
+    }
 
     // === TEXTUREN (einmal pro Szene erzeugt, mehrfach verwendet) ===
     const holzTextur = erzeugeHolzTextur()
@@ -348,6 +398,20 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
       }
     })
 
+    // Decken-Fokus (8. Nachbesserung): die jetzt vor der weit außerhalb stehenden Kamera liegende
+    // Wand ausblenden, sonst blockiert sie die komplette Sicht in den Raum — dieselbe Formel wie beim
+    // Wände-Ausblenden der normalen Rundumblick-Kamera weiter unten (updateOrbitCamera): eine Wand
+    // wird transparent, sobald ihre nach außen zeigende Normale zur Kamera zeigt. Einmalig hier beim
+    // Szenenaufbau gesetzt (nicht in updateCamera), weil sich die Decken-Fokus-Kamera danach nicht
+    // mehr bewegt. Die anderen 3 Wände samt ihrer Wandmaterial-Deko bleiben unverändert sichtbar.
+    if (deckenFokusRef.current) {
+      wandMeshe.forEach(({ mesh, normale }) => {
+        const versteckt = camera.position.x * normale.x + camera.position.z * normale.z > 0
+        mesh.material.opacity = versteckt ? 0 : 1
+        mesh.material.transparent = versteckt
+      })
+    }
+
     // Sockelleisten — eine Leiste je Wandsegment, volle Segmentlänge, nach innen versetzt um die
     // halbe Dicke entlang der Segment-Normale (ersetzt die 4 festen ±0.02-Offsets). An Außenecken
     // überlappen sich zwei Leisten geringfügig, wie schon bei den bisherigen 4 Leisten — siehe
@@ -355,6 +419,12 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     if (fussleiste) {
       const sockelMat = new THREE.MeshLambertMaterial({ color: fussleisteFarbe || '#E0DDD8' })
       segmente.forEach(segment => {
+        // Decken-Fokus: keine Sockelleiste für ein Wandsegment bauen, dessen Wand gerade ausgeblendet
+        // ist — sonst würde die Leiste sichtbar ohne die dazugehörige Wand im Bild "schweben".
+        if (deckenFokusRef.current) {
+          const versteckt = camera.position.x * segment.normale.x + camera.position.z * segment.normale.y > 0
+          if (versteckt) return
+        }
         const x1 = segment.start.x - mitteX, z1 = segment.start.y - mitteZ
         const x2 = segment.ende.x - mitteX, z2 = segment.ende.y - mitteZ
         const sockel = new THREE.Mesh(new THREE.BoxGeometry(segment.laenge, 0.08, 0.04), sockelMat)
@@ -374,12 +444,28 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     // Referenz auf jede gebaute Fenster/Tür-Gruppe + ihr furniture-Item — Grundlage fürs
     // Anklicken/Ziehen im Wand-Fokus-Modus weiter unten.
     const wandElementGruppen = []
+    // Deckenleuchten-Gruppen (Phase 6, Teilschritt 1) — Grundlage fürs Anklicken in
+    // deckenleuchteMausDown weiter unten. Wird nur im Decken-Fokus-Modus befüllt, ist aber immer
+    // deklariert, damit die spätere Verwendung nicht bedingt auf die Existenz der Variable prüfen muss.
+    const deckenleuchtenGruppen = []
     furniture.forEach(item => {
       if (item.istWandElement) {
-        const gruppe = baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur)
-        wandElementGruppen.push({ gruppe, item })
-      } else {
-        baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur)
+        // 8. Nachbesserung nach Hassans Feedback "ich möchte keine Fenster oder Türen sehen": anders
+        // als in der 3. Nachbesserung entschieden (dort bewusst als "Teil der Architektur" sichtbar
+        // gelassen) werden Fenster-/Tür-Wandelemente in der Decken-Ansicht jetzt genauso wenig gebaut
+        // wie normale Möbel. In jeder anderen Ansicht ändert sich nichts.
+        if (!deckenFokusRef.current) {
+          const gruppe = baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur)
+          wandElementGruppen.push({ gruppe, item })
+        }
+      } else if (!deckenFokusRef.current || istDeckenleuchte(item.name)) {
+        // In der Decken-Ansicht (Phase 6, Teilschritt 1, nach Hassans Feedback "die Stehlampen
+        // haben da nichts zu suchen") werden normale Möbelstücke gar nicht erst gebaut — es geht
+        // in dieser Ansicht nur um die Decke plus die 3 sichtbaren Wände, nicht um den restlichen
+        // Raum. Deckenleuchten natürlich weiterhin. In jeder anderen Ansicht (deckenFokusRef.current
+        // === false) ändert sich nichts am bisherigen Verhalten.
+        const gruppe = baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur)
+        if (deckenFokusRef.current && istDeckenleuchte(item.name)) deckenleuchtenGruppen.push({ gruppe, item })
       }
     })
 
@@ -617,6 +703,12 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     }
 
     const updateCamera = () => {
+      // Decken-Fokus (Phase 6, Teilschritt 1): Kamera bleibt exakt an der beim Szenenaufbau oben
+      // gesetzten Position/Rotation stehen — kein Orbit, kein Rundgang. Ohne diesen Wächter würde
+      // der initiale updateCamera()-Aufruf gleich darunter (und jeder spätere über
+      // updateCameraRef.current, z.B. bei Resize) die sorgfältig gesetzte Draufsicht sofort wieder
+      // mit der Orbit-Kamera überschreiben.
+      if (deckenFokusRef.current) return
       if (fokusWandRef.current != null) { updateWandFokusCamera(fokusWandRef.current); return }
       if (kameraModusRef.current === 'rundgang') updateRundgangCamera()
       else updateOrbitCamera()
@@ -630,6 +722,43 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     const laufZiele = [boden, ...wandMeshe.map(w => w.mesh)]
     const raycaster = new THREE.Raycaster()
     const zeigerNDC = new THREE.Vector2()
+
+    // === DECKENLEUCHTE ANKLICKEN (nur im Decken-Fokus-Modus, Phase 6 Teilschritt 1) ===
+    // Reine Auswahl per Klick — kein Ziehen/Resizen, die Leuchten sind fest/mittig platziert
+    // (siehe FurnitureContext.addFurniture). Nutzt dieselbe geteilte Auswahl (selectedId/
+    // setSelectedId aus FurnitureContext) wie der Rest der App, damit z.B. die Leuchten-Liste im
+    // Licht-Schritt (LichtSchritt.jsx) dieselbe Auswahl auch farblich hervorheben kann. Ein
+    // Ring-Mesh knapp unter der Decke markiert die aktuell ausgewählte Leuchte visuell.
+    const deckenleuchteRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.18, 0.24, 32),
+      new THREE.MeshBasicMaterial({ color: '#185FA5', side: THREE.DoubleSide, transparent: true, opacity: 0.6 }),
+    )
+    deckenleuchteRing.rotation.x = -Math.PI / 2
+    deckenleuchteRing.visible = false
+    if (deckenFokusRef.current) scene.add(deckenleuchteRing)
+
+    const deckenleuchteMausDown = (clientX, clientY) => {
+      const rect = mount.getBoundingClientRect()
+      zeigerNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1
+      zeigerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1
+      raycaster.setFromCamera(zeigerNDC, camera)
+      const treffer = raycaster.intersectObjects(deckenleuchtenGruppen.map(d => d.gruppe), true)
+      if (treffer.length === 0) {
+        deckenleuchteRing.visible = false
+        onDeckenleuchteAusgewaehlt?.(null)
+        return
+      }
+      // intersectObjects trifft ggf. ein Mesh tief in der Gruppe (Schirm, Glühbirne, Kabel) — am
+      // userData.id des Gruppen-Roots entlang nach oben laufen (siehe scene/moebel.js), statt
+      // jeden einzelnen Kindmesh selbst zu markieren.
+      let obj = treffer[0].object
+      while (obj && obj.userData.id === undefined) obj = obj.parent
+      const eintrag = deckenleuchtenGruppen.find(d => d.gruppe === obj)
+      if (!eintrag) return
+      deckenleuchteRing.position.set(eintrag.gruppe.position.x, wandHoehe - 0.02, eintrag.gruppe.position.z)
+      deckenleuchteRing.visible = true
+      onDeckenleuchteAusgewaehlt?.(eintrag.item.id)
+    }
 
     let laufAnimation = null // { startX, startZ, zielX, zielZ, startZeit, dauer }
     const easeOut = (t) => 1 - Math.pow(1 - t, 3)
@@ -1305,6 +1434,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
       // Eingabefeld überhaupt erreicht). Nur echte Canvas-Klicks sollen die 3D-Interaktion auslösen.
       if (e.target !== renderer.domElement) return
       if (fokusWandRef.current != null) { wandElementMausDown(e.clientX, e.clientY); return }
+      if (deckenFokusRef.current) { deckenleuchteMausDown(e.clientX, e.clientY); return }
       if (kameraModusRef.current === 'rundgang') {
         rundgangZeiger = { startX: e.clientX, startY: e.clientY, letzteX: e.clientX, letzteY: e.clientY, bewegung: 0, startZeit: performance.now() }
         return
@@ -1314,6 +1444,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     }
     const onMouseUp = () => {
       if (fokusWandRef.current != null) { wandElementMausUp(); return }
+      if (deckenFokusRef.current) return
       if (kameraModusRef.current === 'rundgang') {
         if (rundgangZeiger) {
           const dauer = performance.now() - rundgangZeiger.startZeit
@@ -1328,6 +1459,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     }
     const onMouseMove = (e) => {
       if (fokusWandRef.current != null) { wandElementMausMove(e.clientX, e.clientY); return }
+      if (deckenFokusRef.current) return
       if (kameraModusRef.current === 'rundgang') {
         if (!rundgangZeiger) return
         const dx = e.clientX - rundgangZeiger.letzteX
@@ -1350,6 +1482,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     }
     const onWheel = (e) => {
       if (fokusWandRef.current != null) return
+      if (deckenFokusRef.current) return
       if (kameraModusRef.current === 'rundgang') return
       spherical.radius = Math.max(4, Math.min(30, spherical.radius + e.deltaY * 0.05))
       updateCamera()
@@ -1361,6 +1494,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
       // ein Antippen der HTML-Overlays (Maßlinien-Zahlen/-Eingabefelder, Kameramodus-Buttons).
       if (e.target !== renderer.domElement) return
       if (fokusWandRef.current != null) { wandElementMausDown(e.touches[0].clientX, e.touches[0].clientY); return }
+      if (deckenFokusRef.current) { deckenleuchteMausDown(e.touches[0].clientX, e.touches[0].clientY); return }
       if (kameraModusRef.current === 'rundgang') {
         const t = e.touches[0]
         rundgangZeiger = { startX: t.clientX, startY: t.clientY, letzteX: t.clientX, letzteY: t.clientY, bewegung: 0, startZeit: performance.now() }
@@ -1370,6 +1504,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     }
     const onTouchMove  = (e) => {
       if (fokusWandRef.current != null) { wandElementMausMove(e.touches[0].clientX, e.touches[0].clientY); return }
+      if (deckenFokusRef.current) return
       if (kameraModusRef.current === 'rundgang') {
         if (!rundgangZeiger) return
         const t = e.touches[0]
@@ -1393,6 +1528,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt } = {
     }
     const onTouchEnd = () => {
       if (fokusWandRef.current != null) { wandElementMausUp(); return }
+      if (deckenFokusRef.current) return
       if (kameraModusRef.current === 'rundgang') {
         if (rundgangZeiger) {
           const dauer = performance.now() - rundgangZeiger.startZeit
@@ -1508,10 +1644,10 @@ return () => {
   mount.removeChild(renderer.domElement)
   renderer.dispose()
 }
-  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleBereit, onWandElementBewegt, wandBereiche, aktualisiereWandBereich, fuegeWandBereichHinzu, setAusgewaehltesWandElement])
+  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleBereit, onWandElementBewegt, wandBereiche, aktualisiereWandBereich, fuegeWandBereichHinzu, setAusgewaehltesWandElement, onDeckenleuchteAusgewaehlt])
 
   return (
-    <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: fokusWand == null ? 'grab' : (zeichenModusMaterial ? 'crosshair' : 'default'), position: 'relative' }}>
+    <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: deckenFokus ? 'default' : (fokusWand == null ? 'grab' : (zeichenModusMaterial ? 'crosshair' : 'default')), position: 'relative' }}>
       {fokusWand != null && (
         // left: 220px statt der sonst üblichen 12/16px am linken Rand — dort sitzt bereits die
         // WandMiniKarte (190px breit, 16px Rand), siehe die Notiz dazu, die vorher beim

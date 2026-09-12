@@ -1,11 +1,11 @@
 import { createContext, useContext, useCallback, useMemo, useState } from 'react'
-import { alleKatalogItems } from '../constants'
+import { alleKatalogItems, istDeckenleuchte } from '../constants'
 import { produktAufKatalogItemAnwenden } from '../data/produktAuswahl'
 import { useRooms } from './RoomsContext'
 import { useRaumGeometrie } from './useRaumGeometrie'
 import { useUI } from './UIContext'
 import { vergibMoebelId } from './idZaehler'
-import { snappeWandElement, naechsteFreieEcke, snappeAnFreieKante, platziereAufWandSegment } from '../raumPolygon'
+import { snappeWandElement, naechsteFreieEcke, snappeAnFreieKante, platziereAufWandSegment, punktSicherImPolygon } from '../raumPolygon'
 
 const FurnitureContext = createContext(null)
 
@@ -40,6 +40,24 @@ export function FurnitureProvider({ children }) {
   // reichen, eine Position kann innerhalb der Bounding-Box liegen und trotzdem in der
   // (konkaven) Aussparung.
   const addFurniture = useCallback((item) => {
+    // Deckenmontierte Leuchten (Kronleuchter/Pendelleuchte/Deckenlampe, Phase 6 Teilschritt 1)
+    // werden fest auf dem Flächenschwerpunkt des Raums platziert statt frei/zufällig wie normale
+    // Möbel — dieselbe Funktion, die auch schon die generische Fallback-Deckenleuchte in
+    // scene/beleuchtung.js verwendet. Sie sind nicht verschiebbar (im 2D-Grundriss ausgeblendet,
+    // siehe Canvas2D.jsx) und ihre Position wird deshalb hier einmalig beim Hinzufügen berechnet,
+    // nicht laufend nachgeführt — ändert sich später die Raumform, bleibt die Leuchte an ihrer
+    // ursprünglichen Stelle stehen (wie jedes andere Möbelstück auch).
+    if (istDeckenleuchte(item.name)) {
+      const zentrum = punktSicherImPolygon(grenzeEckpunkte)
+      updateFurniture([...(activeRoom?.furniture || []), {
+        ...item, id: vergibMoebelId(),
+        left: zentrum.x - item.width / 2, top: zentrum.y - item.height / 2,
+        rotation: 0,
+        origWidth: item.width,
+        origHeight: item.height,
+      }])
+      return
+    }
     let left, top
     let versuch = 0
     do {

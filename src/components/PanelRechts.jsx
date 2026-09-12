@@ -22,9 +22,30 @@ export default function PanelRechts() {
   const { selectedId } = useFurniture()
   const SchrittInhalt = SCHRITT_KOMPONENTEN[schritt]
 
+  // Licht-Schritt (Phase 6, Teilschritt 1 — 7. Nachbesserung, ersetzt die 6.): die Leuchten-Liste
+  // aus LichtSchritt (Überschrift "LEUCHTEN (n)" + eine Zeile je eingefügter Leuchte) hing in der
+  // 6. Nachbesserung noch von `raumPanelOffen` ab — dieser Zustand wird aber u.a. umgeschaltet,
+  // sobald man in der linken Raumliste auf den bereits aktiven Raum klickt (waehleRaum in
+  // RoomsContext.jsx), und schloss die gerade erst sichtbar gemachte Liste dadurch sofort wieder.
+  // Im Licht-Schritt hängt die Liste jetzt gar nicht mehr von `raumPanelOffen` ab — sie ist hier
+  // immer da, unabhängig von diesem (für die anderen Schritte gedachten) Auf/Zu-Zustand. Die
+  // "RAUMEINSTELLUNGEN"-Kopfzeile mit dem ✕-Schließen-Knopf passt inhaltlich ohnehin nicht zur
+  // Leuchten-Liste und entfällt hier deshalb — die Liste beginnt jetzt direkt am oberen Rand.
+  const zeigtLichtListeImmer = schritt === 3 && activeRoom
+
   return (
     <div className="panel-rechts" style={{ width: '220px', background: 'white', borderLeft: '1px solid #E8E6E0', padding: '16px', flexShrink: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', boxShadow: '-2px 0 8px rgba(0,0,0,0.04)' }}>
-      {selectedId !== null ? (
+      {zeigtLichtListeImmer ? (
+        <>
+          <LichtSchritt />
+          {selectedId !== null && (
+            <>
+              <div style={{ height: '1px', background: '#E8E6E0' }}></div>
+              <ProduktPanel />
+            </>
+          )}
+        </>
+      ) : selectedId !== null ? (
         <ProduktPanel />
       ) : raumPanelOffen && activeRoom ? (
         <>
