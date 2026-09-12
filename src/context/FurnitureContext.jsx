@@ -326,13 +326,17 @@ export function FurnitureProvider({ children }) {
 
   // Übernimmt Position eines frei verschiebbaren Deckenlicht-Typs (Spot/Spot-Reihe, Phase 6
   // Teilschritt 2) NACH einem Ziehvorgang in der 3D-Decken-Ansicht (RoomView3D, deckenFokus-Modus)
-  // — analog zu positioniereWandElement oben, nur für top/left statt Wandposition.
-  const positioniereDeckenleuchte = useCallback((id, { top, left }) => {
+  // — analog zu positioniereWandElement oben, nur für top/left statt Wandposition. width/rotation
+  // (Phase 6, Teilschritt 3) kommen zusätzlich dazu, wenn ein LED-Streifen über seine Endpunkt-
+  // Anfasser länger/kürzer gezogen oder gedreht wurde.
+  const positioniereDeckenleuchte = useCallback((id, { top, left, width, rotation }) => {
     updateFurniture((activeRoom?.furniture || []).map(f => {
       if (f.id !== id) return f
       const patch = {}
       if (top !== undefined) patch.top = top
       if (left !== undefined) patch.left = left
+      if (width !== undefined) patch.width = width
+      if (rotation !== undefined) patch.rotation = rotation
       return { ...f, ...patch }
     }))
   }, [updateFurniture, activeRoom])

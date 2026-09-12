@@ -533,13 +533,40 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       baueStandardBox(gruppe, moebelBreite, moebelHoehe, moebelTiefe, mat)
     }
 
+  } else if (name.includes('led-streifen')) {
+    // LED-Streifen (Phase 6, Teilschritt 3, Performance-Fix Nachbesserung): freie RGB-Farbe statt
+    // der 3 festen Farbtemperaturen — item.farbtemperatur trägt hier einen frei per Farbwähler
+    // gewählten Hex-Wert (siehe LichtSchritt.jsx), lichtFarbe oben liest ihn genauso wie bei jeder
+    // anderen Leuchte. Länge (moebelBreite) wird über die ziehbaren Endpunkt-Anfasser in der
+    // Decken-Ansicht verändert (siehe RoomView3D.jsx) — item.width wird dabei live angepasst, nicht
+    // über ein Zahlenfeld. NUR EIN PointLight statt ursprünglich einem alle 0,6m (Hassans Feedback:
+    // "seit dem LED eingefügt wurden hängt es sehr") — ein langer Streifen leuchtet dadurch etwas
+    // ungleichmäßiger aus, ist aber deutlich günstiger zu rendern.
+    const streifenLaenge = moebelBreite
+    const streifenTiefe = 0.03
+    const kanalMat = new THREE.MeshStandardMaterial({ color: '#D3D1C7', roughness: 0.6, metalness: 0.2 })
+    const kanal = new THREE.Mesh(new THREE.BoxGeometry(streifenLaenge, 0.015, streifenTiefe), kanalMat)
+    kanal.position.set(0, -0.01, 0)
+    gruppe.add(kanal)
+    const glowMat = new THREE.MeshStandardMaterial({ color: '#FFFFFF', emissive: lichtFarbe, emissiveIntensity: lichtAn ? 1.1 : 0 })
+    const glowStreifen = new THREE.Mesh(new THREE.BoxGeometry(streifenLaenge * 0.94, 0.006, streifenTiefe * 0.6), glowMat)
+    glowStreifen.position.set(0, -0.015, 0)
+    gruppe.add(glowStreifen)
+    if (lichtAn) {
+      const streifenLicht = new THREE.PointLight(lichtFarbe, Math.min(1.4, 0.5 + streifenLaenge * 0.25), Math.max(raumBreite, raumTiefe) * 0.5 + streifenLaenge * 0.3)
+      streifenLicht.position.set(0, -0.05, 0)
+      gruppe.add(streifenLicht)
+    }
+
   } else if (name.includes('spot-reihe')) {
-    // Spot-Reihe (Phase 6, Teilschritt 2): mehrere kleine Einbaustrahler in einer Reihe, Anzahl
-    // (1-6) über item.spotAnzahl wählbar (Dropdown in LichtSchritt.jsx, Default 3). Jeder Spot
-    // bekommt sein eigenes PointLight an seiner eigenen Position statt der gemeinsamen
-    // baueGluehlampe()-Hilfsfunktion (die eine Lichtquelle immer mittig auf die ganze Gruppe legt).
-    // Die Reihe erstreckt sich über die volle Katalog-Breite (moebelBreite) entlang der lokalen
-    // X-Achse — die Gruppen-Rotation weiter oben dreht die ganze Reihe wie jedes andere Möbelstück.
+    // Spot-Reihe (Phase 6, Teilschritt 2, Performance-Fix Nachbesserung): mehrere kleine
+    // Einbaustrahler in einer Reihe, Anzahl (1-6) über item.spotAnzahl wählbar (Dropdown in
+    // LichtSchritt.jsx, Default 3). Jeder Spot bekommt weiterhin sein eigenes Bezel+Linse-Mesh
+    // (reine Geometrie, günstig), aber NUR EIN gemeinsames PointLight für die ganze Reihe —
+    // ursprünglich hatte jeder Spot sein eigenes PointLight, bei mehreren Spot-Reihen/LED-Streifen
+    // im selben Raum hat das spürbar geruckelt (Hassans Feedback "hängt sehr"). Die Reihe erstreckt
+    // sich über die volle Katalog-Breite (moebelBreite) entlang der lokalen X-Achse — die
+    // Gruppen-Rotation weiter oben dreht die ganze Reihe wie jedes andere Möbelstück.
     const spotAnzahl = Math.min(6, Math.max(1, item.spotAnzahl || 3))
     const spotRadius = Math.min(0.045, moebelTiefe / 2)
     for (let i = 0; i < spotAnzahl; i++) {
@@ -552,11 +579,11 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       linse.rotation.x = Math.PI / 2
       linse.position.set(versatz, -0.021, 0)
       gruppe.add(linse)
-      if (lichtAn) {
-        const spotLicht = new THREE.PointLight(lichtFarbe, 0.5, Math.max(raumBreite, raumTiefe) * 0.5)
-        spotLicht.position.set(versatz, -0.05, 0)
-        gruppe.add(spotLicht)
-      }
+    }
+    if (lichtAn) {
+      const spotLicht = new THREE.PointLight(lichtFarbe, 0.5 + spotAnzahl * 0.08, Math.max(raumBreite, raumTiefe) * 0.5)
+      spotLicht.position.set(0, -0.05, 0)
+      gruppe.add(spotLicht)
     }
 
   } else if (name.includes('spot')) {

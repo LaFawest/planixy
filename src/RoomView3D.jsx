@@ -11,7 +11,7 @@ import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
 import { useUI } from './context/UIContext'
-import { wandMaterialien, istDeckenleuchte, istVerschiebbareDeckenleuchte, berechneInnenmasse } from './constants'
+import { wandMaterialien, istDeckenleuchte, istVerschiebbareDeckenleuchte, istEndpunktVerstellbareDeckenleuchte, berechneInnenmasse } from './constants'
 
 export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deckenFokus = false, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt } = {}) {
   const { activeRoom: room } = useRooms()
@@ -448,6 +448,13 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // deckenleuchteMausDown weiter unten. Wird nur im Decken-Fokus-Modus befüllt, ist aber immer
     // deklariert, damit die spätere Verwendung nicht bedingt auf die Existenz der Variable prüfen muss.
     const deckenleuchtenGruppen = []
+    // Endpunkt-Anfasser der LED-Streifen (Phase 6, Teilschritt 3) — zwei kleine Kugeln je Streifen,
+    // als Kind-Meshes der jeweiligen Gruppe (nicht Teil des "echten" Aussehens aus scene/moebel.js,
+    // rein für die Bedienung in der Decken-Ansicht). Weil sie Kinder der Gruppe sind, folgen sie
+    // automatisch Position/Drehung/Skalierung der Gruppe — siehe deckenleuchteMausMove weiter unten,
+    // die genau das ausnutzt, um beim Ziehen eines Endpunkts den jeweils ANDEREN Endpunkt exakt an
+    // Ort und Stelle zu halten (reine Vektor-Geometrie, kein manuelles Nachführen der Anfasser nötig).
+    const ledGriffe = []
     furniture.forEach(item => {
       if (item.istWandElement) {
         // 8. Nachbesserung nach Hassans Feedback "ich möchte keine Fenster oder Türen sehen": anders
@@ -465,7 +472,22 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         // Raum. Deckenleuchten natürlich weiterhin. In jeder anderen Ansicht (deckenFokusRef.current
         // === false) ändert sich nichts am bisherigen Verhalten.
         const gruppe = baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur)
-        if (deckenFokusRef.current && istDeckenleuchte(item.name)) deckenleuchtenGruppen.push({ gruppe, item })
+        if (deckenFokusRef.current && istDeckenleuchte(item.name)) {
+          const eintrag = { gruppe, item }
+          deckenleuchtenGruppen.push(eintrag)
+          if (istEndpunktVerstellbareDeckenleuchte(item.name)) {
+            const halbeLaenge = item.width / 120
+            const griffGeo = new THREE.SphereGeometry(0.045, 12, 10)
+            const griffLinks = new THREE.Mesh(griffGeo, new THREE.MeshBasicMaterial({ color: '#F2A93C' }))
+            griffLinks.position.set(-halbeLaenge, -0.01, 0)
+            gruppe.add(griffLinks)
+            const griffRechts = new THREE.Mesh(griffGeo, new THREE.MeshBasicMaterial({ color: '#F2A93C' }))
+            griffRechts.position.set(halbeLaenge, -0.01, 0)
+            gruppe.add(griffRechts)
+            ledGriffe.push({ mesh: griffLinks, eintrag, ende: -1 })
+            ledGriffe.push({ mesh: griffRechts, eintrag, ende: 1 })
+          }
+        }
       }
     })
 
@@ -748,12 +770,33 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     const deckenEbene = new THREE.Plane(new THREE.Vector3(0, 1, 0), -wandHoehe)
     const { innenBpx: deckenInnenBpx, innenTpx: deckenInnenTpx } = berechneInnenmasse(raumBreite, raumTiefe)
     let deckenleuchteDrag = null // { eintrag, offsetX, offsetZ, bewegt, neueX, neueZ }
+    // Ziehen an einem Endpunkt-Anfasser des LED-Streifens (Phase 6, Teilschritt 3) — ankerWelt ist
+    // die Weltposition des JEWEILS ANDEREN Endpunkts, einmalig bei Klickbeginn ermittelt und danach
+    // fix, damit dieser beim Ziehen exakt stehen bleibt (siehe deckenleuchteMausMove).
+    let ledEndpunktDrag = null // { eintrag, ende, ankerWelt, bewegt, neueLaenge, neueRotationRad, mitteX, mitteZ }
 
     const deckenleuchteMausDown = (clientX, clientY) => {
       const rect = mount.getBoundingClientRect()
       zeigerNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1
       zeigerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1
       raycaster.setFromCamera(zeigerNDC, camera)
+
+      // Endpunkt-Anfasser zuerst prüfen (Phase 6, Teilschritt 3) — sitzen nah am Streifenkörper,
+      // sollen aber Vorrang vor dem normalen Verschieben des ganzen Streifens haben.
+      const griffTreffer = raycaster.intersectObjects(ledGriffe.map(g => g.mesh))
+      if (griffTreffer.length > 0) {
+        const griff = ledGriffe.find(g => g.mesh === griffTreffer[0].object)
+        if (griff) {
+          const halbeLaengeM = griff.eintrag.item.width / 120
+          const ankerLokal = new THREE.Vector3(-griff.ende * halbeLaengeM, -0.01, 0)
+          const ankerWelt = griff.eintrag.gruppe.localToWorld(ankerLokal)
+          ledEndpunktDrag = { eintrag: griff.eintrag, ende: griff.ende, ankerWelt, bewegt: false }
+          deckenleuchteRing.visible = false
+          onDeckenleuchteAusgewaehlt?.(griff.eintrag.item.id)
+          return
+        }
+      }
+
       const treffer = raycaster.intersectObjects(deckenleuchtenGruppen.map(d => d.gruppe), true)
       if (treffer.length === 0) {
         deckenleuchteRing.visible = false
@@ -785,6 +828,32 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
 
     const deckenleuchteMausMove = (clientX, clientY) => {
+      if (ledEndpunktDrag) {
+        const schnitt = zeigerAufWeltpunkt(clientX, clientY, deckenEbene)
+        if (!schnitt) return
+        const { eintrag, ende, ankerWelt } = ledEndpunktDrag
+        const schnittX = Math.max(-raumBreite / 2, Math.min(raumBreite / 2, schnitt.x))
+        const schnittZ = Math.max(-raumTiefe / 2, Math.min(raumTiefe / 2, schnitt.z))
+        const richtung = new THREE.Vector3(schnittX - ankerWelt.x, 0, schnittZ - ankerWelt.z)
+        const laenge = Math.max(0.15, richtung.length())
+        richtung.normalize()
+        // Weltrichtung der lokalen +X-Achse der Gruppe: zeigt vom Anker weg, wenn der rechte
+        // Endpunkt (ende=1) gezogen wird, sonst genau entgegengesetzt.
+        const plusXWelt = ende === 1 ? richtung : richtung.clone().negate()
+        const rotationRad = Math.atan2(plusXWelt.z, plusXWelt.x)
+        const mitteX = ankerWelt.x + richtung.x * laenge * 0.5
+        const mitteZ = ankerWelt.z + richtung.z * laenge * 0.5
+        eintrag.gruppe.position.set(mitteX, wandHoehe, mitteZ)
+        eintrag.gruppe.rotation.y = -rotationRad
+        eintrag.gruppe.scale.x = laenge / (eintrag.item.width / 60)
+        deckenleuchteRing.visible = false
+        ledEndpunktDrag.bewegt = true
+        ledEndpunktDrag.neueLaenge = laenge
+        ledEndpunktDrag.neueRotationRad = rotationRad
+        ledEndpunktDrag.mitteX = mitteX
+        ledEndpunktDrag.mitteZ = mitteZ
+        return
+      }
       if (!deckenleuchteDrag) return
       const schnitt = zeigerAufWeltpunkt(clientX, clientY, deckenEbene)
       if (!schnitt) return
@@ -799,6 +868,24 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
 
     const deckenleuchteMausUp = () => {
+      if (ledEndpunktDrag) {
+        const { eintrag, bewegt, neueLaenge, neueRotationRad, mitteX, mitteZ } = ledEndpunktDrag
+        if (bewegt) {
+          const neuesWidthPx = neueLaenge * 60
+          const rotationDeg = ((neueRotationRad * 180 / Math.PI) % 360 + 360) % 360
+          const rad = (rotationDeg * Math.PI) / 180
+          const boundWpx = neuesWidthPx * Math.abs(Math.cos(rad)) + eintrag.item.height * Math.abs(Math.sin(rad))
+          const boundHpx = neuesWidthPx * Math.abs(Math.sin(rad)) + eintrag.item.height * Math.abs(Math.cos(rad))
+          const centerXpx = ((mitteX + raumBreite / 2) / raumBreite) * deckenInnenBpx
+          const centerZpx = ((mitteZ + raumTiefe / 2) / raumTiefe) * deckenInnenTpx
+          onDeckenleuchteBewegt?.(eintrag.item.id, {
+            left: centerXpx - boundWpx / 2, top: centerZpx - boundHpx / 2,
+            width: neuesWidthPx, rotation: rotationDeg,
+          })
+        }
+        ledEndpunktDrag = null
+        return
+      }
       if (!deckenleuchteDrag) return
       const { eintrag, bewegt, neueX, neueZ } = deckenleuchteDrag
       if (bewegt) {

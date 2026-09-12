@@ -92,19 +92,29 @@ export default function LichtSchritt() {
                   </div>
                 </div>
                 {an && (
-                  <div style={{ display: 'flex' }}>
-                    {FARBTEMPERATUREN.map(ft => (
-                      <button key={ft.name} onClick={() => setFarbtemperatur(item.id, ft.farbe)} aria-label={ft.name} title={ft.name} style={{
-                        width: '44px', height: '44px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
-                      }}>
-                        <span style={{
-                          width: '20px', height: '20px', borderRadius: '50%', display: 'block',
-                          background: ft.farbe, border: `${farbe === ft.farbe ? '2px' : '1px'} solid ${farbe === ft.farbe ? '#185FA5' : '#E8E6E0'}`,
-                        }}></span>
-                      </button>
-                    ))}
-                  </div>
+                  item.name === 'LED-Streifen' ? (
+                    <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 10px 8px' }}>
+                      <span style={{ fontSize: '10px', color: '#B4B2A9' }}>Farbe</span>
+                      <input type="color" value={farbe}
+                        onChange={e => setFarbtemperatur(item.id, e.target.value)}
+                        style={{ width: '32px', height: '32px', padding: 0, border: '1px solid #E8E6E0', borderRadius: '6px', cursor: 'pointer', background: 'none' }}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex' }}>
+                      {FARBTEMPERATUREN.map(ft => (
+                        <button key={ft.name} onClick={() => setFarbtemperatur(item.id, ft.farbe)} aria-label={ft.name} title={ft.name} style={{
+                          width: '44px', height: '44px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
+                        }}>
+                          <span style={{
+                            width: '20px', height: '20px', borderRadius: '50%', display: 'block',
+                            background: ft.farbe, border: `${farbe === ft.farbe ? '2px' : '1px'} solid ${farbe === ft.farbe ? '#185FA5' : '#E8E6E0'}`,
+                          }}></span>
+                        </button>
+                      ))}
+                    </div>
+                  )
                 )}
                 {/* Spot-Reihe (Phase 6, Teilschritt 2): Anzahl (1-6) per Dropdown, Ausrichtung per
                     Rotations-Regler — beides nur für diesen einen Leuchtentyp relevant. */}
