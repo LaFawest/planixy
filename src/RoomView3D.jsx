@@ -11,7 +11,7 @@ import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
 import { useUI } from './context/UIContext'
-import { wandMaterialien, istDeckenleuchte, istVerschiebbareDeckenleuchte, istEndpunktVerstellbareDeckenleuchte, berechneInnenmasse } from './constants'
+import { wandMaterialien, istDeckenleuchte, istVerschiebbareDeckenleuchte, istEndpunktVerstellbareDeckenleuchte, istEckSkalierbareDeckenleuchte, berechneInnenmasse } from './constants'
 
 export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deckenFokus = false, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt } = {}) {
   const { activeRoom: room } = useRooms()
@@ -455,6 +455,12 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // die genau das ausnutzt, um beim Ziehen eines Endpunkts den jeweils ANDEREN Endpunkt exakt an
     // Ort und Stelle zu halten (reine Vektor-Geometrie, kein manuelles Nachführen der Anfasser nötig).
     const ledGriffe = []
+    // Eck-Anfasser des quadratischen LED-Panels (Phase 6, Teilschritt 4) — eine Kugel je Panel, als
+    // Kind-Mesh der Gruppe an einer festen lokalen Ecke. Anders als bei den zwei Endpunkt-Anfassern
+    // des LED-Streifens oben bleibt beim Ziehen dieses EINEN Anfassers die Position der Gruppe
+    // unverändert — es wird nur symmetrisch um die (feststehende) Mitte skaliert, siehe
+    // deckenleuchteMausMove weiter unten.
+    const panelGriffe = []
     furniture.forEach(item => {
       if (item.istWandElement) {
         // 8. Nachbesserung nach Hassans Feedback "ich möchte keine Fenster oder Türen sehen": anders
@@ -486,6 +492,12 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
             gruppe.add(griffRechts)
             ledGriffe.push({ mesh: griffLinks, eintrag, ende: -1 })
             ledGriffe.push({ mesh: griffRechts, eintrag, ende: 1 })
+          } else if (istEckSkalierbareDeckenleuchte(item.name)) {
+            const halbeSeite = item.width / 120
+            const eckGriff = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), new THREE.MeshBasicMaterial({ color: '#F2A93C' }))
+            eckGriff.position.set(halbeSeite, -0.01, halbeSeite)
+            gruppe.add(eckGriff)
+            panelGriffe.push({ mesh: eckGriff, eintrag, halbeSeite })
           }
         }
       }
@@ -774,6 +786,11 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // die Weltposition des JEWEILS ANDEREN Endpunkts, einmalig bei Klickbeginn ermittelt und danach
     // fix, damit dieser beim Ziehen exakt stehen bleibt (siehe deckenleuchteMausMove).
     let ledEndpunktDrag = null // { eintrag, ende, ankerWelt, bewegt, neueLaenge, neueRotationRad, mitteX, mitteZ }
+    // Ziehen am Eck-Anfasser des LED-Panels (Phase 6, Teilschritt 4) — urspruenglicheHalbeSeite ist
+    // die halbe Kantenlänge beim Klickbeginn (item.width/120, unskaliert), Grundlage für den
+    // Skalierungsfaktor in deckenleuchteMausMove (gruppe.scale.x/z = neueHalbeSeite /
+    // urspruenglicheHalbeSeite). Position/Rotation der Gruppe werden dabei nicht angefasst.
+    let panelGriffDrag = null // { eintrag, urspruenglicheHalbeSeite, bewegt, neueHalbeSeite }
 
     const deckenleuchteMausDown = (clientX, clientY) => {
       const rect = mount.getBoundingClientRect()
@@ -791,6 +808,19 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
           const ankerLokal = new THREE.Vector3(-griff.ende * halbeLaengeM, -0.01, 0)
           const ankerWelt = griff.eintrag.gruppe.localToWorld(ankerLokal)
           ledEndpunktDrag = { eintrag: griff.eintrag, ende: griff.ende, ankerWelt, bewegt: false }
+          deckenleuchteRing.visible = false
+          onDeckenleuchteAusgewaehlt?.(griff.eintrag.item.id)
+          return
+        }
+      }
+
+      // Eck-Anfasser des LED-Panels (Phase 6, Teilschritt 4) — analog zu den Endpunkt-Anfassern
+      // oben, ebenfalls mit Vorrang vor dem normalen Verschieben des ganzen Panels.
+      const panelGriffTreffer = raycaster.intersectObjects(panelGriffe.map(g => g.mesh))
+      if (panelGriffTreffer.length > 0) {
+        const griff = panelGriffe.find(g => g.mesh === panelGriffTreffer[0].object)
+        if (griff) {
+          panelGriffDrag = { eintrag: griff.eintrag, urspruenglicheHalbeSeite: griff.halbeSeite, bewegt: false }
           deckenleuchteRing.visible = false
           onDeckenleuchteAusgewaehlt?.(griff.eintrag.item.id)
           return
@@ -854,6 +884,23 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         ledEndpunktDrag.mitteZ = mitteZ
         return
       }
+      if (panelGriffDrag) {
+        const schnitt = zeigerAufWeltpunkt(clientX, clientY, deckenEbene)
+        if (!schnitt) return
+        const { eintrag, urspruenglicheHalbeSeite } = panelGriffDrag
+        // Das LED-Panel dreht sich nie (kein Rotations-Regler, bleibt quadratisch/symmetrisch) —
+        // deshalb reicht hier die einfache Differenz zum (unveränderten) Gruppenmittelpunkt, ohne
+        // die Rotation der Gruppe herausrechnen zu müssen (anders als beim LED-Streifen oben).
+        const relX = schnitt.x - eintrag.gruppe.position.x
+        const relZ = schnitt.z - eintrag.gruppe.position.z
+        const neueHalbeSeite = Math.max(0.1, (Math.abs(relX) + Math.abs(relZ)) / 2)
+        const faktor = neueHalbeSeite / urspruenglicheHalbeSeite
+        eintrag.gruppe.scale.set(faktor, 1, faktor)
+        deckenleuchteRing.visible = false
+        panelGriffDrag.bewegt = true
+        panelGriffDrag.neueHalbeSeite = neueHalbeSeite
+        return
+      }
       if (!deckenleuchteDrag) return
       const schnitt = zeigerAufWeltpunkt(clientX, clientY, deckenEbene)
       if (!schnitt) return
@@ -884,6 +931,20 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
           })
         }
         ledEndpunktDrag = null
+        return
+      }
+      if (panelGriffDrag) {
+        const { eintrag, bewegt, neueHalbeSeite } = panelGriffDrag
+        if (bewegt) {
+          const neueSeitePx = neueHalbeSeite * 2 * 60
+          const centerXpx = ((eintrag.gruppe.position.x + raumBreite / 2) / raumBreite) * deckenInnenBpx
+          const centerZpx = ((eintrag.gruppe.position.z + raumTiefe / 2) / raumTiefe) * deckenInnenTpx
+          onDeckenleuchteBewegt?.(eintrag.item.id, {
+            left: centerXpx - neueSeitePx / 2, top: centerZpx - neueSeitePx / 2,
+            width: neueSeitePx, height: neueSeitePx,
+          })
+        }
+        panelGriffDrag = null
         return
       }
       if (!deckenleuchteDrag) return

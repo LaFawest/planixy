@@ -533,6 +533,31 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       baueStandardBox(gruppe, moebelBreite, moebelHoehe, moebelTiefe, mat)
     }
 
+  } else if (name.includes('led-panel')) {
+    // LED-Panel (Phase 6, Teilschritt 4): quadratische Deckenleuchte, Kantenlänge über einen
+    // ziehbaren Eck-Anfasser in der 3D-Decken-Ansicht einstellbar (istEckSkalierbareDeckenleuchte
+    // in constants.js, Ziehlogik in RoomView3D.jsx) — anders als beim LED-Streifen bleiben Position
+    // und Ausrichtung dabei unverändert, es wird nur symmetrisch um die Mitte skaliert. Freie
+    // RGB-Farbe wie beim LED-Streifen (item.farbtemperatur, siehe LichtSchritt.jsx). Direkt EINE
+    // PointLight von Anfang an statt einer pro Segment — Lehre aus Hassans Performance-Feedback zu
+    // Spot-Reihe/LED-Streifen in Teilschritt 3, hier gleich richtig gemacht statt erst hinterher zu
+    // optimieren.
+    const panelSeite = moebelBreite
+    const panelDicke = 0.02
+    const rahmenMat = new THREE.MeshStandardMaterial({ color: '#D3D1C7', roughness: 0.6, metalness: 0.2 })
+    const rahmen = new THREE.Mesh(new THREE.BoxGeometry(panelSeite, panelDicke, panelSeite), rahmenMat)
+    rahmen.position.set(0, -0.01, 0)
+    gruppe.add(rahmen)
+    const glowMat = new THREE.MeshStandardMaterial({ color: '#FFFFFF', emissive: lichtFarbe, emissiveIntensity: lichtAn ? 1.1 : 0 })
+    const glowFlaeche = new THREE.Mesh(new THREE.BoxGeometry(panelSeite * 0.9, panelDicke * 0.4, panelSeite * 0.9), glowMat)
+    glowFlaeche.position.set(0, -0.021, 0)
+    gruppe.add(glowFlaeche)
+    if (lichtAn) {
+      const panelLicht = new THREE.PointLight(lichtFarbe, Math.min(1.4, 0.5 + panelSeite * 0.3), Math.max(raumBreite, raumTiefe) * 0.5 + panelSeite * 0.3)
+      panelLicht.position.set(0, -0.05, 0)
+      gruppe.add(panelLicht)
+    }
+
   } else if (name.includes('led-streifen')) {
     // LED-Streifen (Phase 6, Teilschritt 3, Performance-Fix Nachbesserung): freie RGB-Farbe statt
     // der 3 festen Farbtemperaturen — item.farbtemperatur trägt hier einen frei per Farbwähler

@@ -328,14 +328,17 @@ export function FurnitureProvider({ children }) {
   // Teilschritt 2) NACH einem Ziehvorgang in der 3D-Decken-Ansicht (RoomView3D, deckenFokus-Modus)
   // — analog zu positioniereWandElement oben, nur für top/left statt Wandposition. width/rotation
   // (Phase 6, Teilschritt 3) kommen zusätzlich dazu, wenn ein LED-Streifen über seine Endpunkt-
-  // Anfasser länger/kürzer gezogen oder gedreht wurde.
-  const positioniereDeckenleuchte = useCallback((id, { top, left, width, rotation }) => {
+  // Anfasser länger/kürzer gezogen oder gedreht wurde. height (Phase 6, Teilschritt 4) kommt dazu
+  // fürs LED-Panel, das über seinen Eck-Anfasser IMMER width und height gemeinsam setzt (bleibt
+  // quadratisch), Position/Rotation bleiben dabei unverändert.
+  const positioniereDeckenleuchte = useCallback((id, { top, left, width, height, rotation }) => {
     updateFurniture((activeRoom?.furniture || []).map(f => {
       if (f.id !== id) return f
       const patch = {}
       if (top !== undefined) patch.top = top
       if (left !== undefined) patch.left = left
       if (width !== undefined) patch.width = width
+      if (height !== undefined) patch.height = height
       if (rotation !== undefined) patch.rotation = rotation
       return { ...f, ...patch }
     }))

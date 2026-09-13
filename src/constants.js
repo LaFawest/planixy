@@ -76,6 +76,7 @@ export const furnitureLibrary = [
   { name: 'Spot',           kategorie: 'Licht',      width: 14,  height: 14,  color: '#FAC775', border: '#BA7517' },
   { name: 'Spot-Reihe',     kategorie: 'Licht',      width: 70,  height: 14,  color: '#FAC775', border: '#BA7517' },
   { name: 'LED-Streifen',   kategorie: 'Licht',      width: 60,  height: 6,   color: '#FAC775', border: '#BA7517' },
+  { name: 'LED-Panel',      kategorie: 'Licht',      width: 40,  height: 40,  color: '#FAC775', border: '#BA7517' },
   { name: 'Tischlampe',     kategorie: 'Deko',       width: 18,  height: 18,  color: '#FAC775', border: '#BA7517' },
   { name: 'Lautsprecher',   kategorie: 'Elektrogeräte', width: 20, height: 20, color: '#E8E6E0', border: '#444441' },
   { name: 'Spielekonsole',  kategorie: 'Elektrogeräte', width: 34, height: 24, color: '#E8E6E0', border: '#444441' },
@@ -186,17 +187,17 @@ export const FARBTEMPERATUREN = [
 // anklickbaren Gruppen (RoomView3D) gebraucht wird.
 export function istDeckenleuchte(name) {
   const n = name.toLowerCase()
-  return n.includes('deckenlampe') || n.includes('pendelleuchte') || n.includes('kronleuchter') || n.includes('spot') || n.includes('led-streifen')
+  return n.includes('deckenlampe') || n.includes('pendelleuchte') || n.includes('kronleuchter') || n.includes('spot') || n.includes('led-streifen') || n.includes('led-panel')
 }
 
-// Frei verschiebbare Deckenleuchten (Phase 6, Teilschritt 2+3): im Unterschied zu den fest/mittig
-// platzierten Kronleuchter/Pendelleuchte/Deckenlampe oben lassen sich Spot, Spot-Reihe und
-// LED-Streifen frei auf der Decke verschieben (siehe RoomView3D.jsx deckenleuchteMausDown/-Move/-Up)
+// Frei verschiebbare Deckenleuchten (Phase 6, Teilschritt 2+3+4): im Unterschied zu den fest/mittig
+// platzierten Kronleuchter/Pendelleuchte/Deckenlampe oben lassen sich Spot, Spot-Reihe, LED-Streifen
+// und LED-Panel frei auf der Decke verschieben (siehe RoomView3D.jsx deckenleuchteMausDown/-Move/-Up)
 // — sie sollen gezielt über bestimmten Bereichen sitzen (z.B. über der Kücheninsel), nicht immer
 // mittig im Raum.
 export function istVerschiebbareDeckenleuchte(name) {
   const n = name.toLowerCase()
-  return n.includes('spot') || n.includes('led-streifen')
+  return n.includes('spot') || n.includes('led-streifen') || n.includes('led-panel')
 }
 
 // Deckenleuchten mit ziehbaren Endpunkt-Anfassern (Phase 6, Teilschritt 3): bisher nur der
@@ -204,6 +205,14 @@ export function istVerschiebbareDeckenleuchte(name) {
 // der beiden Enden eingestellt, statt über ein Zahlenfeld oder einen Rotations-Regler in der Liste.
 export function istEndpunktVerstellbareDeckenleuchte(name) {
   return name.toLowerCase().includes('led-streifen')
+}
+
+// Deckenleuchten mit ziehbarem Eck-Anfasser (Phase 6, Teilschritt 4): bisher nur das quadratische
+// LED-Panel — die Kantenlänge wird direkt in der 3D-Decken-Ansicht per Ziehen an einer Ecke
+// eingestellt, symmetrisch um die (feststehende) Mitte. Anders als beim LED-Streifen oben ändern
+// sich dabei Position UND Ausrichtung NICHT — nur die Größe.
+export function istEckSkalierbareDeckenleuchte(name) {
+  return name.toLowerCase().includes('led-panel')
 }
 
 export const HIMMELSRICHTUNG_NAME = { nord: 'Nord', ost: 'Ost', sued: 'Süd', west: 'West' }

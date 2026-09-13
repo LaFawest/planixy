@@ -92,7 +92,7 @@ export default function LichtSchritt() {
                   </div>
                 </div>
                 {an && (
-                  item.name === 'LED-Streifen' ? (
+                  (item.name === 'LED-Streifen' || item.name === 'LED-Panel') ? (
                     <div onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 10px 8px' }}>
                       <span style={{ fontSize: '10px', color: '#B4B2A9' }}>Farbe</span>
                       <input type="color" value={farbe}
