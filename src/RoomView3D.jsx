@@ -4,7 +4,7 @@ import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgeb
 import { baueTrennwaende } from './scene/trennwaende'
 import { baueWandElement } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
-import { ladeModelle } from './scene/modelle'
+import { ladeModelle, getModell } from './scene/modelle'
 import { baueBeleuchtung } from './scene/beleuchtung'
 import { rechteckPolygon, boundingBox, wandSegmente, punktInPolygon, versetztesPolygon, punktSicherImPolygon } from './raumPolygon'
 import { useRooms } from './context/RoomsContext'
@@ -125,13 +125,20 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     if (zeichnenLiveGroesse !== null) setZeichnenLiveGroesse(null)
   }
 
-  // Lädt die echten 3D-Modelle (siehe scene/modelle.js) einmalig beim ersten Mount. Sobald fertig,
-  // triggert modelleBereit unten einen Neuaufbau der Szene, damit die Modelle auch dann erscheinen,
-  // wenn sie beim allerersten Rendern noch nicht rechtzeitig fertig geladen waren.
-  const [modelleBereit, setModelleBereit] = useState(false)
+  // Lädt die echten 3D-Modelle (siehe scene/modelle.js) — seit App-schneller-machen Schritt 2 nur
+  // noch die, die für die tatsächlich im Raum vorhandenen Möbeltypen gebraucht werden, statt
+  // pauschal alle hinterlegten. Läuft bei jeder Änderung der Möbelliste erneut (z.B. wenn ein neues
+  // Möbelstück mit eigenem Modell hinzukommt) — bereits geladene Namen sind dabei günstig (siehe
+  // modelle.js). modelleVersion zählt nur hoch, wenn dabei tatsächlich etwas NEU geladen wurde, und
+  // triggert dann über die Dependency-Liste weiter unten einen Neuaufbau der Szene, damit frisch
+  // geladene Modelle auch erscheinen, falls die Szene vorher schon (ohne sie) gebaut wurde.
+  const [modelleVersion, setModelleVersion] = useState(0)
   useEffect(() => {
-    ladeModelle().then(() => setModelleBereit(true))
-  }, [])
+    const benoetigteNamen = [...new Set(furniture.map(f => f.name))]
+    const fehlend = benoetigteNamen.filter(name => !getModell(name))
+    if (fehlend.length === 0) return
+    ladeModelle(fehlend).then(() => setModelleVersion(v => v + 1))
+  }, [furniture])
 
   // Escape bricht den Zeichen-Modus ab (kein neuer Bereich wird angelegt) — nur registriert,
   // solange ein Material armiert ist, damit dieser Listener nicht dauerhaft mitläuft.
@@ -1846,7 +1853,7 @@ return () => {
   mount.removeChild(renderer.domElement)
   renderer.dispose()
 }
-  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleBereit, onWandElementBewegt, wandBereiche, aktualisiereWandBereich, fuegeWandBereichHinzu, setAusgewaehltesWandElement, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt])
+  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleVersion, onWandElementBewegt, wandBereiche, aktualisiereWandBereich, fuegeWandBereichHinzu, setAusgewaehltesWandElement, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt])
 
   return (
     <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: deckenFokus ? 'default' : (fokusWand == null ? 'grab' : (zeichenModusMaterial ? 'crosshair' : 'default')), position: 'relative' }}>

@@ -26,35 +26,39 @@ dracoLoader.setDecoderPath('/draco/')
 const gltfLoader = new GLTFLoader()
 gltfLoader.setDRACOLoader(dracoLoader)
 
-const cache = new Map()
-let ladePromise = null
+const cache = new Map()      // Möbel-Name -> geladenes THREE-Objekt
+const promises = new Map()   // Möbel-Name -> Promise (lädt gerade oder ist fertig geladen)
 
-// Lädt einmalig alle in MODELL_DATEIEN eingetragenen Modelle. Mehrfache Aufrufe (z.B. durch
-// React StrictMode oder mehrere RoomView3D-Instanzen) liefern dieselbe Promise zurück, es wird
-// nichts doppelt geladen.
-export function ladeModelle() {
-  if (ladePromise) return ladePromise
-  const eintraege = Object.entries(MODELL_DATEIEN)
-  ladePromise = Promise.all(
-    eintraege.map(([name, pfad]) =>
-      new Promise((resolve) => {
-        gltfLoader.load(
-          pfad,
-          (gltf) => { cache.set(name, gltf.scene); resolve() },
-          undefined,
-          (fehler) => {
-            console.warn(`3D-Modell für "${name}" konnte nicht geladen werden (${pfad}):`, fehler)
-            resolve() // trotzdem auflösen — betroffenes Möbelstück fällt auf die Klötzchen-Bauweise zurück
-          },
-        )
-      })
+function ladeEinzelnesModell(name) {
+  if (promises.has(name)) return promises.get(name)
+  const promise = new Promise((resolve) => {
+    gltfLoader.load(
+      MODELL_DATEIEN[name],
+      (gltf) => { cache.set(name, gltf.scene); resolve() },
+      undefined,
+      (fehler) => {
+        console.warn(`3D-Modell für "${name}" konnte nicht geladen werden (${MODELL_DATEIEN[name]}):`, fehler)
+        resolve() // trotzdem auflösen — betroffenes Möbelstück fällt auf die Klötzchen-Bauweise zurück
+      },
     )
-  ).then(() => true)
-  return ladePromise
+  })
+  promises.set(name, promise)
+  return promise
 }
 
-// Synchroner Lookup für moebel.js — liefert null, solange ladeModelle() noch nicht abgeschlossen
-// ist oder für diesen Namen kein Modell hinterlegt ist (dann greift die bestehende Klötzchen-Bauweise).
+// Lädt gezielt nur die übergebenen Möbel-Namen, für die in MODELL_DATEIEN ein Modell hinterlegt
+// ist — NICHT mehr pauschal alle auf einmal (App-schneller-machen, Schritt 2): ein einzelner Raum
+// braucht meist nur einen Bruchteil der inzwischen hinterlegten Modelle, und mit jedem neuen
+// Meshy-Modell aus dem laufenden 3D-Objekt-Tag-Workflow würde das sonst immer unnötiger. Bereits
+// geladene oder gerade ladende Namen werden nicht erneut angefordert (siehe ladeEinzelnesModell),
+// wiederholte Aufrufe mit denselben Namen sind also günstig.
+export function ladeModelle(benoetigteNamen) {
+  const relevante = benoetigteNamen.filter(name => MODELL_DATEIEN[name])
+  return Promise.all(relevante.map(ladeEinzelnesModell)).then(() => true)
+}
+
+// Synchroner Lookup für moebel.js — liefert null, solange das Modell für diesen Namen noch nicht
+// fertig geladen ist oder kein Modell hinterlegt ist (dann greift die bestehende Klötzchen-Bauweise).
 export function getModell(name) {
   return cache.get(name) || null
 }
