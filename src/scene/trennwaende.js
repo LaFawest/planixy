@@ -2,10 +2,15 @@ import * as THREE from 'three'
 import { berechneInnenmasse } from '../constants'
 
 // === TRENNWÄNDE (frei gezeichnete Innenwände) ===
-export function baueTrennwaende(scene, room, raumBreite, raumTiefe, wandHoehe) {
+// App schneller machen, Schritt 3, Teilpunkt 3: nimmt jetzt direkt die trennwaende-Liste entgegen
+// statt des ganzen room-Objekts — RoomView3D.jsx hängt seinen schweren Szenen-Effekt jetzt an
+// einzelnen room-Feldern statt am kompletten room-Objekt, dafür darf hier nicht mehr das ganze
+// room-Objekt durchgereicht werden (sonst würde ESLint dort wieder das komplette room als
+// Abhängigkeit verlangen).
+export function baueTrennwaende(scene, trennwaende, raumBreite, raumTiefe, wandHoehe) {
   const { innenBpx, innenTpx } = berechneInnenmasse(raumBreite, raumTiefe)
 
-  ;(room?.trennwaende || []).forEach(wand => {
+  ;(trennwaende || []).forEach(wand => {
     const x1 = -raumBreite / 2 + (wand.x1 / innenBpx) * raumBreite
     const z1 = -raumTiefe  / 2 + (wand.y1 / innenTpx) * raumTiefe
     const x2 = -raumBreite / 2 + (wand.x2 / innenBpx) * raumBreite

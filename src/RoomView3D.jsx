@@ -469,7 +469,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
 
     // === TRENNWÄNDE, WANDELEMENTE & MÖBEL ===
-    baueTrennwaende(scene, room, raumBreite, raumTiefe, wandHoehe)
+    baueTrennwaende(scene, room?.trennwaende, raumBreite, raumTiefe, wandHoehe)
 
     // Referenz auf jede gebaute Fenster/Tür-Gruppe + ihr furniture-Item — Grundlage fürs
     // Anklicken/Ziehen im Wand-Fokus-Modus weiter unten.
@@ -1876,7 +1876,19 @@ return () => {
   mount.removeChild(renderer.domElement)
   renderer.dispose()
 }
-  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, modelleVersion, wandBereiche, setAusgewaehltesWandElement, onDeckenleuchteAusgewaehlt])
+  }, [
+    // App schneller machen, Schritt 3, Teilpunkt 3: statt am kompletten room-Objekt hängt der
+    // Effekt jetzt an genau den room-Feldern, die er tatsächlich verwendet (siehe Fundstellen oben
+    // im Effekt: eckpunkte/breite/tiefe für die Raumform, boden für die Bodentextur, wandfarbe(n)/
+    // wandmaterial(ien) für die Wände, trennwaende für die Innenwände). updateRoom() in
+    // RoomsContext.jsx lässt unberührte Felder bei einer Änderung mit ihrer alten Referenz stehen
+    // (Objekt-Spread) — eine reine Tageszeit- oder Möbel-Änderung löst dadurch jetzt keinen
+    // Neuaufbau mehr aus, nur weil room als Ganzes eine neue Referenz bekommen hat.
+    room?.eckpunkte, room?.breite, room?.tiefe, room?.boden,
+    room?.wandfarbe, room?.wandfarben, room?.wandmaterial, room?.wandmaterialien, room?.trennwaende,
+    furniture, fussleiste, fussleisteFarbe, raumHoehe, modelleVersion, wandBereiche,
+    setAusgewaehltesWandElement, onDeckenleuchteAusgewaehlt,
+  ])
 
   // App schneller machen, Schritt 3, Teilpunkt 2: Tageszeit-Schnellpfad. Läuft unabhängig vom
   // schweren Szenen-Effekt oben (der jetzt NICHT mehr auf tageszeit reagiert) und passt nur die
