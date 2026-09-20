@@ -167,7 +167,14 @@ export function erzeugeWandputzTextur() {
 // Mustertapete. Naturfarben (creme + Terrakotta/Salbei-Akzent) statt Graustufen, damit sie bei
 // Standard-Wandfarbe Weiß direkt gut aussieht — bei anderen Wandfarben wird sie wie der bisherige
 // Putz zusätzlich eingefärbt (color × map in RoomView3D.jsx).
+// App schneller machen, Restpunkt 5: dieselbe Cache-Behandlung wie bei den vier Texturen aus
+// Teilpunkt 4.1 (siehe holzTexturCache weiter oben) — beim ersten Aufruf gezeichnet, danach
+// wiederverwendet, markiert als persistenteTextur, damit das Aufräumen in RoomView3D.jsx sie nicht
+// entsorgt.
+let blumenTapeteCache = null
+
 export function erzeugeBlumenTapete() {
+  if (blumenTapeteCache) return blumenTapeteCache
   const groesse = 512
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = groesse
@@ -201,11 +208,16 @@ export function erzeugeBlumenTapete() {
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping
   texture.repeat.set(3, 1.5)
   texture.colorSpace = THREE.SRGBColorSpace
+  texture.userData.persistenteTextur = true
+  blumenTapeteCache = texture
   return texture
 }
 
 // Streifentapete: schlichte vertikale Streifen in zwei Tönen.
+let streifenTapeteCache = null
+
 export function erzeugeStreifenTapete() {
+  if (streifenTapeteCache) return streifenTapeteCache
   const breite = 128, hoehe = 128
   const canvas = document.createElement('canvas')
   canvas.width = breite
@@ -220,13 +232,18 @@ export function erzeugeStreifenTapete() {
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping
   texture.repeat.set(6, 1)
   texture.colorSpace = THREE.SRGBColorSpace
+  texture.userData.persistenteTextur = true
+  streifenTapeteCache = texture
   return texture
 }
 
 // Holzpaneele: wie erzeugeHolzTextur() (Holzmaserung per Zufalls-Linien), zusätzlich mit
 // vertikalen Paneel-Fugen, damit einzelne Bretter/Paneele erkennbar sind statt einer
 // durchgehenden Fläche.
+let holzpaneeleTexturCache = null
+
 export function erzeugeHolzpaneeleTextur() {
+  if (holzpaneeleTexturCache) return holzpaneeleTexturCache
   const groesse = 256
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = groesse
@@ -261,12 +278,17 @@ export function erzeugeHolzpaneeleTextur() {
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping
   texture.repeat.set(3, 1.5)
   texture.colorSpace = THREE.SRGBColorSpace
+  texture.userData.persistenteTextur = true
+  holzpaneeleTexturCache = texture
   return texture
 }
 
 // Akustikpaneele: abwechselnd Holzlamellen und dunkle Zwischenräume (Filzoptik), wie die
 // aktuell verbreiteten Akustik-Wandpaneele aus dem Baumarkt.
+let akustikpaneeleTexturCache = null
+
 export function erzeugeAkustikpaneeleTextur() {
+  if (akustikpaneeleTexturCache) return akustikpaneeleTexturCache
   const groesse = 256
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = groesse
@@ -293,6 +315,8 @@ export function erzeugeAkustikpaneeleTextur() {
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping
   texture.repeat.set(4, 1.5)
   texture.colorSpace = THREE.SRGBColorSpace
+  texture.userData.persistenteTextur = true
+  akustikpaneeleTexturCache = texture
   return texture
 }
 
