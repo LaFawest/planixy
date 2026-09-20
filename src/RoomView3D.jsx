@@ -1863,7 +1863,6 @@ return () => {
   // Foto-Texturen (texturen.js, ladeFotoTextur) sind davon ausgenommen (userData.persistenteTextur)
   // — die leben im modulweiten Cache über diesen Neuaufbau hinaus, ein hier ausgelöstes dispose()
   // würde beim nächsten Szenenaufbau eine bereits GPU-seitig freigegebene (leere) Textur liefern.
-  scene.environment?.dispose()
   scene.traverse(obj => {
     obj.geometry?.dispose()
     const materials = Array.isArray(obj.material) ? obj.material : (obj.material ? [obj.material] : [])

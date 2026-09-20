@@ -34,7 +34,16 @@ function ladeFotoTextur(url) {
   return texture
 }
 
+// App schneller machen, Schritt 3, Teilpunkt 4.1: Die vier parameterlosen prozeduralen Texturen
+// (Holz, Stoff, Backstein, Umgebung) werden jetzt nur noch beim ersten Aufruf gezeichnet und
+// danach aus einem modulweiten Cache wiederverwendet — dasselbe Muster wie fotoTexturCache oben,
+// inklusive userData.persistenteTextur, damit das generische scene.traverse()-Aufräumen in
+// RoomView3D.jsx sie beim Szenen-Neuaufbau nicht disposed (sonst käme beim nächsten Aufruf eine
+// bereits GPU-seitig freigegebene, leere Textur aus dem Cache zurück).
+let holzTexturCache = null
+
 export function erzeugeHolzTextur() {
+  if (holzTexturCache) return holzTexturCache
   const groesse = 256
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = groesse
@@ -59,10 +68,15 @@ export function erzeugeHolzTextur() {
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping
   texture.repeat.set(2, 2)
   texture.colorSpace = THREE.SRGBColorSpace
+  texture.userData.persistenteTextur = true
+  holzTexturCache = texture
   return texture
 }
 
+let stoffTexturCache = null
+
 export function erzeugeStoffTextur() {
+  if (stoffTexturCache) return stoffTexturCache
   const groesse = 128
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = groesse
@@ -82,6 +96,8 @@ export function erzeugeStoffTextur() {
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping
   texture.repeat.set(6, 6)
   texture.colorSpace = THREE.SRGBColorSpace
+  texture.userData.persistenteTextur = true
+  stoffTexturCache = texture
   return texture
 }
 
@@ -295,7 +311,10 @@ export function erzeugeWandTextur(wandTyp) {
 // klassischen Läuferverband (jede zweite Reihe um einen halben Stein versetzt), nach demselben
 // Canvas-Zeichnen-Muster wie erzeugeHolzpaneeleTextur/erzeugeStreifenTapete oben, nur als
 // eigenständiges Muster statt Teil des wandMaterialien-Auswahl-Dispatchers.
+let backsteinTexturCache = null
+
 export function erzeugeBacksteinTextur() {
+  if (backsteinTexturCache) return backsteinTexturCache
   const breite = 256, hoehe = 128
   const canvas = document.createElement('canvas')
   canvas.width = breite
@@ -317,10 +336,15 @@ export function erzeugeBacksteinTextur() {
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping
   texture.repeat.set(2, 1)
   texture.colorSpace = THREE.SRGBColorSpace
+  texture.userData.persistenteTextur = true
+  backsteinTexturCache = texture
   return texture
 }
 
+let umgebungsTexturCache = null
+
 export function erzeugeUmgebungsTextur() {
+  if (umgebungsTexturCache) return umgebungsTexturCache
   const canvas = document.createElement('canvas')
   canvas.width = 16
   canvas.height = 16
@@ -334,6 +358,8 @@ export function erzeugeUmgebungsTextur() {
   const texture = new THREE.CanvasTexture(canvas)
   texture.mapping = THREE.EquirectangularReflectionMapping
   texture.colorSpace = THREE.SRGBColorSpace
+  texture.userData.persistenteTextur = true
+  umgebungsTexturCache = texture
   return texture
 }
 
