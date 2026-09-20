@@ -29,6 +29,19 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   useEffect(() => () => setAusgewaehltesWandElement(null), [setAusgewaehltesWandElement])
   const mountRef = useRef(null)
 
+  // App schneller machen, Schritt 3, Teilpunkt 1: onWandElementBewegt/onDeckenleuchteBewegt/
+  // aktualisiereWandBereich/fuegeWandBereichHinzu bekommen bei JEDER Raum-Änderung eine neue
+  // Funktions-Identität (siehe FurnitureContext.jsx/DesignContext.jsx — dort jeweils useCallback
+  // mit activeRoom in den Abhängigkeiten). Würde man sie weiterhin direkt in der Abhängigkeitsliste
+  // des schweren Szenen-Effekts unten führen, löst das auch dann einen kompletten Neuaufbau aus,
+  // wenn sich inhaltlich nichts an diesen Funktionen geändert hat (z.B. bei jedem Tageszeit-Tick).
+  // callbacksRef hält deshalb immer die aktuellste Version — Vorbild: updateCameraRef weiter unten,
+  // dasselbe Muster.
+  const callbacksRef = useRef({})
+  useEffect(() => {
+    callbacksRef.current = { onWandElementBewegt, onDeckenleuchteBewegt, aktualisiereWandBereich, fuegeWandBereichHinzu }
+  }, [onWandElementBewegt, onDeckenleuchteBewegt, aktualisiereWandBereich, fuegeWandBereichHinzu])
+
   // Kameramodus + Rundgang-Position leben unabhängig vom schweren Szenen-Effekt unten (der bei
   // jeder room/furniture/... Änderung die komplette Szene neu aufbaut) — ein Moduswechsel per
   // Button soll keinen Neuaufbau auslösen. kameraModusRef ist die von den Event-Handlern im
@@ -932,7 +945,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
           const boundHpx = neuesWidthPx * Math.abs(Math.sin(rad)) + eintrag.item.height * Math.abs(Math.cos(rad))
           const centerXpx = ((mitteX + raumBreite / 2) / raumBreite) * deckenInnenBpx
           const centerZpx = ((mitteZ + raumTiefe / 2) / raumTiefe) * deckenInnenTpx
-          onDeckenleuchteBewegt?.(eintrag.item.id, {
+          callbacksRef.current.onDeckenleuchteBewegt?.(eintrag.item.id, {
             left: centerXpx - boundWpx / 2, top: centerZpx - boundHpx / 2,
             width: neuesWidthPx, rotation: rotationDeg,
           })
@@ -946,7 +959,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
           const neueSeitePx = neueHalbeSeite * 2 * 60
           const centerXpx = ((eintrag.gruppe.position.x + raumBreite / 2) / raumBreite) * deckenInnenBpx
           const centerZpx = ((eintrag.gruppe.position.z + raumTiefe / 2) / raumTiefe) * deckenInnenTpx
-          onDeckenleuchteBewegt?.(eintrag.item.id, {
+          callbacksRef.current.onDeckenleuchteBewegt?.(eintrag.item.id, {
             left: centerXpx - neueSeitePx / 2, top: centerZpx - neueSeitePx / 2,
             width: neueSeitePx, height: neueSeitePx,
           })
@@ -964,7 +977,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         const boundHpx = eintrag.item.width * Math.abs(Math.sin(rad)) + eintrag.item.height * Math.abs(Math.cos(rad))
         const centerXpx = ((neueX + raumBreite / 2) / raumBreite) * deckenInnenBpx
         const centerZpx = ((neueZ + raumTiefe / 2) / raumTiefe) * deckenInnenTpx
-        onDeckenleuchteBewegt?.(eintrag.item.id, { left: centerXpx - boundWpx / 2, top: centerZpx - boundHpx / 2 })
+        callbacksRef.current.onDeckenleuchteBewegt?.(eintrag.item.id, { left: centerXpx - boundWpx / 2, top: centerZpx - boundHpx / 2 })
       }
       deckenleuchteDrag = null
     }
@@ -1127,14 +1140,14 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       if (seite === 'unten') {
         if (eintrag.item.typ !== 'fenster') return
         const neueHoehe = Math.max(0, Math.min(wandHoehe - elHoehe, wertM))
-        onWandElementBewegt?.(id, { bruestungshoehe: neueHoehe })
+        callbacksRef.current.onWandElementBewegt?.(id, { bruestungshoehe: neueHoehe })
         return
       }
 
       const { uLinksRef, uRechtsRef } = ermittleNachbarGrenzen(eintrag, segment, elBreite)
       let neuesUStart = seite === 'links' ? uLinksRef + wertM : uRechtsRef - wertM - elBreite
       neuesUStart = Math.max(uLinksRef, Math.min(uRechtsRef - elBreite, neuesUStart))
-      onWandElementBewegt?.(id, { wandPosition: neuesUStart })
+      callbacksRef.current.onWandElementBewegt?.(id, { wandPosition: neuesUStart })
     }
     wandElementRechnerRef.current = setzeMass
 
@@ -1577,7 +1590,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
           const mitteU = ((eintrag.gruppe.position.x - segment.x1) * segment.dx + (eintrag.gruppe.position.z - segment.z1) * segment.dz) / (segment.laenge || 1)
           const patch = { wandPosition: mitteU - elBreite / 2 }
           if (eintrag.item.typ === 'fenster') patch.bruestungshoehe = eintrag.gruppe.position.y
-          onWandElementBewegt?.(eintrag.item.id, patch)
+          callbacksRef.current.onWandElementBewegt?.(eintrag.item.id, patch)
         }
         wandElementDrag = null
         return
@@ -1585,7 +1598,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       if (wandElementHandleDrag) {
         const { eintrag } = wandElementHandleDrag
         if (wandElementHandleDrag.bewegt) {
-          onWandElementBewegt?.(eintrag.item.id, {
+          callbacksRef.current.onWandElementBewegt?.(eintrag.item.id, {
             width: Math.round(wandElementHandleDrag.aktuellBreite * 60),
             hoeheReal: wandElementHandleDrag.aktuellHoehe,
             wandPosition: wandElementHandleDrag.aktuellU,
@@ -1602,7 +1615,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       if (wandBereichHandleDrag) {
         const { eintrag } = wandBereichHandleDrag
         if (wandBereichHandleDrag.bewegt) {
-          aktualisiereWandBereich(eintrag.bereich.id, {
+          callbacksRef.current.aktualisiereWandBereich(eintrag.bereich.id, {
             u: wandBereichHandleDrag.aktuellU, v: wandBereichHandleDrag.aktuellV,
             breite: wandBereichHandleDrag.aktuellBreite, hoehe: wandBereichHandleDrag.aktuellHoehe,
           })
@@ -1618,7 +1631,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         // bei den meisten Zeichenprogrammen bleibt das Werkzeug nicht dauerhaft "scharf".
         setZeichenModusMaterial(null)
         if ((aktuellBreite || 0) >= MIN_BEREICH_GROESSE && (aktuellHoehe || 0) >= MIN_BEREICH_GROESSE) {
-          const id = fuegeWandBereichHinzu?.({
+          const id = callbacksRef.current.fuegeWandBereichHinzu?.({
             wandSegment: fokusWandRef.current, material,
             u: aktuellU, v: aktuellV, breite: aktuellBreite, hoehe: aktuellHoehe,
           })
@@ -1629,7 +1642,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       }
       if (wandBereichDrag) {
         if (wandBereichDrag.bewegt) {
-          aktualisiereWandBereich(wandBereichDrag.eintrag.bereich.id, { u: wandBereichDrag.aktuellU, v: wandBereichDrag.aktuellV })
+          callbacksRef.current.aktualisiereWandBereich(wandBereichDrag.eintrag.bereich.id, { u: wandBereichDrag.aktuellU, v: wandBereichDrag.aktuellV })
         }
         wandBereichDrag = null
       }
@@ -1853,7 +1866,7 @@ return () => {
   mount.removeChild(renderer.domElement)
   renderer.dispose()
 }
-  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleVersion, onWandElementBewegt, wandBereiche, aktualisiereWandBereich, fuegeWandBereichHinzu, setAusgewaehltesWandElement, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt])
+  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleVersion, wandBereiche, setAusgewaehltesWandElement, onDeckenleuchteAusgewaehlt])
 
   return (
     <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: deckenFokus ? 'default' : (fokusWand == null ? 'grab' : (zeichenModusMaterial ? 'crosshair' : 'default')), position: 'relative' }}>
