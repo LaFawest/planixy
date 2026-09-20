@@ -239,6 +239,16 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     scene.background = new THREE.Color('#F5F4F0')
     scene.fog = new THREE.Fog('#F5F4F0', 20, 40)
 
+    // App schneller machen, Schritt 3, Teilpunkt 4.3: Alles, was dieser Effekt baut, hängt ab jetzt
+    // unter dieser Gruppe statt direkt an der Szene — inklusive der Lichter (die beleuchten die
+    // Szene unabhängig davon, an welcher Stelle im Szenenbaum sie hängen). Die Gruppe sitzt ohne
+    // eigene Verschiebung/Drehung im Ursprung, alle Weltpositionen bleiben also unverändert.
+    // Dadurch kann das Aufräumen am Ende dieses Effekts gezielt nur den eigenen Teilbaum abräumen
+    // statt die komplette Szene — Voraussetzung für Teilpunkt 4.4, wo die Szene dauerhaft bestehen
+    // bleibt und ein Aufräumen über die ganze Szene fremde Objekte mit erwischen würde.
+    const raumWurzel = new THREE.Group()
+    scene.add(raumWurzel)
+
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
     camera.position.set(8, 10, 12)
     camera.lookAt(0, 0, 0)
@@ -317,7 +327,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     scene.environment = erzeugeUmgebungsTextur()
 
     // === BELEUCHTUNG ===
-    beleuchtungRef.current = baueBeleuchtung(scene, eckpunkte, mitteX, mitteZ, raumBreite, raumTiefe, wandHoehe, tageszeitRef.current)
+    beleuchtungRef.current = baueBeleuchtung(raumWurzel, eckpunkte, mitteX, mitteZ, raumBreite, raumTiefe, wandHoehe, tageszeitRef.current)
 
     // === BODEN & DECKE (aus dem Randpolygon, statt fester Rechteck-Ebenen) ===
     // THREE.Shape mit ShapeGeometry statt ExtrudeGeometry: Boden/Decke bleiben masselose
@@ -335,7 +345,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     const boden = new THREE.Mesh(flaechenGeo, bodenMat)
     boden.rotation.x = -Math.PI / 2
     boden.receiveShadow = true
-    scene.add(boden)
+    raumWurzel.add(boden)
 
     // Dieselbe Rotation wie boden, nicht ihr Gegenstück (+90°): eine Drehung um die X-Achse
     // spiegelt bei entgegengesetztem Vorzeichen zusätzlich die Z-Koordinate der Kontur (bei
@@ -348,7 +358,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     const decke = new THREE.Mesh(flaechenGeo, deckeMat)
     decke.rotation.x = -Math.PI / 2
     decke.position.y = wandHoehe
-    scene.add(decke)
+    raumWurzel.add(decke)
 
     // === WÄNDE (eine je Wandsegment, Transparenz wird dynamisch gesetzt, jede Wand einzeln
     // einfärbbar) ===
@@ -450,7 +460,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       wand.position.set((x1 + x2) / 2, wandHoehe / 2, (z1 + z2) / 2)
       wand.rotation.y = -Math.atan2(z2 - z1, x2 - x1)
       wand.receiveShadow = true
-      scene.add(wand)
+      raumWurzel.add(wand)
       return {
         mesh: wand, normale: { x: segment.normale.x, z: segment.normale.y }, laenge: segment.laenge,
         x1, z1, dx: x2 - x1, dz: z2 - z1,
@@ -493,12 +503,12 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
           (z1 + z2) / 2 - segment.normale.y * 0.02,
         )
         sockel.rotation.y = -Math.atan2(z2 - z1, x2 - x1)
-        scene.add(sockel)
+        raumWurzel.add(sockel)
       })
     }
 
     // === TRENNWÄNDE, WANDELEMENTE & MÖBEL ===
-    baueTrennwaende(scene, room?.trennwaende, raumBreite, raumTiefe, wandHoehe)
+    baueTrennwaende(raumWurzel, room?.trennwaende, raumBreite, raumTiefe, wandHoehe)
 
     // Referenz auf jede gebaute Fenster/Tür-Gruppe + ihr furniture-Item — Grundlage fürs
     // Anklicken/Ziehen im Wand-Fokus-Modus weiter unten.
@@ -527,7 +537,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         // gelassen) werden Fenster-/Tür-Wandelemente in der Decken-Ansicht jetzt genauso wenig gebaut
         // wie normale Möbel. In jeder anderen Ansicht ändert sich nichts.
         if (!deckenFokusRef.current) {
-          const gruppe = baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur)
+          const gruppe = baueWandElement(raumWurzel, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur)
           wandElementGruppen.push({ gruppe, item })
         }
       } else if (!deckenFokusRef.current || istDeckenleuchte(item.name)) {
@@ -536,7 +546,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         // in dieser Ansicht nur um die Decke plus die 3 sichtbaren Wände, nicht um den restlichen
         // Raum. Deckenleuchten natürlich weiterhin. In jeder anderen Ansicht (deckenFokusRef.current
         // === false) ändert sich nichts am bisherigen Verhalten.
-        const gruppe = baueMoebel(scene, item, furnitureRef.current, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur)
+        const gruppe = baueMoebel(raumWurzel, item, furnitureRef.current, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur)
         if (deckenFokusRef.current && istDeckenleuchte(item.name)) {
           const eintrag = { gruppe, item }
           deckenleuchtenGruppen.push(eintrag)
@@ -586,7 +596,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       )
       mesh.rotation.copy(segment.mesh.rotation)
       mesh.userData.wandBereichId = bereich.id
-      scene.add(mesh)
+      raumWurzel.add(mesh)
       wandBereichGruppen.push({ mesh, bereich, segment })
     })
 
@@ -836,7 +846,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     )
     deckenleuchteRing.rotation.x = -Math.PI / 2
     deckenleuchteRing.visible = false
-    if (deckenFokusRef.current) scene.add(deckenleuchteRing)
+    if (deckenFokusRef.current) raumWurzel.add(deckenleuchteRing)
 
     const deckenEbene = new THREE.Plane(new THREE.Vector3(0, 1, 0), -wandHoehe)
     const { innenBpx: deckenInnenBpx, innenTpx: deckenInnenTpx } = berechneInnenmasse(raumBreite, raumTiefe)
@@ -1323,7 +1333,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       if (wandZeichnenDrag.mesh) {
         wandZeichnenDrag.mesh.geometry.dispose()
         wandZeichnenDrag.mesh.material.dispose()
-        scene.remove(wandZeichnenDrag.mesh)
+        raumWurzel.remove(wandZeichnenDrag.mesh)
       }
       wandZeichnenDrag = null
       setZeichnenLiveGroesse(null)
@@ -1581,7 +1591,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
             wandZeichnenDrag.mesh = new THREE.Mesh(geo, mat)
             wandZeichnenDrag.mesh.renderOrder = 999
             wandZeichnenDrag.mesh.rotation.copy(segment.mesh.rotation)
-            scene.add(wandZeichnenDrag.mesh)
+            raumWurzel.add(wandZeichnenDrag.mesh)
           } else {
             wandZeichnenDrag.mesh.geometry.dispose()
             wandZeichnenDrag.mesh.geometry = new THREE.PlaneGeometry(breite, hoehe)
@@ -1664,7 +1674,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       }
       if (wandZeichnenDrag) {
         const { material, mesh, aktuellU, aktuellV, aktuellBreite, aktuellHoehe } = wandZeichnenDrag
-        if (mesh) { mesh.geometry.dispose(); mesh.material.dispose(); scene.remove(mesh) }
+        if (mesh) { mesh.geometry.dispose(); mesh.material.dispose(); raumWurzel.remove(mesh) }
         setZeichnenLiveGroesse(null)
         // Zeichen-Modus deaktiviert sich nach einem Versuch selbst (erfolgreich oder nicht) — wie
         // bei den meisten Zeichenprogrammen bleibt das Werkzeug nicht dauerhaft "scharf".
@@ -1886,13 +1896,17 @@ return () => {
   resizeObserver.disconnect()
 
   // Die baue*-Helfer (Trennwände, Wandelemente, Möbel) legen ihre eigenen Geometrien/
-  // Materialien/Texturen direkt in `scene` ab, ohne Referenzen nach außen zu geben — bei
-  // jeder Änderung von room/furniture baut dieser Effekt die komplette Szene neu auf, daher
-  // hier eine vollständige Traversierung statt einzeln benannter Handles.
-  // Foto-Texturen (texturen.js, ladeFotoTextur) sind davon ausgenommen (userData.persistenteTextur)
-  // — die leben im modulweiten Cache über diesen Neuaufbau hinaus, ein hier ausgelöstes dispose()
-  // würde beim nächsten Szenenaufbau eine bereits GPU-seitig freigegebene (leere) Textur liefern.
-  scene.traverse(obj => {
+  // Materialien/Texturen direkt in der übergebenen Wurzel ab, ohne Referenzen nach außen zu geben
+  // — bei jeder Änderung von room/furniture baut dieser Effekt alles neu auf, daher hier eine
+  // vollständige Traversierung statt einzeln benannter Handles. Seit Teilpunkt 4.3 ist diese
+  // Traversierung auf raumWurzel beschränkt (statt über die ganze Szene zu laufen) und die Gruppe
+  // wird anschließend aus der Szene entfernt — damit räumt dieser Effekt ausschließlich seine
+  // eigenen Objekte ab und lässt alles andere in der Szene unangetastet.
+  // Foto-Texturen (texturen.js, ladeFotoTextur) und die gecachten prozeduralen Texturen (seit
+  // Teilpunkt 4.1) sind davon ausgenommen (userData.persistenteTextur) — die leben im modulweiten
+  // Cache über diesen Neuaufbau hinaus, ein hier ausgelöstes dispose() würde beim nächsten
+  // Szenenaufbau eine bereits GPU-seitig freigegebene (leere) Textur liefern.
+  raumWurzel.traverse(obj => {
     obj.geometry?.dispose()
     const materials = Array.isArray(obj.material) ? obj.material : (obj.material ? [obj.material] : [])
     materials.forEach(mat => {
@@ -1900,6 +1914,7 @@ return () => {
       mat.dispose()
     })
   })
+  scene.remove(raumWurzel)
 
   mount.removeChild(renderer.domElement)
   renderer.dispose()
