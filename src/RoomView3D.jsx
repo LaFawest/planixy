@@ -66,6 +66,12 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   // Größenänderung zu tun ist (Wand-Fokus neu einpassen, Auswahl-Markierungen neu berechnen) —
   // ebenfalls vom schweren Effekt hinterlegt, vom dauerhaften ResizeObserver aufgerufen.
   const onResizeExtraRef = useRef(null)
+  // App schneller machen, Schritt 3, Teilpunkt 4.5: Was der Möbel-Effekt gebaut hat — die
+  // Deckenleuchten-Gruppen, ihre Anfasser und der Auswahl-Ring. Die Deckenleuchten-Handler bleiben
+  // im Struktur-Effekt (bei den Maus-Listenern) und holen sich die aktuellen Teile im Moment des
+  // Klicks hier heraus, statt sie als lokale Variablen zu schließen. Ist null, solange der
+  // Möbel-Effekt noch nichts gebaut hat.
+  const moebelGruppenRef = useRef(null)
 
   // Kameramodus + Rundgang-Position leben unabhängig vom schweren Szenen-Effekt unten (der bei
   // jeder room/furniture/... Änderung die komplette Szene neu aufbaut) — ein Moduswechsel per
@@ -318,7 +324,6 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // Möbelliste über furnitureRef kommt. Ohne diesen bewussten Zugriff meldet
     // react-hooks/exhaustive-deps sie als überflüssige Abhängigkeit. BITTE NICHT ENTFERNEN.
     void wandElementeSignatur
-    void moebelSignatur
 
     const mount = mountRef.current
 
@@ -397,7 +402,6 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
 
     // === TEXTUREN (einmal pro Szene erzeugt, mehrfach verwendet) ===
     const holzTextur = erzeugeHolzTextur()
-    const stoffTextur = erzeugeStoffTextur()
     const backsteinTextur = erzeugeBacksteinTextur()
     // wandTextur wird jetzt pro Wand einzeln über wandTexturFuer() erzeugt (siehe unten), da
     // jede Wand ihr eigenes Material haben kann. scene.environment wird seit Teilpunkt 4.4
@@ -589,63 +593,20 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
 
     // Referenz auf jede gebaute Fenster/Tür-Gruppe + ihr furniture-Item — Grundlage fürs
     // Anklicken/Ziehen im Wand-Fokus-Modus weiter unten.
+    // App schneller machen, Schritt 3, Teilpunkt 4.5: Dieser Effekt baut nur noch die Wandelemente
+    // (Fenster/Türen/Durchgänge). Normale Möbel und Deckenleuchten samt ihrer Anfasser baut der
+    // Möbel-Effekt weiter unten in einer eigenen Gruppe — dadurch löst eine Möbel-Änderung hier
+    // keinen Neuaufbau von Wänden/Boden/Licht/Kamera mehr aus.
     const wandElementGruppen = []
-    // Deckenleuchten-Gruppen (Phase 6, Teilschritt 1) — Grundlage fürs Anklicken in
-    // deckenleuchteMausDown weiter unten. Wird nur im Decken-Fokus-Modus befüllt, ist aber immer
-    // deklariert, damit die spätere Verwendung nicht bedingt auf die Existenz der Variable prüfen muss.
-    const deckenleuchtenGruppen = []
-    // Endpunkt-Anfasser der LED-Streifen (Phase 6, Teilschritt 3) — zwei kleine Kugeln je Streifen,
-    // als Kind-Meshes der jeweiligen Gruppe (nicht Teil des "echten" Aussehens aus scene/moebel.js,
-    // rein für die Bedienung in der Decken-Ansicht). Weil sie Kinder der Gruppe sind, folgen sie
-    // automatisch Position/Drehung/Skalierung der Gruppe — siehe deckenleuchteMausMove weiter unten,
-    // die genau das ausnutzt, um beim Ziehen eines Endpunkts den jeweils ANDEREN Endpunkt exakt an
-    // Ort und Stelle zu halten (reine Vektor-Geometrie, kein manuelles Nachführen der Anfasser nötig).
-    const ledGriffe = []
-    // Eck-Anfasser des quadratischen LED-Panels (Phase 6, Teilschritt 4) — eine Kugel je Panel, als
-    // Kind-Mesh der Gruppe an einer festen lokalen Ecke. Anders als bei den zwei Endpunkt-Anfassern
-    // des LED-Streifens oben bleibt beim Ziehen dieses EINEN Anfassers die Position der Gruppe
-    // unverändert — es wird nur symmetrisch um die (feststehende) Mitte skaliert, siehe
-    // deckenleuchteMausMove weiter unten.
-    const panelGriffe = []
     furnitureRef.current.forEach(item => {
-      if (item.istWandElement) {
-        // 8. Nachbesserung nach Hassans Feedback "ich möchte keine Fenster oder Türen sehen": anders
-        // als in der 3. Nachbesserung entschieden (dort bewusst als "Teil der Architektur" sichtbar
-        // gelassen) werden Fenster-/Tür-Wandelemente in der Decken-Ansicht jetzt genauso wenig gebaut
-        // wie normale Möbel. In jeder anderen Ansicht ändert sich nichts.
-        if (!deckenFokusRef.current) {
-          const gruppe = baueWandElement(raumWurzel, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur)
-          wandElementGruppen.push({ gruppe, item })
-        }
-      } else if (!deckenFokusRef.current || istDeckenleuchte(item.name)) {
-        // In der Decken-Ansicht (Phase 6, Teilschritt 1, nach Hassans Feedback "die Stehlampen
-        // haben da nichts zu suchen") werden normale Möbelstücke gar nicht erst gebaut — es geht
-        // in dieser Ansicht nur um die Decke plus die 3 sichtbaren Wände, nicht um den restlichen
-        // Raum. Deckenleuchten natürlich weiterhin. In jeder anderen Ansicht (deckenFokusRef.current
-        // === false) ändert sich nichts am bisherigen Verhalten.
-        const gruppe = baueMoebel(raumWurzel, item, furnitureRef.current, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur)
-        if (deckenFokusRef.current && istDeckenleuchte(item.name)) {
-          const eintrag = { gruppe, item }
-          deckenleuchtenGruppen.push(eintrag)
-          if (istEndpunktVerstellbareDeckenleuchte(item.name)) {
-            const halbeLaenge = item.width / 120
-            const griffGeo = new THREE.SphereGeometry(0.045, 12, 10)
-            const griffLinks = new THREE.Mesh(griffGeo, new THREE.MeshBasicMaterial({ color: '#F2A93C' }))
-            griffLinks.position.set(-halbeLaenge, -0.01, 0)
-            gruppe.add(griffLinks)
-            const griffRechts = new THREE.Mesh(griffGeo, new THREE.MeshBasicMaterial({ color: '#F2A93C' }))
-            griffRechts.position.set(halbeLaenge, -0.01, 0)
-            gruppe.add(griffRechts)
-            ledGriffe.push({ mesh: griffLinks, eintrag, ende: -1 })
-            ledGriffe.push({ mesh: griffRechts, eintrag, ende: 1 })
-          } else if (istEckSkalierbareDeckenleuchte(item.name)) {
-            const halbeSeite = item.width / 120
-            const eckGriff = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), new THREE.MeshBasicMaterial({ color: '#F2A93C' }))
-            eckGriff.position.set(halbeSeite, -0.01, halbeSeite)
-            gruppe.add(eckGriff)
-            panelGriffe.push({ mesh: eckGriff, eintrag, halbeSeite })
-          }
-        }
+      if (!item.istWandElement) return
+      // 8. Nachbesserung nach Hassans Feedback "ich möchte keine Fenster oder Türen sehen": anders
+      // als in der 3. Nachbesserung entschieden (dort bewusst als "Teil der Architektur" sichtbar
+      // gelassen) werden Fenster-/Tür-Wandelemente in der Decken-Ansicht jetzt genauso wenig gebaut
+      // wie normale Möbel. In jeder anderen Ansicht ändert sich nichts.
+      if (!deckenFokusRef.current) {
+        const gruppe = baueWandElement(raumWurzel, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur)
+        wandElementGruppen.push({ gruppe, item })
       }
     })
 
@@ -917,14 +878,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // (selectedId/setSelectedId aus FurnitureContext) wie der Rest der App, damit z.B. die
     // Leuchten-Liste im Licht-Schritt (LichtSchritt.jsx) dieselbe Auswahl auch farblich hervorheben
     // kann. Ein Ring-Mesh knapp unter der Decke markiert die aktuell ausgewählte Leuchte visuell.
-    const deckenleuchteRing = new THREE.Mesh(
-      new THREE.RingGeometry(0.18, 0.24, 32),
-      new THREE.MeshBasicMaterial({ color: '#185FA5', side: THREE.DoubleSide, transparent: true, opacity: 0.6 }),
-    )
-    deckenleuchteRing.rotation.x = -Math.PI / 2
-    deckenleuchteRing.visible = false
-    if (deckenFokusRef.current) raumWurzel.add(deckenleuchteRing)
-
+    // Seit Teilpunkt 4.5 wird dieser Ring (wie die Leuchten selbst und ihre Anfasser) im
+    // Möbel-Effekt weiter unten gebaut; die Handler hier holen ihn über moebelGruppenRef.
     const deckenEbene = new THREE.Plane(new THREE.Vector3(0, 1, 0), -wandHoehe)
     const { innenBpx: deckenInnenBpx, innenTpx: deckenInnenTpx } = berechneInnenmasse(raumBreite, raumTiefe)
     let deckenleuchteDrag = null // { eintrag, offsetX, offsetZ, bewegt, neueX, neueZ }
@@ -939,6 +894,13 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     let panelGriffDrag = null // { eintrag, urspruenglicheHalbeSeite, bewegt, neueHalbeSeite }
 
     const deckenleuchteMausDown = (clientX, clientY) => {
+      // App schneller machen, Schritt 3, Teilpunkt 4.5: Leuchten, Anfasser und Auswahl-Ring kommen
+      // jetzt aus dem Möbel-Effekt; hier im Moment des Klicks ausgelesen, damit dieser Handler
+      // immer mit dem aktuellen Stand arbeitet, auch wenn der Möbel-Effekt zwischenzeitlich neu
+      // gebaut hat, ohne dass dieser Effekt neu gelaufen ist.
+      const moebelTeile = moebelGruppenRef.current
+      if (!moebelTeile) return
+      const { deckenleuchtenGruppen, ledGriffe, panelGriffe, deckenleuchteRing } = moebelTeile
       const rect = mount.getBoundingClientRect()
       zeigerNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1
       zeigerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1
@@ -1004,6 +966,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
 
     const deckenleuchteMausMove = (clientX, clientY) => {
+      const deckenleuchteRing = moebelGruppenRef.current?.deckenleuchteRing
+      if (!deckenleuchteRing) return
       if (ledEndpunktDrag) {
         const schnitt = zeigerAufWeltpunkt(clientX, clientY, deckenEbene)
         if (!schnitt) return
@@ -2001,12 +1965,124 @@ return () => {
     // Neuaufbau mehr aus, nur weil room als Ganzes eine neue Referenz bekommen hat.
     room?.eckpunkte, room?.breite, room?.tiefe, room?.boden,
     room?.wandfarbe, room?.wandfarben, room?.wandmaterial, room?.wandmaterialien, room?.trennwaende,
-    // App schneller machen, Schritt 3, Teilpunkt 4.2: statt der furniture-Liste selbst hängt der
-    // Effekt jetzt an den beiden Fingerabdrücken (siehe oben) — die Liste kommt über furnitureRef.
-    wandElementeSignatur, moebelSignatur,
-    fussleiste, fussleisteFarbe, raumHoehe, modelleVersion, wandBereiche,
+    // App schneller machen, Schritt 3, Teilpunkt 4.2/4.5: statt der furniture-Liste selbst hängt
+    // dieser Effekt nur noch am Fingerabdruck der WANDELEMENTE (die Liste kommt über furnitureRef).
+    // moebelSignatur und modelleVersion sind in den Möbel-Effekt weiter unten gewandert — eine
+    // reine Möbel-Änderung baut hier deshalb nichts mehr neu.
+    wandElementeSignatur,
+    fussleiste, fussleisteFarbe, raumHoehe, wandBereiche,
     setAusgewaehltesWandElement, onDeckenleuchteAusgewaehlt,
   ])
+
+  // === MÖBEL-EFFEKT (App schneller machen, Schritt 3, Teilpunkt 4.5) ===
+  // Baut die normalen Möbel und die Deckenleuchten (samt ihrer Anfasser und des Auswahl-Rings) in
+  // eine eigene Gruppe unter der dauerhaften Szene. Läuft NUR bei Möbel-Änderungen und bei
+  // Änderungen der Raumform (von der die Umrechnung px <-> Meter abhängt) — eine Wandfarben-,
+  // Fenster- oder Tageszeit-Änderung lässt die Möbel ab jetzt unangetastet stehen, und umgekehrt
+  // baut eine Möbel-Änderung keine Wände/Böden/Lichter mehr neu.
+  // Die Maus-Listener und die drei Deckenleuchten-Handler bleiben bewusst im Struktur-Effekt und
+  // holen sich die hier gebauten Teile über moebelGruppenRef (siehe dort).
+  useEffect(() => {
+    // Der Fingerabdruck der Möbelliste ist der eigentliche Auslöser dieses Effekts (siehe
+    // Abhängigkeitsliste unten), die Liste selbst kommt über furnitureRef — gleiches Muster wie im
+    // Struktur-Effekt, siehe die Erklärung dort. BITTE NICHT ENTFERNEN.
+    void moebelSignatur
+
+    const scene = sceneRef.current
+    if (!scene) return
+
+    // Dieselbe Raumform-Rechnung wie im Struktur-Effekt (reine Mathematik, bewusst doppelt statt
+    // über eine weitere Ref gebrückt — so bleibt dieser Effekt unabhängig davon, wann der
+    // Struktur-Effekt zuletzt gelaufen ist).
+    const wandHoehe = raumHoehe || 2.5
+    const eckpunkte = room?.eckpunkte || rechteckPolygon(room?.breite || 6, room?.tiefe || 5)
+    const box = boundingBox(eckpunkte)
+    const raumBreite = box.breite
+    const raumTiefe = box.tiefe
+
+    const moebelWurzel = new THREE.Group()
+    scene.add(moebelWurzel)
+
+    // Seit Teilpunkt 4.1 modulweit gecacht — die Aufrufe liefern dieselben Instanzen wie im
+    // Struktur-Effekt, es wird nichts doppelt gezeichnet.
+    const holzTextur = erzeugeHolzTextur()
+    const stoffTextur = erzeugeStoffTextur()
+
+    // Deckenleuchten-Gruppen (Phase 6, Teilschritt 1) — Grundlage fürs Anklicken in
+    // deckenleuchteMausDown im Struktur-Effekt. Wird nur im Decken-Fokus-Modus befüllt, ist aber
+    // immer deklariert, damit die spätere Verwendung nicht auf die Existenz prüfen muss.
+    const deckenleuchtenGruppen = []
+    // Endpunkt-Anfasser der LED-Streifen (Phase 6, Teilschritt 3) — zwei kleine Kugeln je Streifen,
+    // als Kind-Meshes der jeweiligen Gruppe (nicht Teil des "echten" Aussehens aus scene/moebel.js,
+    // rein für die Bedienung in der Decken-Ansicht). Weil sie Kinder der Gruppe sind, folgen sie
+    // automatisch Position/Drehung/Skalierung der Gruppe — siehe deckenleuchteMausMove, die genau
+    // das ausnutzt, um beim Ziehen eines Endpunkts den jeweils ANDEREN exakt stehen zu lassen.
+    const ledGriffe = []
+    // Eck-Anfasser des quadratischen LED-Panels (Phase 6, Teilschritt 4) — eine Kugel je Panel, als
+    // Kind-Mesh der Gruppe an einer festen lokalen Ecke. Anders als bei den zwei Endpunkt-Anfassern
+    // des LED-Streifens bleibt beim Ziehen dieses EINEN Anfassers die Position der Gruppe
+    // unverändert — es wird nur symmetrisch um die (feststehende) Mitte skaliert.
+    const panelGriffe = []
+
+    // Ring-Mesh knapp unter der Decke, markiert die aktuell ausgewählte Leuchte visuell.
+    const deckenleuchteRing = new THREE.Mesh(
+      new THREE.RingGeometry(0.18, 0.24, 32),
+      new THREE.MeshBasicMaterial({ color: '#185FA5', side: THREE.DoubleSide, transparent: true, opacity: 0.6 }),
+    )
+    deckenleuchteRing.rotation.x = -Math.PI / 2
+    deckenleuchteRing.visible = false
+    if (deckenFokusRef.current) moebelWurzel.add(deckenleuchteRing)
+
+    furnitureRef.current.forEach(item => {
+      if (item.istWandElement) return
+      // In der Decken-Ansicht (Phase 6, Teilschritt 1, nach Hassans Feedback "die Stehlampen haben
+      // da nichts zu suchen") werden normale Möbelstücke gar nicht erst gebaut — es geht in dieser
+      // Ansicht nur um die Decke plus die 3 sichtbaren Wände, nicht um den restlichen Raum.
+      // Deckenleuchten natürlich weiterhin. In jeder anderen Ansicht ändert sich nichts.
+      if (deckenFokusRef.current && !istDeckenleuchte(item.name)) return
+      const gruppe = baueMoebel(moebelWurzel, item, furnitureRef.current, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur)
+      if (deckenFokusRef.current && istDeckenleuchte(item.name)) {
+        const eintrag = { gruppe, item }
+        deckenleuchtenGruppen.push(eintrag)
+        if (istEndpunktVerstellbareDeckenleuchte(item.name)) {
+          const halbeLaenge = item.width / 120
+          const griffGeo = new THREE.SphereGeometry(0.045, 12, 10)
+          const griffLinks = new THREE.Mesh(griffGeo, new THREE.MeshBasicMaterial({ color: '#F2A93C' }))
+          griffLinks.position.set(-halbeLaenge, -0.01, 0)
+          gruppe.add(griffLinks)
+          const griffRechts = new THREE.Mesh(griffGeo, new THREE.MeshBasicMaterial({ color: '#F2A93C' }))
+          griffRechts.position.set(halbeLaenge, -0.01, 0)
+          gruppe.add(griffRechts)
+          ledGriffe.push({ mesh: griffLinks, eintrag, ende: -1 })
+          ledGriffe.push({ mesh: griffRechts, eintrag, ende: 1 })
+        } else if (istEckSkalierbareDeckenleuchte(item.name)) {
+          const halbeSeite = item.width / 120
+          const eckGriff = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), new THREE.MeshBasicMaterial({ color: '#F2A93C' }))
+          eckGriff.position.set(halbeSeite, -0.01, halbeSeite)
+          gruppe.add(eckGriff)
+          panelGriffe.push({ mesh: eckGriff, eintrag, halbeSeite })
+        }
+      }
+    })
+
+    moebelGruppenRef.current = { deckenleuchtenGruppen, ledGriffe, panelGriffe, deckenleuchteRing }
+
+    return () => {
+      moebelGruppenRef.current = null
+      // Gleiches Aufräumen wie im Struktur-Effekt, nur auf die eigene Gruppe beschränkt: gecachte
+      // Foto- und prozedurale Texturen (userData.persistenteTextur) bleiben verschont, alles andere
+      // wird abgeräumt und die Gruppe anschließend aus der dauerhaften Szene entfernt.
+      moebelWurzel.traverse(obj => {
+        obj.geometry?.dispose()
+        const materials = Array.isArray(obj.material) ? obj.material : (obj.material ? [obj.material] : [])
+        materials.forEach(mat => {
+          Object.values(mat).forEach(wert => { if (wert?.isTexture && !wert.userData?.persistenteTextur) wert.dispose() })
+          mat.dispose()
+        })
+      })
+      scene.remove(moebelWurzel)
+    }
+  }, [moebelSignatur, modelleVersion, room?.eckpunkte, room?.breite, room?.tiefe, raumHoehe])
 
   // App schneller machen, Schritt 3, Teilpunkt 2: Tageszeit-Schnellpfad. Läuft unabhängig vom
   // schweren Szenen-Effekt oben (der jetzt NICHT mehr auf tageszeit reagiert) und passt nur die
