@@ -257,6 +257,23 @@ export function berechneInnenmasse(raumBreite, raumTiefe) {
   return { innenBpx, innenTpx }
 }
 
+// Rundbogen-Durchgang (Optimierung 2): Der Bogen war bisher ein exakter Halbkreis mit Radius =
+// halbe Durchgangsbreite, und item.hoeheReal war die Kämpferhöhe (Beginn des Bogens). Breiter
+// ziehen machte den Durchgang damit zwangsläufig auch höher — und weil der Bogen sonst durch die
+// Decke gestoßen wäre, war die Breite an der Wandhöhe gedeckelt.
+// Jetzt ist item.hoeheReal beim Rundbogen die GESAMTHÖHE der Öffnung (Boden bis Bogenscheitel).
+// Die Bogenhöhe wird daraus abgeleitet: so viel wie beim Halbkreis (halbe Breite), höchstens aber
+// BOGEN_MAX_ANTEIL der Gesamthöhe. Damit bleibt die Oberkante beim Breiterziehen stehen und der
+// Bogen flacht stattdessen ab; schmale Durchgänge sehen weiterhin aus wie bisher.
+// Wird an mehreren Stellen gebraucht und liegt deshalb hier: Wandaussparung in RoomView3D.jsx,
+// Klickfläche und Backstein-Einfassung in scene/wandelemente.js.
+export const MIN_BOGEN_HOEHE = 0.05
+export const BOGEN_MAX_ANTEIL = 0.4
+export function bogenMasse(breite, gesamtHoehe) {
+  const bogenHoehe = Math.max(MIN_BOGEN_HOEHE, Math.min(breite / 2, gesamtHoehe * BOGEN_MAX_ANTEIL))
+  return { bogenHoehe, kaempferHoehe: Math.max(0, gesamtHoehe - bogenHoehe) }
+}
+
 // tageszeit in Stunden (0–24), Default Mittag — siehe tageslichtWerte() in scene/beleuchtung.js
 export const DEFAULT_RAUM_DESIGN = { fussleiste: true, fussleisteFarbe: '#E0DDD8', raumHoehe: 2.5, tageszeit: 12, wandmaterial: 'wand-putz' }
 

@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { wandSegmente, rechteckPolygon } from '../raumPolygon'
+import { bogenMasse } from '../constants'
 
 const FENSTER_HOEHE = 1.2
 const TUER_HOEHE = 2.1
@@ -131,12 +132,13 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
     const klickMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })
 
     if (item.stil === 'bogen') {
-      // elHoehe ist hier immer die feste Kämpferhöhe (nie per Maus verändert, siehe
-      // RoomView3D.jsx). Radius = halbe Breite, Gesamthöhe = Kämpferhöhe + Radius — die
-      // Klickfläche deckt die volle Öffnung inkl. Bogen ab, damit auch der gewölbte obere Teil
+      // elHoehe ist seit Optimierung 2 die Gesamthöhe der Öffnung (Boden bis Bogenscheitel);
+      // bogenMasse() teilt sie in geraden Teil und Bogenhöhe auf (siehe constants.js). Die
+      // Klickfläche deckt genau diese Gesamthöhe ab, damit auch der gewölbte obere Teil
       // anklickbar ist.
       const radius = elBreite / 2
-      const gesamtHoehe = elHoehe + radius
+      const gesamtHoehe = elHoehe
+      const { kaempferHoehe, bogenHoehe } = bogenMasse(elBreite, gesamtHoehe)
       const klickflaeche = new THREE.Mesh(new THREE.PlaneGeometry(elBreite, gesamtHoehe), klickMat)
       klickflaeche.position.set(0, gesamtHoehe / 2, 0)
       gruppe.add(klickflaeche)
@@ -151,20 +153,21 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
         const RAHMEN_BREITE = 0.12
         const RAHMEN_TIEFE = 0.14
         const radiusAussen = radius + RAHMEN_BREITE
+        const bogenHoeheAussen = bogenHoehe + RAHMEN_BREITE
         const halbBreiteAussen = elBreite / 2 + RAHMEN_BREITE
 
         const innerPfad = new THREE.Path()
         innerPfad.moveTo(-elBreite / 2, 0)
         innerPfad.lineTo(elBreite / 2, 0)
-        innerPfad.lineTo(elBreite / 2, elHoehe)
-        innerPfad.absarc(0, elHoehe, radius, 0, Math.PI, false)
+        innerPfad.lineTo(elBreite / 2, kaempferHoehe)
+        innerPfad.absellipse(0, kaempferHoehe, radius, bogenHoehe, 0, Math.PI, false, 0)
         innerPfad.lineTo(-elBreite / 2, 0)
 
         const aussenShape = new THREE.Shape()
         aussenShape.moveTo(-halbBreiteAussen, 0)
         aussenShape.lineTo(halbBreiteAussen, 0)
-        aussenShape.lineTo(halbBreiteAussen, elHoehe)
-        aussenShape.absarc(0, elHoehe, radiusAussen, 0, Math.PI, false)
+        aussenShape.lineTo(halbBreiteAussen, kaempferHoehe)
+        aussenShape.absellipse(0, kaempferHoehe, radiusAussen, bogenHoeheAussen, 0, Math.PI, false, 0)
         aussenShape.lineTo(-halbBreiteAussen, 0)
         aussenShape.holes.push(innerPfad)
 

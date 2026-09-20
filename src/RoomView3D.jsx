@@ -11,7 +11,7 @@ import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
 import { useUI } from './context/UIContext'
-import { wandMaterialien, istDeckenleuchte, istVerschiebbareDeckenleuchte, istEndpunktVerstellbareDeckenleuchte, istEckSkalierbareDeckenleuchte, berechneInnenmasse } from './constants'
+import { wandMaterialien, istDeckenleuchte, istVerschiebbareDeckenleuchte, istEndpunktVerstellbareDeckenleuchte, istEckSkalierbareDeckenleuchte, berechneInnenmasse, bogenMasse } from './constants'
 
 export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deckenFokus = false, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt } = {}) {
   const { activeRoom: room } = useRooms()
@@ -501,21 +501,22 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         const uLinks = Math.max(0, Math.min(werte.u, seg.laenge - werte.breite))
         const uRechts = uLinks + werte.breite
         if (item.stil === 'bogen') {
-          // Rundbogen-Durchgang (Phase 4, Teil 3b): gerade Seiten bis zur Kämpferhöhe
-          // (werte.hoehe — bei diesem Stil immer eine feste Konstante, nie per Maus verändert,
-          // siehe berechneElementAuswahl weiter unten), darüber ein Halbkreisbogen mit Radius =
-          // halbe Breite. Der nach außen versetzte Rand für die optionale Backstein-Einfassung
-          // (scene/wandelemente.js) verwendet denselben Kreismittelpunkt, nur mit größerem
-          // Radius — das ergibt an den Kämpferpunkten einen nahtlosen Übergang, weil die geraden
-          // Seiten dort tangential zum Kreis liegen.
+          // Rundbogen-Durchgang (Phase 4, Teil 3b; seit Optimierung 2 eine halbe Ellipse innerhalb
+          // einer festen Gesamthöhe): werte.hoehe ist die Gesamthöhe der Öffnung, bogenMasse()
+          // teilt sie in geraden Teil und Bogen auf (siehe constants.js). Beim Breiterziehen bleibt
+          // die Oberkante damit stehen und der Bogen wird flacher, statt nach oben zu wachsen. Der
+          // nach außen versetzte Rand für die optionale Backstein-Einfassung (scene/wandelemente.js)
+          // verwendet denselben Mittelpunkt mit in beiden Richtungen um die Rahmenbreite größeren
+          // Radien — das ergibt an den Kämpferpunkten weiterhin einen sauberen Übergang.
           const radius = werte.breite / 2
           const uMitte = (uLinks + uRechts) / 2
-          const vSpring = Math.max(0, Math.min(wandHoehe - radius, werte.hoehe))
+          const gesamtHoehe = Math.max(0, Math.min(wandHoehe, werte.hoehe))
+          const { kaempferHoehe, bogenHoehe } = bogenMasse(werte.breite, gesamtHoehe)
           const pfad = new THREE.Path()
           pfad.moveTo(uLinks - halbBreite, -halbHoehe)
           pfad.lineTo(uRechts - halbBreite, -halbHoehe)
-          pfad.lineTo(uRechts - halbBreite, vSpring - halbHoehe)
-          pfad.absarc(uMitte - halbBreite, vSpring - halbHoehe, radius, 0, Math.PI, false)
+          pfad.lineTo(uRechts - halbBreite, kaempferHoehe - halbHoehe)
+          pfad.absellipse(uMitte - halbBreite, kaempferHoehe - halbHoehe, radius, bogenHoehe, 0, Math.PI, false, 0)
           pfad.lineTo(uLinks - halbBreite, -halbHoehe)
           shape.holes.push(pfad)
         } else {
@@ -1255,13 +1256,12 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       const uEnde = uStart + elBreite
       const vOben = vUnten + elHoehe
       const breiteCm = Math.round(elBreite * 100)
-      // Rundbogen-Durchgang (Teil 3b): elHoehe ist hier immer die feste Kämpferhöhe (siehe
-      // wandGeometrieFuerSegment weiter oben) — angezeigt wird stattdessen die tatsächliche
-      // Gesamthöhe (Kämpferhöhe + Radius), rein informativ, da die Höhe beim Rundbogen nicht
-      // separat einstellbar ist, nur die Breite (die den Radius und damit indirekt die
-      // Gesamthöhe bestimmt).
+      // Rundbogen-Durchgang: elHoehe ist seit Optimierung 2 auch bei diesem Stil direkt die
+      // Gesamthöhe der Öffnung (der Bogen liegt innerhalb dieser Höhe, siehe bogenMasse in
+      // constants.js) — die Höhe wird deshalb wie bei allen anderen Typen angezeigt, ohne
+      // Sonderfall, und ist genauso frei ziehbar.
       const istBogenDurchgang = eintrag.item.typ === 'durchgang' && eintrag.item.stil === 'bogen'
-      const hoeheCm = Math.round((istBogenDurchgang ? elHoehe + elBreite / 2 : elHoehe) * 100)
+      const hoeheCm = Math.round(elHoehe * 100)
       setFensterAuswahl({
         id: eintrag.item.id,
         typ: eintrag.item.typ,
@@ -1533,19 +1533,14 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         const { u, v } = weltpunktZuUV(schnitt, segment)
         const uKlamm = Math.max(0, Math.min(segment.laenge, u))
         const vKlamm = Math.max(0, Math.min(wandHoehe, v))
-        let neuBreite = Math.max(MIN_FENSTER_GROESSE, Math.abs(uKlamm - anchorU))
+        const neuBreite = Math.max(MIN_FENSTER_GROESSE, Math.abs(uKlamm - anchorU))
         const neuV = Math.min(anchorV, vKlamm)
-        let neuHoehe = Math.max(MIN_FENSTER_GROESSE, Math.abs(vKlamm - anchorV))
-        // Rundbogen-Durchgang (Teil 3b): Höhe ist die feste Kämpferhöhe, nicht per Maus ziehbar —
-        // nur die Breite folgt der Maus, die Gesamthöhe (Kämpferhöhe + halbe Breite als Radius)
-        // ergibt sich automatisch daraus. Stattdessen wird hier die Breite gegen die Decke
-        // geklemmt (sonst würde der Bogen oben aus der Wand herausragen) — das passiert beim
-        // Rechteck schon implizit über die vKlamm-Deckenklemmung der Höhe.
-        if (eintrag.item.typ === 'durchgang' && eintrag.item.stil === 'bogen') {
-          neuHoehe = urspruenglicheHoehe
-          const maxBreiteDecke = Math.max(MIN_FENSTER_GROESSE, 2 * (wandHoehe - urspruenglicheHoehe))
-          neuBreite = Math.min(neuBreite, maxBreiteDecke)
-        }
+        const neuHoehe = Math.max(MIN_FENSTER_GROESSE, Math.abs(vKlamm - anchorV))
+        // Rundbogen-Durchgang (Optimierung 2): keine Sonderbehandlung mehr. hoeheReal ist bei
+        // diesem Stil jetzt die Gesamthöhe der Öffnung, der Bogen teilt sich diese Höhe mit den
+        // geraden Seiten (bogenMasse in constants.js) — Breite und Höhe sind damit genauso frei
+        // ziehbar wie beim rechteckigen Durchgang, und der Bogen kann nicht mehr durch die Decke
+        // stoßen, weil vKlamm die Höhe bereits auf die Wandhöhe begrenzt.
         // Verankerten Gegenpunkt (anchorU) exakt halten, auch wenn neuBreite oben gerade wegen der
         // Deckenklemmung verkleinert wurde — sonst würde sich beim Ziehen der linken Ecke die
         // rechte (eigentlich fixe) Kante mitverschieben.
