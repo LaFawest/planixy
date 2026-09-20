@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandTextur, erzeugeBacksteinTextur } from './texturen'
 import { baueTrennwaende } from './scene/trennwaende'
@@ -163,6 +163,27 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     ladeModelle(fehlend).then(() => setModelleVersion(v => v + 1))
   }, [furniture])
 
+  // App schneller machen, Schritt 3, Teilpunkt 4.2: getrennte Auslöser für Wandelemente und Möbel.
+  // Der schwere Szenen-Effekt weiter unten hing bisher an der kompletten furniture-Liste — jede
+  // Möbel-Änderung erzeugt dort eine neue Array-Referenz und damit einen kompletten Neuaufbau,
+  // auch für Teile, die davon gar nicht betroffen sind. Diese beiden "Fingerabdrücke" ändern sich
+  // dagegen nur, wenn sich an ihrem jeweiligen Teil inhaltlich wirklich etwas geändert hat, und
+  // dienen ab jetzt als Auslöser. Vorbereitung für Teilpunkt 4.5, wo Wände/Fenster/Türen und
+  // Möbel/Deckenleuchten in zwei getrennte Effekte wandern und dann jeweils nur noch ihren eigenen
+  // Fingerabdruck als Auslöser bekommen.
+  const wandElementeSignatur = useMemo(() => JSON.stringify(furniture.filter(f => f.istWandElement)), [furniture])
+  const moebelSignatur = useMemo(() => JSON.stringify(furniture.filter(f => !f.istWandElement)), [furniture])
+
+  // Die Möbelliste selbst liest der schwere Effekt ab jetzt über diese Ref (Muster wie tageszeitRef
+  // aus Teilpunkt 2) statt direkt aus furniture — sonst müsste furniture weiterhin in seiner
+  // Abhängigkeitsliste stehen und die beiden Fingerabdrücke oben wären wirkungslos. Dieser
+  // Sync-Effekt steht bewusst VOR dem schweren Effekt: React führt Effekte in der Reihenfolge ihrer
+  // Deklaration aus, die Ref ist beim Lauf des schweren Effekts also immer schon aktuell.
+  const furnitureRef = useRef(furniture)
+  useEffect(() => {
+    furnitureRef.current = furniture
+  }, [furniture])
+
   // Escape bricht den Zeichen-Modus ab (kein neuer Bereich wird angelegt) — nur registriert,
   // solange ein Material armiert ist, damit dieser Listener nicht dauerhaft mitläuft.
   useEffect(() => {
@@ -202,6 +223,14 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   }
 
   useEffect(() => {
+    // App schneller machen, Schritt 3, Teilpunkt 4.2: Diese beiden Zeilen sehen nutzlos aus, sind
+    // es aber nicht — die beiden Fingerabdrücke sind die eigentlichen Auslöser dieses Effekts
+    // (siehe Abhängigkeitsliste ganz unten), werden im Körper aber nicht gebraucht, weil die
+    // Möbelliste über furnitureRef kommt. Ohne diesen bewussten Zugriff meldet
+    // react-hooks/exhaustive-deps sie als überflüssige Abhängigkeit. BITTE NICHT ENTFERNEN.
+    void wandElementeSignatur
+    void moebelSignatur
+
     const mount = mountRef.current
     const width = mount.clientWidth
     const height = mount.clientHeight
@@ -364,7 +393,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // den aktuellen, noch nicht committeten Werten — alle anderen Durchgänge auf dem Segment
     // kommen unverändert aus furniture.
     const wandGeometrieFuerSegment = (segmentIndex, seg, live) => {
-      const durchgaenge = furniture.filter(f => f.istWandElement && f.typ === 'durchgang' && f.wandSegment === segmentIndex)
+      const durchgaenge = furnitureRef.current.filter(f => f.istWandElement && f.typ === 'durchgang' && f.wandSegment === segmentIndex)
       if (durchgaenge.length === 0) return new THREE.PlaneGeometry(seg.laenge, wandHoehe)
       const halbBreite = seg.laenge / 2
       const halbHoehe = wandHoehe / 2
@@ -491,7 +520,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // unverändert — es wird nur symmetrisch um die (feststehende) Mitte skaliert, siehe
     // deckenleuchteMausMove weiter unten.
     const panelGriffe = []
-    furniture.forEach(item => {
+    furnitureRef.current.forEach(item => {
       if (item.istWandElement) {
         // 8. Nachbesserung nach Hassans Feedback "ich möchte keine Fenster oder Türen sehen": anders
         // als in der 3. Nachbesserung entschieden (dort bewusst als "Teil der Architektur" sichtbar
@@ -507,7 +536,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         // in dieser Ansicht nur um die Decke plus die 3 sichtbaren Wände, nicht um den restlichen
         // Raum. Deckenleuchten natürlich weiterhin. In jeder anderen Ansicht (deckenFokusRef.current
         // === false) ändert sich nichts am bisherigen Verhalten.
-        const gruppe = baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur)
+        const gruppe = baueMoebel(scene, item, furnitureRef.current, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur)
         if (deckenFokusRef.current && istDeckenleuchte(item.name)) {
           const eintrag = { gruppe, item }
           deckenleuchtenGruppen.push(eintrag)
@@ -1885,7 +1914,10 @@ return () => {
     // Neuaufbau mehr aus, nur weil room als Ganzes eine neue Referenz bekommen hat.
     room?.eckpunkte, room?.breite, room?.tiefe, room?.boden,
     room?.wandfarbe, room?.wandfarben, room?.wandmaterial, room?.wandmaterialien, room?.trennwaende,
-    furniture, fussleiste, fussleisteFarbe, raumHoehe, modelleVersion, wandBereiche,
+    // App schneller machen, Schritt 3, Teilpunkt 4.2: statt der furniture-Liste selbst hängt der
+    // Effekt jetzt an den beiden Fingerabdrücken (siehe oben) — die Liste kommt über furnitureRef.
+    wandElementeSignatur, moebelSignatur,
+    fussleiste, fussleisteFarbe, raumHoehe, modelleVersion, wandBereiche,
     setAusgewaehltesWandElement, onDeckenleuchteAusgewaehlt,
   ])
 
