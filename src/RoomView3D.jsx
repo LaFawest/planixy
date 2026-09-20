@@ -5,7 +5,7 @@ import { baueTrennwaende } from './scene/trennwaende'
 import { baueWandElement } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
 import { ladeModelle, getModell } from './scene/modelle'
-import { baueBeleuchtung } from './scene/beleuchtung'
+import { baueBeleuchtung, aktualisiereBeleuchtung } from './scene/beleuchtung'
 import { rechteckPolygon, boundingBox, wandSegmente, punktInPolygon, versetztesPolygon, punktSicherImPolygon } from './raumPolygon'
 import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
@@ -41,6 +41,16 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   useEffect(() => {
     callbacksRef.current = { onWandElementBewegt, onDeckenleuchteBewegt, aktualisiereWandBereich, fuegeWandBereichHinzu }
   }, [onWandElementBewegt, onDeckenleuchteBewegt, aktualisiereWandBereich, fuegeWandBereichHinzu])
+
+  // App schneller machen, Schritt 3, Teilpunkt 2: beleuchtungRef merkt sich die von
+  // baueBeleuchtung() erzeugten Lichter, damit der Tageszeit-Schnellpfad-Effekt weiter unten sie
+  // direkt anpassen kann, ohne die Szene neu zu bauen. tageszeitRef hält denselben Zweck wie
+  // fokusWandRef/deckenFokusRef weiter unten: der schwere Szenen-Effekt liest beim (seltenen)
+  // vollständigen Neuaufbau den aktuellen Wert darüber, OHNE tageszeit selbst als Abhängigkeit zu
+  // führen — genau das würde sonst bei jedem Tageszeit-Tick wieder einen kompletten Neuaufbau
+  // auslösen, den dieser Teilpunkt ja gerade vermeiden soll.
+  const beleuchtungRef = useRef(null)
+  const tageszeitRef = useRef(tageszeit)
 
   // Kameramodus + Rundgang-Position leben unabhängig vom schweren Szenen-Effekt unten (der bei
   // jeder room/furniture/... Änderung die komplette Szene neu aufbaut) — ein Moduswechsel per
@@ -278,7 +288,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     scene.environment = erzeugeUmgebungsTextur()
 
     // === BELEUCHTUNG ===
-    baueBeleuchtung(scene, eckpunkte, mitteX, mitteZ, raumBreite, raumTiefe, wandHoehe, tageszeit)
+    beleuchtungRef.current = baueBeleuchtung(scene, eckpunkte, mitteX, mitteZ, raumBreite, raumTiefe, wandHoehe, tageszeitRef.current)
 
     // === BODEN & DECKE (aus dem Randpolygon, statt fester Rechteck-Ebenen) ===
     // THREE.Shape mit ShapeGeometry statt ExtrudeGeometry: Boden/Decke bleiben masselose
@@ -1866,7 +1876,23 @@ return () => {
   mount.removeChild(renderer.domElement)
   renderer.dispose()
 }
-  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, tageszeit, modelleVersion, wandBereiche, setAusgewaehltesWandElement, onDeckenleuchteAusgewaehlt])
+  }, [room, furniture, fussleiste, fussleisteFarbe, raumHoehe, modelleVersion, wandBereiche, setAusgewaehltesWandElement, onDeckenleuchteAusgewaehlt])
+
+  // App schneller machen, Schritt 3, Teilpunkt 2: Tageszeit-Schnellpfad. Läuft unabhängig vom
+  // schweren Szenen-Effekt oben (der jetzt NICHT mehr auf tageszeit reagiert) und passt nur die
+  // Werte der bereits vorhandenen Lichter an — kein neuer Renderer, keine neu erzeugten Texturen,
+  // kein Neuaufbau von Wänden/Boden/Möbeln. Läuft bei jedem Wert danach automatisch als Teil der
+  // laufenden Render-Schleife des obigen Effekts sichtbar (dessen requestAnimationFrame-Schleife
+  // rendert ja weiter, auch ohne dass der Effekt selbst neu läuft). Läuft beim allerersten Mount
+  // ebenfalls einmal mit (normales useEffect-Verhalten) — harmlos, setzt dabei nur exakt dieselben
+  // Werte, die baueBeleuchtung() im obigen Effekt gerade erst gesetzt hat. Läuft in der
+  // Komponenten-Reihenfolge NACH dem schweren Effekt oben, damit beleuchtungRef beim allerersten
+  // Mount schon befüllt ist, bevor hier darauf zugegriffen wird.
+  useEffect(() => {
+    tageszeitRef.current = tageszeit
+    if (!beleuchtungRef.current) return
+    aktualisiereBeleuchtung(beleuchtungRef.current, tageszeit)
+  }, [tageszeit])
 
   return (
     <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: deckenFokus ? 'default' : (fokusWand == null ? 'grab' : (zeichenModusMaterial ? 'crosshair' : 'default')), position: 'relative' }}>

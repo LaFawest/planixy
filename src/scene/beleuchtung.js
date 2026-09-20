@@ -92,4 +92,37 @@ export function baueBeleuchtung(scene, eckpunkte, mitteX, mitteZ, raumBreite, ra
 
   const fillLight = new THREE.HemisphereLight(0xffffff, 0xC8A97A, hemisphereIntensitaet)
   scene.add(fillLight)
+
+  // Rückgabe der erzeugten Lichter (App schneller machen, Schritt 3, Teilpunkt 2): RoomView3D.jsx
+  // merkt sich diese in einer Ref, damit aktualisiereBeleuchtung() unten sie bei einer
+  // Tageszeit-Änderung direkt anpassen kann, ohne dass die komplette Szene neu gebaut wird.
+  return { ambientLight, sunLight, windowLight, ceilingLight, fillLight }
+}
+
+// Passt die Werte bereits vorhandener Lichter an eine neue Tageszeit an, OHNE neue Lichtobjekte
+// zu erzeugen (App schneller machen, Schritt 3, Teilpunkt 2 — Schnellpfad für den Tageszeit-Regler,
+// der bisher über baueBeleuchtung() einen kompletten Szenen-Neuaufbau ausgelöst hat). `lichter` ist
+// das von baueBeleuchtung() zurückgegebene Objekt. ceilingLight bleibt unverändert — seine Farbe/
+// Intensität hängt nicht von der Tageszeit ab, nur von der Raumform (Position wird hier ebenfalls
+// nicht angefasst, die ändert sich nur bei einem echten Szenen-Neuaufbau).
+export function aktualisiereBeleuchtung(lichter, tageszeit) {
+  const {
+    sonnenhoehe, sonneIntensitaet, sonneFarbe, ambientIntensitaet,
+    himmelIntensitaet, himmelFarbe, hemisphereIntensitaet,
+  } = tageslichtWerte(tageszeit)
+  const { ambientLight, sunLight, windowLight, fillLight } = lichter
+
+  ambientLight.color.copy(sonneFarbe)
+  ambientLight.intensity = ambientIntensitaet
+
+  sunLight.color.copy(sonneFarbe)
+  sunLight.intensity = sonneIntensitaet
+  // Nur die Höhe folgt dem Sonnenstand (siehe baueBeleuchtung oben) — x/z hängen von der
+  // Raumgröße ab und bleiben hier unangetastet.
+  sunLight.position.y = 2 + sonnenhoehe * 8
+
+  windowLight.color.copy(himmelFarbe)
+  windowLight.intensity = himmelIntensitaet
+
+  fillLight.intensity = hemisphereIntensitaet
 }
