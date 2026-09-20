@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandTextur, erzeugeBacksteinTextur } from './texturen'
+import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandTexturFuerFlaeche, erzeugeBacksteinTextur } from './texturen'
 import { baueTrennwaende } from './scene/trennwaende'
 import { baueWandElement } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
@@ -448,18 +448,24 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // festen Rechteckwände.
     const wandFarbeFuer = (index) => room?.wandfarben?.[index] || room?.wandfarbe || '#FFFFFF'
     const wandMaterialFuer = (index) => room?.wandmaterialien?.[index] || room?.wandmaterial || 'wand-putz'
-    // Textur pro tatsächlich verwendetem Material erzeugen und zwischenspeichern (Map), statt pro
-    // Wand neu — teilen sich z.B. 3 von 4 Wänden weiterhin Putz, entsteht dafür nur eine einzige
-    // Textur-Instanz statt drei identischer.
+    // Textur je Kombination aus Material UND Flächengröße erzeugen und zwischenspeichern (Map).
+    // Seit Optimierung 3 hängt die Musterdichte an der realen Flächengröße (siehe
+    // WAND_MUSTER_GROESSE in texturen.js), damit ein Muster auf jeder Wand gleich groß aussieht.
+    // Gleich große Flächen mit demselben Material teilen sich über den Schlüssel weiterhin eine
+    // einzige Instanz — in einem Rechteckraum also zwei statt vier.
     const wandTexturCache = new Map()
-    const wandTexturFuer = (material) => {
-      if (!wandTexturCache.has(material)) wandTexturCache.set(material, erzeugeWandTextur(material))
-      return wandTexturCache.get(material)
+    const wandTexturFuer = (material, breiteM, hoeheM) => {
+      const schluessel = `${material}|${(breiteM || 0).toFixed(3)}|${(hoeheM || 0).toFixed(3)}`
+      if (!wandTexturCache.has(schluessel)) {
+        wandTexturCache.set(schluessel, erzeugeWandTexturFuerFlaeche(material, breiteM, hoeheM))
+      }
+      return wandTexturCache.get(schluessel)
     }
     // map + color: MeshStandardMaterial multipliziert beide miteinander, die Musterstruktur bleibt
     // dadurch mit jeder der 27 Wandfarben einfärbbar, ohne dass die Farbwahl selbst hier angefasst
-    // werden muss.
-    const wandMatFuer = (index) => new THREE.MeshStandardMaterial({ color: wandFarbeFuer(index), map: wandTexturFuer(wandMaterialFuer(index)), roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1 })
+    // werden muss. laenge ist die tatsächliche Länge des Wandsegments — zusammen mit der Raumhöhe
+    // ergibt das die reale Flächengröße für die Musterdichte.
+    const wandMatFuer = (index, laenge) => new THREE.MeshStandardMaterial({ color: wandFarbeFuer(index), map: wandTexturFuer(wandMaterialFuer(index), laenge, wandHoehe), roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1 })
 
     const segmente = wandSegmente(eckpunkte)
 
@@ -538,7 +544,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       const x1 = segment.start.x - mitteX, z1 = segment.start.y - mitteZ
       const x2 = segment.ende.x - mitteX, z2 = segment.ende.y - mitteZ
       const wandGeo = wandGeometrieFuerSegment(segment.index, segment)
-      const wand = new THREE.Mesh(wandGeo, wandMatFuer(segment.index))
+      const wand = new THREE.Mesh(wandGeo, wandMatFuer(segment.index, segment.laenge))
       wand.position.set((x1 + x2) / 2, wandHoehe / 2, (z1 + z2) / 2)
       wand.rotation.y = -Math.atan2(z2 - z1, x2 - x1)
       wand.receiveShadow = true
@@ -625,7 +631,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       const segment = wandMeshe[bereich.wandSegment]
       if (!segment) return
       const geo = new THREE.PlaneGeometry(bereich.breite, bereich.hoehe)
-      const mat = new THREE.MeshStandardMaterial({ map: wandTexturFuer(bereich.material), roughness: 0.9, metalness: 0.0 })
+      const mat = new THREE.MeshStandardMaterial({ map: wandTexturFuer(bereich.material, bereich.breite, bereich.hoehe), roughness: 0.9, metalness: 0.0 })
       const mesh = new THREE.Mesh(geo, mat)
       const t = (bereich.u + bereich.breite / 2) / (segment.laenge || 1)
       mesh.position.set(

@@ -331,6 +331,50 @@ export function erzeugeWandTextur(wandTyp) {
   return erzeugeWandputzTextur()
 }
 
+// Optimierung 3: Reale Größe einer Musterkachel in Metern. Vorher steckte in jeder Muster-Funktion
+// ein fester Wiederholungswert (z.B. repeat.set(4, 1.5)) — weil sich alle Wände EINE Textur-Instanz
+// teilen, wurde das Muster damit über die jeweilige Wandlänge gestreckt: auf einer langen Wand
+// breite Lamellen, auf einer kurzen schmale. Mit einer realen Kachelgröße lässt sich die
+// Wiederholung stattdessen pro Fläche ausrechnen (siehe erzeugeWandTexturFuerFlaeche unten), das
+// Muster ist dann überall gleich groß.
+// breite/hoehe beziehen sich auf EINE Kachel des jeweiligen Musters:
+//   Akustikpaneele  0,60 m = 12 Lamellen à 5 cm (mit Hassan abgestimmt)
+//   Holzpaneele     0,80 m = 4 Paneele à 20 cm
+//   Streifentapete  0,80 m = 8 Streifen à 10 cm
+//   Blumentapete    0,96 m = 8 Blüten à 12 cm
+// Der Wandputz steht bewusst NICHT in dieser Liste: feine Foto-Struktur ohne erkennbares Muster,
+// dort fällt der Maßstab nicht auf — und er würde als Foto-Textur pro Wand erneut auf die
+// Grafikkarte geladen. Materialien ohne Eintrag verhalten sich unverändert wie bisher.
+export const WAND_MUSTER_GROESSE = {
+  'wand-akustikpaneele': { breite: 0.60, hoehe: 1.60 },
+  'wand-holzpaneele':    { breite: 0.80, hoehe: 0.80 },
+  'wand-tapete-streifen':{ breite: 0.80, hoehe: 0.80 },
+  'wand-tapete-blumen':  { breite: 0.96, hoehe: 0.96 },
+}
+
+// Liefert die Textur für eine konkrete Wandfläche: gleiche Musterkachel wie erzeugeWandTextur(),
+// aber mit einer aus der realen Flächengröße berechneten Wiederholung. Jede Fläche bekommt dafür
+// eine eigene Kopie — clone() teilt sich das bereits gezeichnete Bild mit dem Original aus dem
+// modulweiten Cache (Restpunkt 5), es wird also nichts neu gezeichnet, nur ein eigener
+// Wiederholungswert gesetzt.
+// Wichtig: Die Kopie wird ausdrücklich NICHT als persistenteTextur markiert (clone() übernimmt
+// userData vom Original, wo die Markierung steht). Sonst würde das Aufräumen in RoomView3D.jsx sie
+// überspringen und bei jedem Szenen-Neuaufbau bliebe eine Kopie je Wand zurück.
+export function erzeugeWandTexturFuerFlaeche(wandTyp, breiteM, hoeheM) {
+  const basis = erzeugeWandTextur(wandTyp)
+  const kachel = WAND_MUSTER_GROESSE[wandTyp]
+  if (!kachel) return basis
+  const textur = basis.clone()
+  textur.userData = { ...textur.userData, persistenteTextur: false }
+  textur.wrapS = textur.wrapT = THREE.RepeatWrapping
+  textur.repeat.set(
+    Math.max(0.1, (breiteM || 0) / kachel.breite),
+    Math.max(0.1, (hoeheM || 0) / kachel.hoehe),
+  )
+  textur.needsUpdate = true
+  return textur
+}
+
 // Backstein-Einfassung für den Rundbogen-Durchgang (Phase 4, Teil 3b) — Ziegelsteine im
 // klassischen Läuferverband (jede zweite Reihe um einen halben Stein versetzt), nach demselben
 // Canvas-Zeichnen-Muster wie erzeugeHolzpaneeleTextur/erzeugeStreifenTapete oben, nur als
