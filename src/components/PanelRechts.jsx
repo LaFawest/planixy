@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useUI } from '../context/UIContext'
 import { useRooms } from '../context/RoomsContext'
 import { useWizard } from '../context/WizardContext'
@@ -31,13 +32,28 @@ export default function PanelRechts() {
   // immer da, unabhängig von diesem (für die anderen Schritte gedachten) Auf/Zu-Zustand. Die
   // "RAUMEINSTELLUNGEN"-Kopfzeile mit dem ✕-Schließen-Knopf passt inhaltlich ohnehin nicht zur
   // Leuchten-Liste und entfällt hier deshalb — die Liste beginnt jetzt direkt am oberen Rand.
-  const zeigtLichtListeImmer = schritt === 3 && activeRoom
+  // Optimierung 1, Nachbesserung: Dasselbe gilt jetzt auch für den Möbel-&-Deko-Schritt. Dessen
+  // Panel-Inhalt ist ebenfalls eine reine Liste (MÖBEL & DEKO, siehe MoebelDekoSchritt.jsx) und
+  // keine "Raumeinstellung" — die Kopfzeile "RAUMEINSTELLUNGEN" passte dort inhaltlich nicht, und
+  // der Auf/Zu-Knopf in der Seitenleiste hatte nichts zu schalten. Die Liste ist deshalb auch dort
+  // immer sichtbar, und der Knopf entfällt in beiden Schritten (siehe Sidebar.jsx).
+  const zeigtListeImmer = (schritt === 3 || schritt === 4) && activeRoom
+
+  // Optimierung 1: Im Raum-Schritt klappt das Panel automatisch auf — dort stellt man Name, Form,
+  // Maße, Boden und Wandfarbe ein, ohne das Panel gibt es in diesem Schritt also praktisch nichts
+  // zu tun. Läuft nur bei einem Schritt-Wechsel (und beim ersten Rendern), nicht bei jedem Rendern:
+  // wer das Panel im Raum-Schritt bewusst über das ✕ schließt, bekommt es dadurch nicht sofort
+  // wieder aufgedrängt. Das Aufklappen beim Anlegen eines neuen Raums passiert weiterhin in
+  // RoomsContext.addRoom.
+  useEffect(() => {
+    if (schritt === 1) setRaumPanelOffen(true)
+  }, [schritt, setRaumPanelOffen])
 
   return (
     <div className="panel-rechts" style={{ width: '220px', background: 'white', borderLeft: '1px solid #E8E6E0', padding: '16px', flexShrink: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', boxShadow: '-2px 0 8px rgba(0,0,0,0.04)' }}>
-      {zeigtLichtListeImmer ? (
+      {zeigtListeImmer ? (
         <>
-          <LichtSchritt />
+          <SchrittInhalt />
           {selectedId !== null && (
             <>
               <div style={{ height: '1px', background: '#E8E6E0' }}></div>
@@ -56,7 +72,7 @@ export default function PanelRechts() {
           <SchrittInhalt />
         </>
       ) : (
-        <p style={{ fontSize: '12px', color: '#B4B2A9', lineHeight: 1.5 }}>Klicke links auf einen Raum, um Name, Größe, Fußleiste, Bodenbelag und Wandfarbe einzustellen.</p>
+        <p style={{ fontSize: '12px', color: '#B4B2A9', lineHeight: 1.5 }}>Über „⚙ Raumeinstellungen" links stellst du Name, Größe, Fußleiste, Bodenbelag und Wandfarbe ein.</p>
       )}
     </div>
   )

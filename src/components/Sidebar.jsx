@@ -9,7 +9,7 @@ import { useFurniture } from '../context/FurnitureContext'
 const MIN_FENSTER_GROESSE_CM = 30 // muss zu MIN_FENSTER_GROESSE (0.3m) in RoomView3D.jsx passen
 
 export default function Sidebar() {
-  const { raumPanelOffen, ausgewaehltesWandElement } = useUI()
+  const { raumPanelOffen, setRaumPanelOffen, ausgewaehltesWandElement } = useUI()
   const { rooms, activeRoomId, waehleRaum, deleteRoom, addRoom } = useRooms()
   const { schritt } = useWizard()
   const { furniture, removeFurniture, positioniereWandElement } = useFurniture()
@@ -32,7 +32,6 @@ export default function Sidebar() {
             <span style={{ fontSize: '13px', color: activeRoomId === room.id ? '#185FA5' : '#444441', fontWeight: activeRoomId === room.id ? '500' : '400', flex: 1 }}>
               {room.name}
             </span>
-            <span style={{ fontSize: '11px', color: activeRoomId === room.id && raumPanelOffen ? '#185FA5' : '#D3D1C7', marginRight: rooms.length > 1 ? '4px' : 0 }}>⚙</span>
             {rooms.length > 1 && (
               <span onClick={(e) => { e.stopPropagation(); deleteRoom(room.id) }}
                 style={{ fontSize: '11px', color: '#D3D1C7', cursor: 'pointer', marginLeft: '4px' }}
@@ -48,6 +47,21 @@ export default function Sidebar() {
         onMouseLeave={e => { e.currentTarget.style.borderColor = '#D3D1C7'; e.currentTarget.style.color = '#888780' }}>
         + Raum hinzufügen
       </div>
+
+      {/* Optimierung 1: Auf/Zu des rechten Einstellungen-Panels. Ersetzt das frühere winzige ⚙ in
+          der Raumzeile — der Zustand ist am Pfeil und an der Einfärbung erkennbar. Nur im Raum- und
+          im Fenster-&-Türen-Schritt: im Licht- und im Möbel-&-Deko-Schritt enthält das rechte Panel
+          keine Einstellungen, sondern nur eine Liste, die dort unabhängig von diesem Zustand immer
+          sichtbar ist (siehe PanelRechts.jsx) — der Knopf hätte dort also keine sinnvolle Wirkung. */}
+      {(schritt === 1 || schritt === 2) && (
+        <div onClick={() => setRaumPanelOffen(offen => !offen)}
+          style={{ marginTop: '8px', padding: '10px 12px', borderRadius: '10px', border: `1px solid ${raumPanelOffen ? '#185FA5' : '#E8E6E0'}`, background: raumPanelOffen ? '#EEF4FC' : 'white', cursor: 'pointer', fontSize: '12px', color: raumPanelOffen ? '#185FA5' : '#444441', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all 0.15s' }}
+          onMouseEnter={e => { if (!raumPanelOffen) e.currentTarget.style.background = '#F7F6F2' }}
+          onMouseLeave={e => { if (!raumPanelOffen) e.currentTarget.style.background = 'white' }}>
+          <span>⚙ Raumeinstellungen</span>
+          <span style={{ fontSize: '10px', color: raumPanelOffen ? '#185FA5' : '#B4B2A9' }}>{raumPanelOffen ? '▾' : '▸'}</span>
+        </div>
+      )}
 
       <div style={{ height: '1px', background: '#E8E6E0', margin: '18px 0' }}></div>
 

@@ -198,13 +198,15 @@ export function RoomsProvider({ children }) {
     if (activeRoomId === id) setActiveRoomId(remaining[0].id)
   }, [updateProjekt, activeProjectId, activeProject, activeRoomId])
 
+  // Auf/Zu des Einstellungen-Panels läuft seit Optimierung 1 ausschließlich über den beschrifteten
+  // Knopf in der Seitenleiste (Sidebar.jsx) — ein Klick auf den bereits aktiven Raum schaltet es
+  // deshalb nicht mehr um. Das war vorher die einzige (und kaum auffindbare) Bedienung dafür und
+  // hat das Panel auch ungewollt wieder geschlossen, wenn man nur den Raum anklicken wollte.
+  // Der Wechsel auf einen ANDEREN Raum klappt das Panel weiterhin auf.
   const waehleRaum = useCallback((id) => {
-    if (activeRoomId === id) {
-      setRaumPanelOffen(offen => !offen)
-    } else {
-      setActiveRoomId(id)
-      setRaumPanelOffen(true)
-    }
+    if (activeRoomId === id) return
+    setActiveRoomId(id)
+    setRaumPanelOffen(true)
   }, [activeRoomId, setRaumPanelOffen])
 
   const value = useMemo(() => ({
