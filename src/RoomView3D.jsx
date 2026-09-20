@@ -52,6 +52,21 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   const beleuchtungRef = useRef(null)
   const tageszeitRef = useRef(tageszeit)
 
+  // App schneller machen, Schritt 3, Teilpunkt 4.4: Szene, Kamera und Renderer werden nur noch
+  // einmal beim Mount erzeugt (siehe Lebenszyklus-Effekt weiter unten) statt bei jedem Neuaufbau —
+  // ein neuer WebGLRenderer bedeutet jedes Mal einen neuen Grafik-Kontext, das ist mit Abstand der
+  // teuerste Teil eines Neuaufbaus. Der schwere Szenen-Effekt liest die drei über diese Refs.
+  const sceneRef = useRef(null)
+  const cameraRef = useRef(null)
+  const rendererRef = useRef(null)
+  // Was pro Bild zu tun ist (die beiden Kamera-Animationen) — vom schweren Effekt bei jedem Lauf
+  // frisch hinterlegt, von der dauerhaften Render-Schleife im Lebenszyklus-Effekt aufgerufen.
+  const frameTickRef = useRef(null)
+  // Was über das reine Anpassen von Kamera-Seitenverhältnis und Renderer-Größe hinaus bei einer
+  // Größenänderung zu tun ist (Wand-Fokus neu einpassen, Auswahl-Markierungen neu berechnen) —
+  // ebenfalls vom schweren Effekt hinterlegt, vom dauerhaften ResizeObserver aufgerufen.
+  const onResizeExtraRef = useRef(null)
+
   // Kameramodus + Rundgang-Position leben unabhängig vom schweren Szenen-Effekt unten (der bei
   // jeder room/furniture/... Änderung die komplette Szene neu aufbaut) — ein Moduswechsel per
   // Button soll keinen Neuaufbau auslösen. kameraModusRef ist die von den Event-Handlern im
@@ -222,15 +237,16 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     setBereichAuswahl(null)
   }
 
+  // === LEBENSZYKLUS-EFFEKT (App schneller machen, Schritt 3, Teilpunkt 4.4) ===
+  // Erzeugt Szene, Kamera, Renderer, Render-Schleife und Größenbeobachtung EINMALIG beim Mount und
+  // räumt sie erst beim Unmount wieder ab. Vorher passierte das alles im schweren Szenen-Effekt
+  // weiter unten, also bei jeder Raum-/Möbel-Änderung erneut — inklusive eines komplett neuen
+  // WebGL-Kontexts samt neuem Canvas im DOM. Der schwere Effekt baut weiterhin seinen kompletten
+  // Inhalt bei jeder Änderung neu (das ändert erst Teilpunkt 4.5), benutzt dafür aber ab jetzt die
+  // hier erzeugte, dauerhaft bestehende Szene/Kamera.
+  // Steht bewusst VOR dem schweren Effekt: React führt Effekte in Deklarationsreihenfolge aus, die
+  // drei Refs sind beim ersten Lauf des schweren Effekts dadurch bereits befüllt.
   useEffect(() => {
-    // App schneller machen, Schritt 3, Teilpunkt 4.2: Diese beiden Zeilen sehen nutzlos aus, sind
-    // es aber nicht — die beiden Fingerabdrücke sind die eigentlichen Auslöser dieses Effekts
-    // (siehe Abhängigkeitsliste ganz unten), werden im Körper aber nicht gebraucht, weil die
-    // Möbelliste über furnitureRef kommt. Ohne diesen bewussten Zugriff meldet
-    // react-hooks/exhaustive-deps sie als überflüssige Abhängigkeit. BITTE NICHT ENTFERNEN.
-    void wandElementeSignatur
-    void moebelSignatur
-
     const mount = mountRef.current
     const width = mount.clientWidth
     const height = mount.clientHeight
@@ -238,16 +254,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     const scene = new THREE.Scene()
     scene.background = new THREE.Color('#F5F4F0')
     scene.fog = new THREE.Fog('#F5F4F0', 20, 40)
-
-    // App schneller machen, Schritt 3, Teilpunkt 4.3: Alles, was dieser Effekt baut, hängt ab jetzt
-    // unter dieser Gruppe statt direkt an der Szene — inklusive der Lichter (die beleuchten die
-    // Szene unabhängig davon, an welcher Stelle im Szenenbaum sie hängen). Die Gruppe sitzt ohne
-    // eigene Verschiebung/Drehung im Ursprung, alle Weltpositionen bleiben also unverändert.
-    // Dadurch kann das Aufräumen am Ende dieses Effekts gezielt nur den eigenen Teilbaum abräumen
-    // statt die komplette Szene — Voraussetzung für Teilpunkt 4.4, wo die Szene dauerhaft bestehen
-    // bleibt und ein Aufräumen über die ganze Szene fremde Objekte mit erwischen würde.
-    const raumWurzel = new THREE.Group()
-    scene.add(raumWurzel)
+    // Seit Teilpunkt 4.1 eine gecachte, dauerhaft gültige Textur — wird deshalb hier auch nicht
+    // mehr disposed (siehe Aufräumen unten).
+    scene.environment = erzeugeUmgebungsTextur()
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
     camera.position.set(8, 10, 12)
@@ -262,6 +271,74 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     renderer.toneMappingExposure = 1.2
     renderer.outputColorSpace = THREE.SRGBColorSpace
     mount.appendChild(renderer.domElement)
+
+    sceneRef.current = scene
+    cameraRef.current = camera
+    rendererRef.current = renderer
+
+    // Rendergröße an Container anpassen (Fenster-Resize, Panel ein-/ausblenden, Mobile-Rotation).
+    // Alles, was darüber hinaus vom aktuellen Szeneninhalt abhängt (Wand-Fokus neu einpassen,
+    // Auswahl-Markierungen neu berechnen), liegt in onResizeExtraRef und wird vom schweren Effekt
+    // bei jedem seiner Läufe frisch hinterlegt — so arbeitet es nie mit veralteten Wänden.
+    const onResize = () => {
+      const neueBreite = mount.clientWidth
+      const neueHoehe = mount.clientHeight
+      if (neueBreite === 0 || neueHoehe === 0) return
+      camera.aspect = neueBreite / neueHoehe
+      camera.updateProjectionMatrix()
+      renderer.setSize(neueBreite, neueHoehe)
+      onResizeExtraRef.current?.()
+    }
+    const resizeObserver = new ResizeObserver(onResize)
+    resizeObserver.observe(mount)
+
+    let frameId
+    const animate = () => {
+      frameId = requestAnimationFrame(animate)
+      frameTickRef.current?.()
+      renderer.render(scene, camera)
+    }
+    animate()
+
+    return () => {
+      cancelAnimationFrame(frameId)
+      resizeObserver.disconnect()
+      mount.removeChild(renderer.domElement)
+      renderer.dispose()
+      sceneRef.current = null
+      cameraRef.current = null
+      rendererRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    // App schneller machen, Schritt 3, Teilpunkt 4.2: Diese beiden Zeilen sehen nutzlos aus, sind
+    // es aber nicht — die beiden Fingerabdrücke sind die eigentlichen Auslöser dieses Effekts
+    // (siehe Abhängigkeitsliste ganz unten), werden im Körper aber nicht gebraucht, weil die
+    // Möbelliste über furnitureRef kommt. Ohne diesen bewussten Zugriff meldet
+    // react-hooks/exhaustive-deps sie als überflüssige Abhängigkeit. BITTE NICHT ENTFERNEN.
+    void wandElementeSignatur
+    void moebelSignatur
+
+    const mount = mountRef.current
+
+    // Seit Teilpunkt 4.4 kommen Szene, Kamera und Renderer aus dem Lebenszyklus-Effekt weiter oben
+    // (einmalig beim Mount erzeugt) statt hier bei jedem Neuaufbau neu. Die Abfrage ist reine
+    // Absicherung: der Lebenszyklus-Effekt ist zuerst deklariert und läuft deshalb immer zuerst.
+    const scene = sceneRef.current
+    const camera = cameraRef.current
+    const renderer = rendererRef.current
+    if (!scene || !camera || !renderer) return
+
+    // App schneller machen, Schritt 3, Teilpunkt 4.3: Alles, was dieser Effekt baut, hängt unter
+    // dieser Gruppe statt direkt an der Szene — inklusive der Lichter (die beleuchten die Szene
+    // unabhängig davon, an welcher Stelle im Szenenbaum sie hängen). Die Gruppe sitzt ohne eigene
+    // Verschiebung/Drehung im Ursprung, alle Weltpositionen bleiben also unverändert. Seit
+    // Teilpunkt 4.4 ist sie zusätzlich die Trennlinie zur dauerhaft bestehenden Szene: beim
+    // Aufräumen wird genau dieser Teilbaum abgeräumt und die Gruppe aus der Szene entfernt, alles
+    // andere in der Szene bleibt unangetastet.
+    const raumWurzel = new THREE.Group()
+    scene.add(raumWurzel)
 
     const wandHoehe = raumHoehe || 2.5
     const eckpunkte = room?.eckpunkte || rechteckPolygon(room?.breite || 6, room?.tiefe || 5)
@@ -323,8 +400,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     const stoffTextur = erzeugeStoffTextur()
     const backsteinTextur = erzeugeBacksteinTextur()
     // wandTextur wird jetzt pro Wand einzeln über wandTexturFuer() erzeugt (siehe unten), da
-    // jede Wand ihr eigenes Material haben kann.
-    scene.environment = erzeugeUmgebungsTextur()
+    // jede Wand ihr eigenes Material haben kann. scene.environment wird seit Teilpunkt 4.4
+    // einmalig im Lebenszyklus-Effekt gesetzt und nicht mehr hier.
 
     // === BELEUCHTUNG ===
     beleuchtungRef.current = baueBeleuchtung(raumWurzel, eckpunkte, mitteX, mitteZ, raumBreite, raumTiefe, wandHoehe, tageszeitRef.current)
@@ -1821,14 +1898,12 @@ window.addEventListener('mouseup', onMouseUp)
 window.addEventListener('mousemove', onMouseMove)
 mount.addEventListener('wheel', onWheel)
 
-// Rendergröße an Container anpassen (Fenster-Resize, Panel ein-/ausblenden, Mobile-Rotation)
-const onResize = () => {
-  const neueBreite = mount.clientWidth
-  const neueHoehe = mount.clientHeight
-  if (neueBreite === 0 || neueHoehe === 0) return
-  camera.aspect = neueBreite / neueHoehe
-  camera.updateProjectionMatrix()
-  renderer.setSize(neueBreite, neueHoehe)
+// Szenenabhängiger Teil der Größenanpassung (App schneller machen, Schritt 3, Teilpunkt 4.4):
+// Kamera-Seitenverhältnis und Renderer-Größe passt der dauerhafte ResizeObserver im
+// Lebenszyklus-Effekt selbst an; alles, was darüber hinaus vom aktuellen Szeneninhalt abhängt,
+// steht hier und wird bei jedem Lauf dieses Effekts neu hinterlegt — so arbeitet es nie mit
+// veralteten Wänden oder einer veralteten Auswahl.
+onResizeExtraRef.current = () => {
   // Wand-Fokus-Kamera neu einpassen — die Distanz aus berechneWandFokusZiel hängt über fovX von
   // camera.aspect ab, sonst bleibt die Kamera bei einem schmaleren Fenster auf der alten Distanz
   // stehen und die Wand ragt seitlich aus dem Bild. Direkt per setzeWandFokusKamera statt über
@@ -1858,12 +1933,11 @@ const onResize = () => {
     if (eintrag) berechneBereichAuswahl(eintrag)
   }
 }
-const resizeObserver = new ResizeObserver(onResize)
-resizeObserver.observe(mount)
-
-let frameId
-const animate = () => {
-  frameId = requestAnimationFrame(animate)
+// Pro-Bild-Arbeit (App schneller machen, Schritt 3, Teilpunkt 4.4): Die Render-Schleife selbst
+// läuft dauerhaft im Lebenszyklus-Effekt und ruft bei jedem Bild frameTickRef auf; das eigentliche
+// renderer.render(...) passiert dort direkt danach. Hier steht nur noch, was pro Bild an den
+// beiden Kamera-Animationen zu tun ist — bei jedem Lauf dieses Effekts frisch hinterlegt.
+frameTickRef.current = () => {
   if (laufAnimation) {
     const t = Math.min(1, (performance.now() - laufAnimation.startZeit) / laufAnimation.dauer)
     const fortschritt = easeOut(t)
@@ -1880,12 +1954,14 @@ const animate = () => {
     setzeWandFokusKamera(pos, ziel)
     if (t >= 1) wandFokusAnimation = null
   }
-  renderer.render(scene, camera)
 }
-animate()
 
 return () => {
-  cancelAnimationFrame(frameId)
+  // Render-Schleife, ResizeObserver, Canvas und Renderer gehören seit Teilpunkt 4.4 dem
+  // Lebenszyklus-Effekt und werden hier bewusst NICHT abgeräumt. Die beiden hinterlegten
+  // Rückrufe dagegen schon: sie zeigen auf Objekte, die gleich abgeräumt werden.
+  frameTickRef.current = null
+  onResizeExtraRef.current = null
   mount.removeEventListener('mousedown', onMouseDown)
   mount.removeEventListener('touchstart', onTouchStart)
   mount.removeEventListener('touchmove', onTouchMove)
@@ -1893,7 +1969,6 @@ return () => {
   window.removeEventListener('mouseup', onMouseUp)
   window.removeEventListener('mousemove', onMouseMove)
   mount.removeEventListener('wheel', onWheel)
-  resizeObserver.disconnect()
 
   // Die baue*-Helfer (Trennwände, Wandelemente, Möbel) legen ihre eigenen Geometrien/
   // Materialien/Texturen direkt in der übergebenen Wurzel ab, ohne Referenzen nach außen zu geben
@@ -1915,9 +1990,6 @@ return () => {
     })
   })
   scene.remove(raumWurzel)
-
-  mount.removeChild(renderer.domElement)
-  renderer.dispose()
 }
   }, [
     // App schneller machen, Schritt 3, Teilpunkt 3: statt am kompletten room-Objekt hängt der
