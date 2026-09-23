@@ -2039,6 +2039,13 @@ return () => {
     // unverändert — es wird nur symmetrisch um die (feststehende) Mitte skaliert.
     const panelGriffe = []
 
+    // Maße der unsichtbaren Trefferflächen (siehe unten): Ein Deckenspot ist nur rund 9 cm breit
+    // und aus der Entfernung kaum zu treffen. MIN_TREFFER sorgt dafür, dass auch die kleinste
+    // Leuchte eine brauchbare Zielscheibe bekommt, TREFFER_RAND gibt jeder Leuchte zusätzlich
+    // etwas Luft ringsum. Beides in Metern.
+    const MIN_TREFFER = 0.18
+    const TREFFER_RAND = 0.14
+
     // Ring-Mesh knapp unter der Decke, markiert die aktuell ausgewählte Leuchte visuell.
     const deckenleuchteRing = new THREE.Mesh(
       new THREE.RingGeometry(0.18, 0.24, 32),
@@ -2059,6 +2066,27 @@ return () => {
       if (deckenFokusRef.current && istDeckenleuchte(item.name)) {
         const eintrag = { gruppe, item }
         deckenleuchtenGruppen.push(eintrag)
+
+        // Unsichtbare Trefferfläche, damit man kleine Leuchten überhaupt anklicken kann. Sie liegt
+        // als Kind in der Gruppe und folgt damit automatisch deren Position und Drehung; die lokale
+        // X-Achse ist die Breite, die lokale Z-Achse die Tiefe (siehe moebelBreite/moebelTiefe in
+        // scene/moebel.js, beide item.width bzw. item.height geteilt durch 60).
+        //
+        // material.visible = false statt mesh.visible = false: Ein unsichtbar geschaltetes Objekt
+        // wird je nach Three.js-Version vom Raycaster übersprungen. Ein Objekt mit unsichtbarem
+        // Material wird zuverlässig nicht gezeichnet, bleibt aber anklickbar.
+        //
+        // deckenleuchteMausDown muss dafür nichts wissen: Es läuft von jedem getroffenen Kind über
+        // userData.id zum Gruppen-Root hoch und findet den Eintrag wie bei jedem anderen Mesh auch.
+        const trefferBreite = Math.max(item.width / 60, MIN_TREFFER) + TREFFER_RAND
+        const trefferTiefe = Math.max(item.height / 60, MIN_TREFFER) + TREFFER_RAND
+        const trefferFlaeche = new THREE.Mesh(
+          new THREE.BoxGeometry(trefferBreite, 0.04, trefferTiefe),
+          new THREE.MeshBasicMaterial({ visible: false }),
+        )
+        trefferFlaeche.position.set(0, -0.03, 0)
+        gruppe.add(trefferFlaeche)
+
         if (istEndpunktVerstellbareDeckenleuchte(item.name)) {
           const halbeLaenge = item.width / 120
           const griffGeo = new THREE.SphereGeometry(0.045, 12, 10)
