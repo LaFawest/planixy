@@ -377,8 +377,9 @@ export function polygonZentroid(eckpunkte) {
 }
 
 // Liefert einen Punkt, der garantiert innerhalb des Randpolygons liegt — für Default-Platzierungen
-// ohne Bezug zu einem echten, bereits polygon-geprüften Möbelstück (z.B. die feste Deckenleuchte,
-// solange keine Lampe im Raum steht). Der Flächenschwerpunkt reicht für die allermeisten Formen,
+// ohne Bezug zu einem echten, bereits polygon-geprüften Möbelstück (z.B. eine frisch hinzugefügte
+// Deckenlampe, Pendelleuchte oder ein Kronleuchter: die drei sitzen fest in der Raummitte, siehe
+// FurnitureContext.jsx). Der Flächenschwerpunkt reicht für die allermeisten Formen,
 // kann bei einer L-/U-Form mit besonders großer/versetzter Aussparung aber knapp außerhalb der
 // Fläche (in der Aussparung) landen — dann auf die nächstgelegene Kante projiziert und ein Stück
 // nach innen versetzt (`versatzNachInnen`), statt weiterhin außerhalb des Raums zu hängen.

@@ -1,5 +1,4 @@
 import * as THREE from 'three'
-import { punktSicherImPolygon } from '../raumPolygon'
 
 // Untergrenzen für Umgebungslicht bei Nacht — der Raum soll auch ganz ohne platzierte Leuchte
 // nie unbenutzbar dunkel werden (siehe Analyse Phase 4), aber deutlich unter der Tageshelligkeit
@@ -34,8 +33,19 @@ function tageslichtWerte(tageszeit) {
   }
 }
 
-// === BELEUCHTUNG (Sonne, Himmelslicht, feste Deckenleuchte, Aufhellung) ===
-export function baueBeleuchtung(scene, eckpunkte, mitteX, mitteZ, raumBreite, raumTiefe, wandHoehe, tageszeit) {
+// === BELEUCHTUNG (Sonne, Himmelslicht, Aufhellung) ===
+//
+// Bewusst OHNE allgemeine Deckenleuchte: Hier hing lange ein PointLight zwanzig Zentimeter unter
+// der Decke in der Raummitte, fest eingebaut und unabhängig davon, ob überhaupt eine Lampe im Raum
+// steht. Das stammte aus der Zeit vor den echten Deckenleuchten und hat zwei Dinge falsch gemacht —
+// es zeichnete einen hellen weißen Fleck an die Decke, den niemand erklären konnte, und es spendete
+// Licht, wo keine Leuchte war. Licht gibt es jetzt nur noch dort, wo jemand eine hingestellt hat;
+// die einzelnen Leuchten bestellen es über scene/moebel.js beim Vorrat in scene/lichtPool.js.
+//
+// Was hier bleibt, ist ausschließlich Umgebungslicht: Sonne, Himmel durchs Fenster und eine
+// allgemeine Aufhellung. Die Untergrenzen ganz oben sorgen dafür, dass ein Raum auch nachts ohne
+// Lampe nicht unbenutzbar dunkel wird.
+export function baueBeleuchtung(scene, raumBreite, raumTiefe, tageszeit) {
   const {
     sonnenhoehe, sonneIntensitaet, sonneFarbe, ambientIntensitaet,
     himmelIntensitaet, himmelFarbe, hemisphereIntensitaet,
@@ -70,41 +80,19 @@ export function baueBeleuchtung(scene, eckpunkte, mitteX, mitteZ, raumBreite, ra
   windowLight.position.set(-raumBreite, 4, 0)
   scene.add(windowLight)
 
-  // Default-Position der festen Deckenleuchte: Flächenschwerpunkt des Randpolygons (statt der
-  // Bounding-Box-Mitte) — bei einer L-/U-Form mit großer Aussparung kann die Bounding-Box-Mitte
-  // in der Aussparung liegen, siehe Analyse Phase 4. punktSicherImPolygon liefert eckpunkte-
-  // Koordinaten (Meter, Raum-Ursprung oben-links); auf dieselbe Weise wie das Randpolygon oben
-  // (flaechenShape) in lokale Szenen-Koordinaten (Ursprung = Raummitte) umgerechnet.
-  const deckenPunkt = punktSicherImPolygon(eckpunkte)
-  const deckenX = deckenPunkt.x - mitteX
-  const deckenZ = mitteZ - deckenPunkt.y
-
-  const ceilingLight = new THREE.PointLight(0xfff8e6, 1.5, raumBreite * 3)
-  ceilingLight.position.set(deckenX, wandHoehe - 0.2, deckenZ)
-  ceilingLight.castShadow = true
-  ceilingLight.shadow.mapSize.width = 1024
-  ceilingLight.shadow.mapSize.height = 1024
-  ceilingLight.shadow.bias = -0.002
-  ceilingLight.shadow.radius = 3
-  ceilingLight.shadow.camera.near = 0.1
-  ceilingLight.shadow.camera.far = wandHoehe + Math.max(raumBreite, raumTiefe)
-  scene.add(ceilingLight)
-
   const fillLight = new THREE.HemisphereLight(0xffffff, 0xC8A97A, hemisphereIntensitaet)
   scene.add(fillLight)
 
   // Rückgabe der erzeugten Lichter (App schneller machen, Schritt 3, Teilpunkt 2): RoomView3D.jsx
   // merkt sich diese in einer Ref, damit aktualisiereBeleuchtung() unten sie bei einer
   // Tageszeit-Änderung direkt anpassen kann, ohne dass die komplette Szene neu gebaut wird.
-  return { ambientLight, sunLight, windowLight, ceilingLight, fillLight }
+  return { ambientLight, sunLight, windowLight, fillLight }
 }
 
 // Passt die Werte bereits vorhandener Lichter an eine neue Tageszeit an, OHNE neue Lichtobjekte
 // zu erzeugen (App schneller machen, Schritt 3, Teilpunkt 2 — Schnellpfad für den Tageszeit-Regler,
 // der bisher über baueBeleuchtung() einen kompletten Szenen-Neuaufbau ausgelöst hat). `lichter` ist
-// das von baueBeleuchtung() zurückgegebene Objekt. ceilingLight bleibt unverändert — seine Farbe/
-// Intensität hängt nicht von der Tageszeit ab, nur von der Raumform (Position wird hier ebenfalls
-// nicht angefasst, die ändert sich nur bei einem echten Szenen-Neuaufbau).
+// das von baueBeleuchtung() zurückgegebene Objekt.
 export function aktualisiereBeleuchtung(lichter, tageszeit) {
   const {
     sonnenhoehe, sonneIntensitaet, sonneFarbe, ambientIntensitaet,

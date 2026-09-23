@@ -34,8 +34,8 @@ function passendeStufe(anzahl) {
 export function stelleLichtPoolBereit(scene, pool, anzahlGewuenscht) {
   const ziel = passendeStufe(anzahlGewuenscht)
   while (pool.length < ziel) {
-    // Kein castShadow: Schattenwurf kostet je Licht einen eigenen Renderdurchgang. Sonne und
-    // Deckenlicht in scene/beleuchtung.js werfen Schatten, die einzelnen Leuchten taten es noch nie.
+    // Kein castShadow: Schattenwurf kostet je Licht einen eigenen Renderdurchgang. In der Szene
+    // wirft nur noch die Sonne Schatten (scene/beleuchtung.js); die einzelnen Leuchten taten es nie.
     const licht = new THREE.PointLight(0xfff0c8, 0, 1)
     scene.add(licht)
     pool.push(licht)

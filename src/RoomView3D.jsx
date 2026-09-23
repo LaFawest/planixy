@@ -422,7 +422,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // einmalig im Lebenszyklus-Effekt gesetzt und nicht mehr hier.
 
     // === BELEUCHTUNG ===
-    beleuchtungRef.current = baueBeleuchtung(raumWurzel, eckpunkte, mitteX, mitteZ, raumBreite, raumTiefe, wandHoehe, tageszeitRef.current)
+    beleuchtungRef.current = baueBeleuchtung(raumWurzel, raumBreite, raumTiefe, tageszeitRef.current)
 
     // === BODEN & DECKE (aus dem Randpolygon, statt fester Rechteck-Ebenen) ===
     // THREE.Shape mit ShapeGeometry statt ExtrudeGeometry: Boden/Decke bleiben masselose
