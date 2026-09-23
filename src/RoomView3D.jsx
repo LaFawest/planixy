@@ -6,6 +6,7 @@ import { baueWandElement } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
 import { ladeModelle, getModell } from './scene/modelle'
 import { baueBeleuchtung, aktualisiereBeleuchtung } from './scene/beleuchtung'
+import { stelleLichtPoolBereit, verteileLichter, raeumeLichtPoolAb } from './scene/lichtPool'
 import { rechteckPolygon, boundingBox, wandSegmente, punktInPolygon, versetztesPolygon, punktSicherImPolygon } from './raumPolygon'
 import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
@@ -72,6 +73,14 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   // Klicks hier heraus, statt sie als lokale Variablen zu schließen. Ist null, solange der
   // Möbel-Effekt noch nichts gebaut hat.
   const moebelGruppenRef = useRef(null)
+  // Der feste Licht-Vorrat (siehe scene/lichtPool.js). Lebt in der dauerhaften Szene und übersteht
+  // deshalb jeden Neuaufbau der Möbel — genau darum geht es: Die Anzahl der Lichter soll sich nicht
+  // bei jeder Bearbeitung ändern, weil Three.js sonst sämtliche Shader neu übersetzt.
+  const lichtPoolRef = useRef([])
+  // Was der Möbel-Effekt pro Bild zu tun hat: die Platzhalter der eingeschalteten Leuchten auf den
+  // Vorrat verteilen. Eigener Haken neben frameTickRef, weil dieser dem Struktur-Effekt gehört und
+  // die beiden Effekte unabhängig voneinander laufen sollen.
+  const moebelTickRef = useRef(null)
 
   // Kameramodus + Rundgang-Position leben unabhängig vom schweren Szenen-Effekt unten (der bei
   // jeder room/furniture/... Änderung die komplette Szene neu aufbaut) — ein Moduswechsel per
@@ -298,10 +307,14 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     const resizeObserver = new ResizeObserver(onResize)
     resizeObserver.observe(mount)
 
+    // Lokale Kopie für das Abräumen unten: Das Feld selbst wird nie ausgetauscht, nur an Ort und
+    // Stelle verändert — die Kopie zeigt also immer auf denselben Vorrat.
+    const lichtPool = lichtPoolRef.current
     let frameId
     const animate = () => {
       frameId = requestAnimationFrame(animate)
       frameTickRef.current?.()
+      moebelTickRef.current?.()
       renderer.render(scene, camera)
     }
     animate()
@@ -309,6 +322,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     return () => {
       cancelAnimationFrame(frameId)
       resizeObserver.disconnect()
+      raeumeLichtPoolAb(scene, lichtPool)
       mount.removeChild(renderer.domElement)
       renderer.dispose()
       sceneRef.current = null
@@ -2068,8 +2082,29 @@ return () => {
 
     moebelGruppenRef.current = { deckenleuchtenGruppen, ledGriffe, panelGriffe, deckenleuchteRing }
 
+    // Licht-Vorrat (siehe scene/lichtPool.js): Die Leuchten haben beim Bauen keine eigenen
+    // Lichtquellen erzeugt, sondern nur leere Platzhalter mit userData.lichtWunsch hinterlassen.
+    // Die werden hier einmal eingesammelt; die Zuordnung zu den tatsächlichen Lichtern passiert
+    // danach pro Bild, damit ein Licht beim Ziehen einer Deckenleuchte mitwandert.
+    moebelWurzel.updateMatrixWorld(true)
+    const lichtPlatzhalter = []
+    moebelWurzel.traverse(obj => {
+      if (obj.userData?.lichtWunsch) lichtPlatzhalter.push(obj)
+    })
+    // Lokale Kopie wie im Lebenszyklus-Effekt: dasselbe, nie ausgetauschte Feld.
+    const lichtPool = lichtPoolRef.current
+    stelleLichtPoolBereit(scene, lichtPool, lichtPlatzhalter.length)
+    moebelTickRef.current = () => verteileLichter(lichtPool, lichtPlatzhalter)
+    // Einmal sofort, damit das erste Bild nach dem Aufbau schon stimmt und nicht kurz dunkel ist.
+    verteileLichter(lichtPool, lichtPlatzhalter)
+
     return () => {
       moebelGruppenRef.current = null
+      // Der Vorrat selbst bleibt stehen (er gehört der dauerhaften Szene), aber die Zuordnung zu den
+      // gleich abgeräumten Platzhaltern muss weg — sonst zeigt sie auf Objekte, die es nicht mehr
+      // gibt, und die Lichter würden an ihrer letzten Stelle weiterleuchten.
+      moebelTickRef.current = null
+      verteileLichter(lichtPool, [])
       // Gleiches Aufräumen wie im Struktur-Effekt, nur auf die eigene Gruppe beschränkt: gecachte
       // Foto- und prozedurale Texturen (userData.persistenteTextur) bleiben verschont, alles andere
       // wird abgeräumt und die Gruppe anschließend aus der dauerhaften Szene entfernt.

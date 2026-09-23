@@ -16,10 +16,26 @@ function baueBeine(gruppe, positionen, radius, hoehe, farbe, holzTextur, { segme
   })
 }
 
-// Gemeinsamer Teil aller Leuchten: Glühmaterial, optional Kabel (Aufhängung) und optional
-// PointLight (echte Lichtquelle). eingeschaltet/farbe kommen aus item.lichtAn/item.farbtemperatur
-// (siehe baueMoebel) — bei ausgeschalteter Leuchte bleibt die Glühbirnen-Geometrie stehen, glimmt
-// aber nicht (emissiveIntensity 0) und es wird kein PointLight erzeugt.
+// Bestellt Licht beim festen Vorrat in scene/lichtPool.js, statt selbst eine Lichtquelle zu
+// erzeugen. Der Platzhalter ist ein leeres Object3D ohne Geometrie und Material — er kostet nichts
+// zu zeichnen, wandert aber mit seiner Gruppe mit, sodass der Vorrat die Weltposition jederzeit
+// ablesen kann (auch während eine Deckenleuchte gezogen wird).
+//
+// Warum nicht mehr direkt ein PointLight: Three.js backt die Anzahl der Lichter in die Shader ein,
+// und der Möbel-Effekt in RoomView3D.jsx baut diese Gruppe bei jeder Listenänderung neu auf. Jedes
+// Entstehen und Verschwinden einer Lichtquelle hat deshalb sämtliche Materialien der Szene neu
+// übersetzen lassen — das war das Hängen beim Bearbeiten.
+function bestelleLicht(gruppe, x, y, z, farbe, intensitaet, reichweite) {
+  const platzhalter = new THREE.Object3D()
+  platzhalter.position.set(x, y, z)
+  platzhalter.userData.lichtWunsch = { farbe: farbe || 0xfff0c8, intensitaet, reichweite }
+  gruppe.add(platzhalter)
+}
+
+// Gemeinsamer Teil aller Leuchten: Glühmaterial, optional Kabel (Aufhängung) und optional eine
+// Licht-Bestellung. eingeschaltet/farbe kommen aus item.lichtAn/item.farbtemperatur (siehe
+// baueMoebel) — bei ausgeschalteter Leuchte bleibt die Glühbirnen-Geometrie stehen, glimmt aber
+// nicht (emissiveIntensity 0) und es wird kein Licht bestellt.
 function baueGluehlampe(gruppe, borderMat, glowIntensity, kabel, licht, eingeschaltet, farbe) {
   const glowMat = new THREE.MeshStandardMaterial({ color: '#FFF3D0', emissive: farbe || '#FFDA88', emissiveIntensity: eingeschaltet ? glowIntensity : 0 })
   if (kabel) {
@@ -28,9 +44,7 @@ function baueGluehlampe(gruppe, borderMat, glowIntensity, kabel, licht, eingesch
     gruppe.add(kabelMesh)
   }
   if (licht && eingeschaltet) {
-    const lichtMesh = new THREE.PointLight(farbe || 0xfff0c8, licht.intensitaet, licht.reichweite)
-    lichtMesh.position.set(0, licht.y, 0)
-    gruppe.add(lichtMesh)
+    bestelleLicht(gruppe, 0, licht.y, 0, farbe, licht.intensitaet, licht.reichweite)
   }
   return glowMat
 }
@@ -553,9 +567,9 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
     glowFlaeche.position.set(0, -0.021, 0)
     gruppe.add(glowFlaeche)
     if (lichtAn) {
-      const panelLicht = new THREE.PointLight(lichtFarbe, Math.min(1.4, 0.5 + panelSeite * 0.3), Math.max(raumBreite, raumTiefe) * 0.5 + panelSeite * 0.3)
-      panelLicht.position.set(0, -0.05, 0)
-      gruppe.add(panelLicht)
+      bestelleLicht(gruppe, 0, -0.05, 0, lichtFarbe,
+        Math.min(1.4, 0.5 + panelSeite * 0.3),
+        Math.max(raumBreite, raumTiefe) * 0.5 + panelSeite * 0.3)
     }
 
   } else if (name.includes('led-streifen')) {
@@ -578,9 +592,9 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
     glowStreifen.position.set(0, -0.015, 0)
     gruppe.add(glowStreifen)
     if (lichtAn) {
-      const streifenLicht = new THREE.PointLight(lichtFarbe, Math.min(1.4, 0.5 + streifenLaenge * 0.25), Math.max(raumBreite, raumTiefe) * 0.5 + streifenLaenge * 0.3)
-      streifenLicht.position.set(0, -0.05, 0)
-      gruppe.add(streifenLicht)
+      bestelleLicht(gruppe, 0, -0.05, 0, lichtFarbe,
+        Math.min(1.4, 0.5 + streifenLaenge * 0.25),
+        Math.max(raumBreite, raumTiefe) * 0.5 + streifenLaenge * 0.3)
     }
 
   } else if (name.includes('spot-reihe')) {
@@ -606,9 +620,9 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       gruppe.add(linse)
     }
     if (lichtAn) {
-      const spotLicht = new THREE.PointLight(lichtFarbe, 0.5 + spotAnzahl * 0.08, Math.max(raumBreite, raumTiefe) * 0.5)
-      spotLicht.position.set(0, -0.05, 0)
-      gruppe.add(spotLicht)
+      bestelleLicht(gruppe, 0, -0.05, 0, lichtFarbe,
+        0.5 + spotAnzahl * 0.08,
+        Math.max(raumBreite, raumTiefe) * 0.5)
     }
 
   } else if (name.includes('spot')) {
@@ -626,9 +640,7 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
     linse.position.set(0, -0.021, 0)
     gruppe.add(linse)
     if (lichtAn) {
-      const spotLicht = new THREE.PointLight(lichtFarbe, 0.6, Math.max(raumBreite, raumTiefe) * 0.55)
-      spotLicht.position.set(0, -0.05, 0)
-      gruppe.add(spotLicht)
+      bestelleLicht(gruppe, 0, -0.05, 0, lichtFarbe, 0.6, Math.max(raumBreite, raumTiefe) * 0.55)
     }
 
   } else if (name.includes('kronleuchter')) {
@@ -906,9 +918,8 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
     gruppe.add(feuer)
 
     if (lichtAn) {
-      const glut = new THREE.PointLight('#FF8A3D', 0.5, Math.max(raumBreite, raumTiefe) * 0.3)
-      glut.position.set(0, feuerHoehe * 0.4, moebelTiefe / 2 - feuerTiefe / 2)
-      gruppe.add(glut)
+      bestelleLicht(gruppe, 0, feuerHoehe * 0.4, moebelTiefe / 2 - feuerTiefe / 2,
+        '#FF8A3D', 0.5, Math.max(raumBreite, raumTiefe) * 0.3)
     }
 
     const sims = new THREE.Mesh(new THREE.BoxGeometry(moebelBreite * 1.08, 0.04, moebelTiefe * 0.55), borderMat)
