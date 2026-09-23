@@ -42,8 +42,9 @@ export function FurnitureProvider({ children }) {
   const addFurniture = useCallback((item) => {
     // Deckenmontierte Leuchten (Kronleuchter/Pendelleuchte/Deckenlampe, Phase 6 Teilschritt 1)
     // werden fest auf dem Flächenschwerpunkt des Raums platziert statt frei/zufällig wie normale
-    // Möbel — dieselbe Funktion, die auch schon die generische Fallback-Deckenleuchte in
-    // scene/beleuchtung.js verwendet. Sie sind nicht verschiebbar (im 2D-Grundriss ausgeblendet,
+    // Möbel — punktSicherImPolygon (raumPolygon.js) liefert dafür einen Punkt, der auch bei einer
+    // L-/U-Form garantiert innerhalb des Raums liegt und nicht in der Aussparung. Sie sind nicht
+    // verschiebbar (im 2D-Grundriss ausgeblendet,
     // siehe Canvas2D.jsx) und ihre Position wird deshalb hier einmalig beim Hinzufügen berechnet,
     // nicht laufend nachgeführt — ändert sich später die Raumform, bleibt die Leuchte an ihrer
     // ursprünglichen Stelle stehen (wie jedes andere Möbelstück auch).
