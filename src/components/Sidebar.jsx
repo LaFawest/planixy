@@ -20,7 +20,6 @@ export default function Sidebar() {
         <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '22px', fontWeight: '500', color: '#2C2C2A' }}>Planixy</h2>
         <p style={{ fontSize: '11px', color: '#B4B2A9', marginTop: '2px' }}>Intelligente Raumplanung</p>
       </div>
-      <LegalLinks style={{ padding: '0 8px', marginBottom: '20px' }} />
       <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '8px', letterSpacing: '0.08em', padding: '0 8px' }}>MEINE RÄUME</p>
       <div>
         {rooms.map(room => (
@@ -138,6 +137,14 @@ export default function Sidebar() {
           )}
         </>
       )}
+
+      {/* Rechtstexte am unteren Ende der Seitenleiste, abgesetzt durch eine feine Linie — wie in
+          der mobilen Schublade (MobileNav.jsx). marginTop: 'auto' schiebt die Zeile ans untere
+          Ende, solange oben Platz frei ist; bei vollem Katalog hängt sie unter dem letzten Inhalt
+          und wird mitgescrollt. flexShrink: 0 verhindert, dass die Flex-Spalte die umbrechende
+          Zeile zusammenquetscht, wenn der Inhalt darüber die Höhe sprengt. Linksbündig, weil die
+          Spalte nur 260px breit ist — zentriert wird nur auf den breiten Seiten. */}
+      <LegalLinks style={{ marginTop: 'auto', flexShrink: 0, padding: '18px 8px 0', borderTop: '1px solid #F2EFE7' }} />
     </div>
   )
 }
