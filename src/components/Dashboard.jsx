@@ -549,7 +549,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="dashboard-content" style={{ flex: 1, minWidth: 0, padding: '40px 48px' }}>
+      <div className="dashboard-content" style={{ flex: 1, minWidth: 0, padding: '40px 48px', display: 'flex', flexDirection: 'column' }}>
       <div className="dashboard-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -786,7 +786,13 @@ export default function Dashboard() {
         />
       )}
 
-      <LegalLinks style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid #F2EFE7' }} />
+      {/* marginTop: 'auto' schiebt die Zeile ans untere Ende des Inhaltsbereichs, wenn oben wenig
+          steht (wenige Projekte) — bei vielen Projekten bleibt sie einfach unter dem letzten
+          Inhalt, dann sorgt das paddingTop für den Abstand. Zentriert wie auf der
+          Zusammenfassungsseite. */}
+      <div style={{ marginTop: 'auto', paddingTop: '40px' }}>
+        <LegalLinks style={{ paddingTop: '20px', borderTop: '1px solid #F2EFE7', justifyContent: 'center' }} />
+      </div>
       </div>
     </div>
   )

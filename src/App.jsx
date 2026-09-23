@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { EinwilligungProvider } from './context/EinwilligungContext'
 import { AuthProvider } from './context/AuthContext'
 import { UIProvider } from './context/UIContext'
 import { ProjekteListeProvider } from './context/ProjekteListeContext'
@@ -21,22 +22,29 @@ import Canvas2D from './components/Canvas2D'
 import PanelRechts from './components/PanelRechts'
 import ErrorBoundary from './components/ErrorBoundary'
 import ZusammenfassungSeite from './components/ZusammenfassungSeite'
+import CookieBanner from './components/CookieBanner'
 
+// EinwilligungProvider liegt bewusst ganz außen: Der Cookie-Banner und der Link
+// "Cookie-Einstellungen" in LegalLinks.jsx müssen auf jeder Route erreichbar sein — Dashboard,
+// Einstellungen, Editor und Zusammenfassung.
 export default function App() {
   return (
-    <AuthProvider>
-      <UIProvider>
-        <ProjekteListeProvider>
-          <MigrationsDialog />
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/einstellungen" element={<Einstellungen />} />
-            <Route path="/projekt/:id/*" element={<ProjektRoute />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </ProjekteListeProvider>
-      </UIProvider>
-    </AuthProvider>
+    <EinwilligungProvider>
+      <AuthProvider>
+        <UIProvider>
+          <ProjekteListeProvider>
+            <MigrationsDialog />
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/einstellungen" element={<Einstellungen />} />
+              <Route path="/projekt/:id/*" element={<ProjektRoute />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </ProjekteListeProvider>
+        </UIProvider>
+      </AuthProvider>
+      <CookieBanner />
+    </EinwilligungProvider>
   )
 }
 

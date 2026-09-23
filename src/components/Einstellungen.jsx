@@ -351,7 +351,7 @@ export default function Einstellungen() {
 
         <AppKarte />
 
-        <LegalLinks style={{ marginTop: '32px' }} />
+        <LegalLinks style={{ marginTop: '32px', justifyContent: 'center' }} />
       </div>
 
       {loeschenOffen && <LoeschenDialog user={user} onAbbrechen={() => setLoeschenOffen(false)} />}
