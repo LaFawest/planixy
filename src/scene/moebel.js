@@ -16,6 +16,14 @@ function baueBeine(gruppe, positionen, radius, hoehe, farbe, holzTextur, { segme
   })
 }
 
+// Wie viele echte Lichter eine langgestreckte Leuchte höchstens bestellt (LED-Streifen,
+// Spot-Reihe). Mehr Lichter heißt gleichmäßigere Ausleuchtung, verbraucht aber mehr Plätze im
+// Vorrat (scene/lichtPool.js) — und der fasst insgesamt acht. Zwei lange Leuchten füllen ihn
+// damit bereits aus; das ist gewollt, die Rechenlast im schlimmsten Fall bleibt unverändert.
+const MAX_LICHTER_JE_LEUCHTE = 4
+// Ab etwa diesem Abstand in Metern lohnt sich ein weiteres Licht auf der Strecke.
+const LICHT_ABSTAND = 0.6
+
 // Bestellt Licht beim festen Vorrat in scene/lichtPool.js, statt selbst eine Lichtquelle zu
 // erzeugen. Der Platzhalter ist ein leeres Object3D ohne Geometrie und Material — er kostet nichts
 // zu zeichnen, wandert aber mit seiner Gruppe mit, sodass der Vorrat die Weltposition jederzeit
@@ -567,9 +575,21 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
     glowFlaeche.position.set(0, -0.021, 0)
     gruppe.add(glowFlaeche)
     if (lichtAn) {
-      bestelleLicht(gruppe, 0, -0.05, 0, lichtFarbe,
-        Math.min(1.4, 0.5 + panelSeite * 0.3),
-        Math.max(raumBreite, raumTiefe) * 0.5 + panelSeite * 0.3)
+      // Ein Panel ist kompakt: Bei üblicher Größe (40 cm) ist ein Punkt in der Mitte von einer
+      // Fläche kaum zu unterscheiden — vier Lichter auf so kurzer Strecke wären verschenkte Plätze
+      // im Vorrat. Erst ein über den Eck-Anfasser deutlich vergrößertes Panel bekommt ein
+      // 2x2-Muster, weil man dort den Unterschied tatsächlich sieht.
+      const gesamtIntensitaet = Math.min(1.4, 0.5 + panelSeite * 0.3)
+      const reichweite = Math.max(raumBreite, raumTiefe) * 0.5 + panelSeite * 0.3
+      if (panelSeite >= 0.7) {
+        const viertel = panelSeite / 4
+        const stellen = [[-viertel, -viertel], [viertel, -viertel], [-viertel, viertel], [viertel, viertel]]
+        stellen.forEach(([vx, vz]) => {
+          bestelleLicht(gruppe, vx, -0.05, vz, lichtFarbe, gesamtIntensitaet / 4, reichweite)
+        })
+      } else {
+        bestelleLicht(gruppe, 0, -0.05, 0, lichtFarbe, gesamtIntensitaet, reichweite)
+      }
     }
 
   } else if (name.includes('led-streifen')) {
@@ -592,9 +612,21 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
     glowStreifen.position.set(0, -0.015, 0)
     gruppe.add(glowStreifen)
     if (lichtAn) {
-      bestelleLicht(gruppe, 0, -0.05, 0, lichtFarbe,
-        Math.min(1.4, 0.5 + streifenLaenge * 0.25),
-        Math.max(raumBreite, raumTiefe) * 0.5 + streifenLaenge * 0.3)
+      // Mehrere Lichter über die Länge statt eines in der Mitte: Ein Streifen ist eine Linie, und
+      // ein einzelner Punkt in seiner Mitte hat ihn flach aussehen lassen. Die Gesamthelligkeit
+      // bleibt gleich — sie wird aufgeteilt, nicht vervielfacht.
+      //
+      // Die Platzhalter sind Kinder der Gruppe, und beim Ziehen an einem Endpunkt wird die Gruppe
+      // entlang ihrer X-Achse gestreckt. Die Lichter verteilen sich dadurch automatisch weiter mit,
+      // ohne dass hier etwas nachgerechnet werden müsste.
+      const anzahl = Math.max(1, Math.min(MAX_LICHTER_JE_LEUCHTE, Math.round(streifenLaenge / LICHT_ABSTAND)))
+      const gesamtIntensitaet = Math.min(1.4, 0.5 + streifenLaenge * 0.25)
+      const reichweite = Math.max(raumBreite, raumTiefe) * 0.5 + streifenLaenge * 0.3
+      for (let i = 0; i < anzahl; i++) {
+        // Mitte des jeweiligen Abschnitts, damit kein Licht genau auf der Spitze des Streifens sitzt.
+        const versatz = -streifenLaenge / 2 + streifenLaenge * (i + 0.5) / anzahl
+        bestelleLicht(gruppe, versatz, -0.05, 0, lichtFarbe, gesamtIntensitaet / anzahl, reichweite)
+      }
     }
 
   } else if (name.includes('spot-reihe')) {
@@ -620,9 +652,17 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
       gruppe.add(linse)
     }
     if (lichtAn) {
-      bestelleLicht(gruppe, 0, -0.05, 0, lichtFarbe,
-        0.5 + spotAnzahl * 0.08,
-        Math.max(raumBreite, raumTiefe) * 0.5)
+      // Ein Licht je Spot statt eines für die ganze Reihe — begrenzt auf MAX_LICHTER_JE_LEUCHTE,
+      // damit eine Reihe mit sechs Spots nicht allein den halben Vorrat belegt. Bei vier oder
+      // weniger Spots sitzen die Lichter genau unter den sichtbaren Tellern (dieselbe Formel wie
+      // beim Bauen der Bezel weiter oben), darüber gleichmäßig verteilt über die Reihe.
+      const lichtAnzahl = Math.min(spotAnzahl, MAX_LICHTER_JE_LEUCHTE)
+      const gesamtIntensitaet = 0.5 + spotAnzahl * 0.08
+      const reichweite = Math.max(raumBreite, raumTiefe) * 0.5
+      for (let i = 0; i < lichtAnzahl; i++) {
+        const versatz = lichtAnzahl === 1 ? 0 : -moebelBreite / 2 + (moebelBreite / (lichtAnzahl - 1)) * i
+        bestelleLicht(gruppe, versatz, -0.05, 0, lichtFarbe, gesamtIntensitaet / lichtAnzahl, reichweite)
+      }
     }
 
   } else if (name.includes('spot')) {
