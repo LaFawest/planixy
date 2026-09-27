@@ -884,8 +884,265 @@ function zeichneTattooBaum(ctx, g) {
   ast(g * 0.5, g * 0.98, g * 0.22, -Math.PI / 2, 24, 6)
 }
 
+function tattooKreis(ctx, x, y, r) {
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill()
+}
+
+// Ein Blatt als zwei gespiegelte Bögen, die am Stielansatz zusammenlaufen.
+function tattooBlatt(ctx, x, y, laenge, breite, winkel) {
+  ctx.save()
+  ctx.translate(x, y); ctx.rotate(winkel)
+  ctx.beginPath()
+  ctx.moveTo(0, 0)
+  ctx.quadraticCurveTo(breite, -laenge * 0.35, 0, -laenge)
+  ctx.quadraticCurveTo(-breite, -laenge * 0.35, 0, 0)
+  ctx.fill()
+  ctx.restore()
+}
+
+// 2. Eukalyptuszweig — geschwungener Stiel, ovale Blätter wechselständig, zur Spitze kleiner.
+function zeichneTattooZweig(ctx, g) {
+  ctx.fillStyle = TATTOO_FARBE; ctx.strokeStyle = TATTOO_FARBE; ctx.lineCap = 'round'
+  // Der Stiel ist eine Bezierkurve. Für jedes Blatt werden Punkt UND Richtung der Kurve
+  // gebraucht, damit es quer zum Stiel sitzt statt beliebig gedreht — die Richtung kommt aus
+  // der Differenz zu einem Punkt ein Stück weiter.
+  const p0 = [g * 0.12, g * 0.94], p1 = [g * 0.34, g * 0.74], p2 = [g * 0.58, g * 0.42], p3 = [g * 0.86, g * 0.12]
+  const punkt = (t) => {
+    const u = 1 - t
+    return [
+      u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0],
+      u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1],
+    ]
+  }
+  ctx.lineWidth = 4
+  ctx.beginPath()
+  ctx.moveTo(p0[0], p0[1])
+  ctx.bezierCurveTo(p1[0], p1[1], p2[0], p2[1], p3[0], p3[1])
+  ctx.stroke()
+  const anzahl = 13
+  for (let i = 0; i < anzahl; i++) {
+    const t = 0.05 + (i / (anzahl - 1)) * 0.92
+    const [x, y] = punkt(t)
+    const [x2, y2] = punkt(Math.min(1, t + 0.01))
+    const richtung = Math.atan2(y2 - y, x2 - x)
+    const seite = i % 2 === 0 ? 1 : -1
+    const laenge = g * (0.135 - t * 0.075)
+    const breite = laenge * 0.46
+    const winkel = richtung + seite * 1.15
+    // Der Mittelpunkt des Blatts liegt ein Stück vom Stiel weg, sonst läge das Blatt auf dem
+    // Stiel statt daran.
+    ctx.save()
+    ctx.translate(x + Math.cos(winkel) * laenge * 0.55, y + Math.sin(winkel) * laenge * 0.55)
+    ctx.rotate(winkel)
+    ctx.beginPath()
+    ctx.ellipse(0, 0, laenge * 0.55, breite * 0.5, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
+}
+
+// 3. Vogelschwarm — sieben Vögel als offene Doppelbögen in verschiedenen Größen. Mehr braucht
+// ein Vogel aus der Ferne nicht; alles Weitere würde die Silhouette nur unruhig machen.
+function zeichneTattooVoegel(ctx, g) {
+  ctx.strokeStyle = TATTOO_FARBE; ctx.lineCap = 'round'
+  // Der größte Vogel steht bei 0,17 statt 0,12: Seine Flügel reichen 1,6 · b = 0,16 der
+  // Kachelbreite zur Seite, bei 0,12 lag die linke Flügelspitze also außerhalb der Textur und
+  // war abgeschnitten.
+  const tiere = [
+    [0.17, 0.62, 1.00], [0.30, 0.38, 0.80], [0.46, 0.66, 0.62],
+    [0.60, 0.26, 0.92], [0.74, 0.54, 0.54], [0.86, 0.34, 0.74], [0.24, 0.84, 0.44],
+  ]
+  for (const [fx, fy, s] of tiere) {
+    const x = g * fx, y = g * fy, b = g * 0.10 * s
+    ctx.lineWidth = Math.max(2.5, 7 * s)
+    ctx.beginPath()
+    ctx.moveTo(x - b * 1.6, y + b * 0.5)
+    ctx.quadraticCurveTo(x - b * 0.7, y - b * 0.7, x, y)
+    ctx.quadraticCurveTo(x + b * 0.7, y - b * 0.7, x + b * 1.6, y + b * 0.5)
+    ctx.stroke()
+  }
+}
+
+// 4. Bergkette — drei Gipfel, die Schneekappen werden HERAUSGESCHNITTEN.
+//
+// destination-out zeichnet nicht, sondern löscht aus dem bereits Gezeichneten. Auf dem
+// durchsichtigen Grund heißt das: An den Kappen scheint die Wand durch. Genau so funktioniert
+// geplottete Klebefolie — was nicht Folie ist, ist Wand. Am Ende wieder auf source-over
+// zurückstellen, sonst löscht das nächste Motiv im selben Kontext ebenfalls.
+function zeichneTattooBerge(ctx, g) {
+  ctx.fillStyle = TATTOO_FARBE
+  ctx.beginPath()
+  ctx.moveTo(g * 0.02, g * 0.82)
+  ctx.lineTo(g * 0.26, g * 0.34)
+  ctx.lineTo(g * 0.42, g * 0.60)
+  ctx.lineTo(g * 0.58, g * 0.20)
+  ctx.lineTo(g * 0.76, g * 0.56)
+  ctx.lineTo(g * 0.88, g * 0.42)
+  ctx.lineTo(g * 0.98, g * 0.82)
+  ctx.closePath()
+  ctx.fill()
+  ctx.globalCompositeOperation = 'destination-out'
+  ctx.lineWidth = 4
+  ctx.strokeStyle = '#000'
+  for (const [px, py, w] of [[0.26, 0.34, 0.07], [0.58, 0.20, 0.08]]) {
+    ctx.beginPath()
+    ctx.moveTo(g * (px - w), g * (py + 0.11))
+    ctx.lineTo(g * (px - w * 0.3), g * (py + 0.05))
+    ctx.lineTo(g * px, g * (py + 0.10))
+    ctx.lineTo(g * (px + w * 0.4), g * (py + 0.04))
+    ctx.lineTo(g * (px + w), g * (py + 0.12))
+    ctx.stroke()
+  }
+  ctx.globalCompositeOperation = 'source-over'
+}
+
+// 5. Pusteblume — Stiel, Blütenboden mit Schirmchen, fünf davonfliegende daneben.
+function zeichneTattooPusteblume(ctx, g) {
+  ctx.fillStyle = TATTOO_FARBE; ctx.strokeStyle = TATTOO_FARBE; ctx.lineCap = 'round'
+  ctx.lineWidth = 4
+  ctx.beginPath()
+  ctx.moveTo(g * 0.30, g * 0.98)
+  ctx.quadraticCurveTo(g * 0.26, g * 0.70, g * 0.34, g * 0.52)
+  ctx.stroke()
+  const cx = g * 0.34, cy = g * 0.50
+  for (let i = 0; i < 26; i++) {
+    const w = -Math.PI * 0.95 + (i / 25) * Math.PI * 1.9
+    const laenge = g * (0.14 + (i % 3) * 0.012)
+    const ex = cx + Math.cos(w) * laenge, ey = cy + Math.sin(w) * laenge
+    ctx.lineWidth = 1.8
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(ex, ey); ctx.stroke()
+    tattooKreis(ctx, ex, ey, 3)
+  }
+  tattooKreis(ctx, cx, cy, 5)
+  for (const [fx, fy, s] of [[0.56, 0.36, 1], [0.66, 0.24, 0.85], [0.78, 0.30, 0.7], [0.86, 0.14, 0.6], [0.72, 0.44, 0.5]]) {
+    const x = g * fx, y = g * fy, r = g * 0.035 * s
+    ctx.lineWidth = 1.6
+    for (let i = 0; i < 7; i++) {
+      const w = -Math.PI * 0.9 + (i / 6) * Math.PI * 1.8
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(w) * r, y + Math.sin(w) * r); ctx.stroke()
+    }
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + r * 0.2, y + r * 1.3); ctx.stroke()
+  }
+}
+
+// 6. Blätterranke — senkrecht, mit wechselständigen Blättern, nach oben kleiner werdend.
+function zeichneTattooRanke(ctx, g) {
+  ctx.fillStyle = TATTOO_FARBE; ctx.strokeStyle = TATTOO_FARBE; ctx.lineCap = 'round'
+  // Die Blätter sitzen auf Punkten DER Stielkurve, wie beim Zweig. Eine eigene Sinuslinie für
+  // ihre Position lief neben dem Stiel her statt auf ihm — bis zu 0,11 der Kachelbreite
+  // daneben, die Blätter schwebten.
+  const p0 = [g * 0.5, g * 0.99], p1 = [g * 0.38, g * 0.72], p2 = [g * 0.62, g * 0.40], p3 = [g * 0.48, g * 0.04]
+  const punkt = (s) => {
+    const u = 1 - s
+    return [
+      u * u * u * p0[0] + 3 * u * u * s * p1[0] + 3 * u * s * s * p2[0] + s * s * s * p3[0],
+      u * u * u * p0[1] + 3 * u * u * s * p1[1] + 3 * u * s * s * p2[1] + s * s * s * p3[1],
+    ]
+  }
+  ctx.lineWidth = 4
+  ctx.beginPath()
+  ctx.moveTo(p0[0], p0[1])
+  ctx.bezierCurveTo(p1[0], p1[1], p2[0], p2[1], p3[0], p3[1])
+  ctx.stroke()
+  // Die Blätter zeigen schräg nach OBEN, in die Wuchsrichtung. tattooBlatt zeichnet entlang
+  // -y, ein zusätzliches Math.PI im Winkel würde sie umdrehen — dann sähe die Ranke aus wie
+  // eine Trauerweide, und unten lägen die Blätter auf dem Stiel statt an ihm.
+  for (let i = 0; i < 14; i++) {
+    const t = i / 13
+    const [x, y] = punkt(0.02 + t * 0.94)
+    const seite = i % 2 === 0 ? 1 : -1
+    const l = g * (0.17 - t * 0.06)
+    tattooBlatt(ctx, x, y, l, l * 0.34, seite * 1.15)
+  }
+}
+
+// 7. Katze — sitzende Silhouette von hinten, Schwanz als eigener Strich. Ein geschlossener
+// Umriss von Fuß über Ohren zurück zum Fuß; die Ohren sind zwei Ecken darin, keine Anbauten.
+function zeichneTattooKatze(ctx, g) {
+  ctx.fillStyle = TATTOO_FARBE
+  ctx.beginPath()
+  ctx.moveTo(g * 0.36, g * 0.92)
+  ctx.quadraticCurveTo(g * 0.30, g * 0.62, g * 0.36, g * 0.44)
+  ctx.lineTo(g * 0.33, g * 0.24)
+  ctx.lineTo(g * 0.44, g * 0.33)
+  ctx.quadraticCurveTo(g * 0.50, g * 0.30, g * 0.56, g * 0.33)
+  ctx.lineTo(g * 0.67, g * 0.24)
+  ctx.lineTo(g * 0.64, g * 0.44)
+  ctx.quadraticCurveTo(g * 0.74, g * 0.66, g * 0.68, g * 0.92)
+  ctx.closePath()
+  ctx.fill()
+  ctx.strokeStyle = TATTOO_FARBE; ctx.lineCap = 'round'; ctx.lineWidth = g * 0.045
+  ctx.beginPath()
+  ctx.moveTo(g * 0.67, g * 0.90)
+  ctx.bezierCurveTo(g * 0.86, g * 0.94, g * 0.90, g * 0.70, g * 0.80, g * 0.60)
+  ctx.stroke()
+}
+
+// 8. Sterne — elf Fünfzacksterne in drei Größen. Ein Stern entsteht aus zehn Punkten auf
+// abwechselnd großem und kleinem Radius.
+function zeichneTattooSterne(ctx, g) {
+  ctx.fillStyle = TATTOO_FARBE
+  const stellen = [
+    [0.16, 0.22, 1.0], [0.42, 0.12, 0.6], [0.68, 0.26, 0.85], [0.88, 0.14, 0.5],
+    [0.28, 0.48, 0.7], [0.56, 0.52, 1.0], [0.82, 0.58, 0.65], [0.12, 0.70, 0.55],
+    [0.40, 0.80, 0.9], [0.70, 0.86, 0.6], [0.94, 0.80, 0.45],
+  ]
+  for (const [fx, fy, s] of stellen) {
+    const x = g * fx, y = g * fy, r = g * 0.075 * s
+    ctx.beginPath()
+    for (let i = 0; i < 10; i++) {
+      const w = -Math.PI / 2 + (i / 10) * Math.PI * 2
+      const rr = i % 2 === 0 ? r : r * 0.42
+      const px = x + Math.cos(w) * rr, py = y + Math.sin(w) * rr
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py)
+    }
+    ctx.closePath(); ctx.fill()
+  }
+}
+
+// 9. Punkte — fünfzehn Kreise in verschiedenen Größen, fürs Kinderzimmer.
+function zeichneTattooPunkte(ctx, g) {
+  ctx.fillStyle = TATTOO_FARBE
+  const stellen = [
+    [0.12, 0.18, 1.0], [0.34, 0.10, 0.55], [0.58, 0.20, 0.8], [0.82, 0.12, 0.6],
+    [0.22, 0.40, 0.7], [0.48, 0.44, 1.0], [0.74, 0.38, 0.5], [0.92, 0.48, 0.75],
+    [0.14, 0.64, 0.85], [0.38, 0.70, 0.6], [0.62, 0.66, 0.95], [0.86, 0.74, 0.55],
+    [0.26, 0.90, 0.65], [0.54, 0.88, 0.8], [0.78, 0.94, 0.5],
+  ]
+  for (const [fx, fy, s] of stellen) tattooKreis(ctx, g * fx, g * fy, g * 0.048 * s)
+}
+
+// 10. Schriftzug — „home" in kursiver Serifenschrift, darunter ein kleines Herz.
+//
+// Georgia und Times New Roman liegen auf Windows und macOS; `serif` als letzter Rückfall sorgt
+// dafür, dass auch ohne beide etwas Vernünftiges erscheint statt einer Ersatzschrift ohne
+// Serifen. Die Schriftgröße hängt an der Kachelgröße, damit das Wort immer gleich viel Platz
+// einnimmt.
+function zeichneTattooSchriftzug(ctx, g) {
+  ctx.fillStyle = TATTOO_FARBE
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.font = `italic ${Math.round(g * 0.34)}px Georgia, 'Times New Roman', serif`
+  ctx.fillText('home', g * 0.5, g * 0.46)
+  const hx = g * 0.5, hy = g * 0.74, s = g * 0.07
+  ctx.beginPath()
+  ctx.moveTo(hx, hy + s * 0.75)
+  ctx.bezierCurveTo(hx - s * 1.4, hy - s * 0.3, hx - s * 0.45, hy - s * 1.1, hx, hy - s * 0.25)
+  ctx.bezierCurveTo(hx + s * 0.45, hy - s * 1.1, hx + s * 1.4, hy - s * 0.3, hx, hy + s * 0.75)
+  ctx.fill()
+}
+
 const TATTOO_ZEICHNER = {
-  'baum': zeichneTattooBaum,
+  'baum':       zeichneTattooBaum,
+  'zweig':      zeichneTattooZweig,
+  'ranke':      zeichneTattooRanke,
+  'pusteblume': zeichneTattooPusteblume,
+  'berge':      zeichneTattooBerge,
+  'voegel':     zeichneTattooVoegel,
+  'katze':      zeichneTattooKatze,
+  'sterne':     zeichneTattooSterne,
+  'punkte':     zeichneTattooPunkte,
+  'schriftzug': zeichneTattooSchriftzug,
 }
 
 const tattooCache = {}
@@ -928,6 +1185,15 @@ export function erzeugeWandTextur(wandTyp) {
   // Die beiden namenlosen Klassen sind die aus der Zeit vor Wandmaterial v2 und bleiben, wie sie
   // sind: Gespeicherte Räume tragen sie. Inhaltlich sind es Eiche bzw. Eiche natur.
   if (wandTyp === 'wand-tattoo-baum') return erzeugeWandtattoo('baum')
+  if (wandTyp === 'wand-tattoo-zweig') return erzeugeWandtattoo('zweig')
+  if (wandTyp === 'wand-tattoo-ranke') return erzeugeWandtattoo('ranke')
+  if (wandTyp === 'wand-tattoo-pusteblume') return erzeugeWandtattoo('pusteblume')
+  if (wandTyp === 'wand-tattoo-berge') return erzeugeWandtattoo('berge')
+  if (wandTyp === 'wand-tattoo-voegel') return erzeugeWandtattoo('voegel')
+  if (wandTyp === 'wand-tattoo-katze') return erzeugeWandtattoo('katze')
+  if (wandTyp === 'wand-tattoo-sterne') return erzeugeWandtattoo('sterne')
+  if (wandTyp === 'wand-tattoo-punkte') return erzeugeWandtattoo('punkte')
+  if (wandTyp === 'wand-tattoo-schriftzug') return erzeugeWandtattoo('schriftzug')
   if (wandTyp === 'wand-holzpaneele') return erzeugePaneel('holz', 'eiche')
   if (wandTyp === 'wand-holzpaneele-fichte') return erzeugePaneel('holz', 'fichte')
   if (wandTyp === 'wand-holzpaneele-fichte-weiss') return erzeugePaneel('holz', 'fichte-weiss')

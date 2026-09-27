@@ -242,8 +242,20 @@ export const wandMaterialien = [
     // Klebefolienfarbe wären zehn gleiche Punkte, das Symbol sagt mehr.
     name: 'Wandtattoo', klasse: 'wand-tattoo-baum', icon: '✿',
     gestrichen: false, grundfarbe: '#2E2C28', tattoo: true,
+    // Sortiert wie die Tapeten nach Familie: erst Pflanzliches, dann Landschaft und Tiere,
+    // dann Abstraktes, zuletzt der Schriftzug. Baum bleibt vorn, damit ein Klick auf die
+    // Kachel weiterhin wand-tattoo-baum wählt.
     ausfuehrungen: [
-      { name: 'Baum', klasse: 'wand-tattoo-baum', icon: '🌳' },
+      { name: 'Baum',        klasse: 'wand-tattoo-baum',       icon: '🌳' },
+      { name: 'Zweig',       klasse: 'wand-tattoo-zweig',      icon: '🌿' },
+      { name: 'Ranke',       klasse: 'wand-tattoo-ranke',      icon: '🍃' },
+      { name: 'Pusteblume',  klasse: 'wand-tattoo-pusteblume', icon: '🌼' },
+      { name: 'Bergkette',   klasse: 'wand-tattoo-berge',      icon: '⛰️' },
+      { name: 'Vogelschwarm', klasse: 'wand-tattoo-voegel',    icon: '🐦' },
+      { name: 'Katze',       klasse: 'wand-tattoo-katze',      icon: '🐱' },
+      { name: 'Sterne',      klasse: 'wand-tattoo-sterne',     icon: '⭐' },
+      { name: 'Punkte',      klasse: 'wand-tattoo-punkte',     icon: '⚫' },
+      { name: 'Schriftzug',  klasse: 'wand-tattoo-schriftzug', icon: '✍️' },
     ],
   },
 ]
