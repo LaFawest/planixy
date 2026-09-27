@@ -163,77 +163,235 @@ export function erzeugeWandputzTextur() {
   return texture
 }
 
-// Blumentapete: 5-blättrige Blüten im Ziegelmuster versetzt angeordnet, wie bei echter
-// Mustertapete. Naturfarben (creme + Terrakotta/Salbei-Akzent) statt Graustufen, damit sie bei
-// Standard-Wandfarbe Weiß direkt gut aussieht — bei anderen Wandfarben wird sie wie der bisherige
-// Putz zusätzlich eingefärbt (color × map in RoomView3D.jsx).
-// App schneller machen, Restpunkt 5: dieselbe Cache-Behandlung wie bei den vier Texturen aus
-// Teilpunkt 4.1 (siehe holzTexturCache weiter oben) — beim ersten Aufruf gezeichnet, danach
-// wiederverwendet, markiert als persistenteTextur, damit das Aufräumen in RoomView3D.jsx sie nicht
-// entsorgt.
-let blumenTapeteCache = null
+// ---------------------------------------------------------------------------
+// Tapetenmuster (Wandmaterial v2, Schritt 3)
+//
+// Nachgezeichnet nach dem, was in den Märkten tatsächlich im Regal liegt (Bauhaus, Hornbach,
+// Toom): schmale Streifen, Blockstreifen, gestreute Kreise, Rautengitter, Streublümchen.
+// Alle auf 53 cm Rapport — so breit ist eine Tapetenbahn, und weil das Muster an der Bahnkante
+// aufgehen muss, ist der Rapport genau diese Breite (siehe WAND_MUSTER_GROESSE weiter unten).
+// ---------------------------------------------------------------------------
 
-export function erzeugeBlumenTapete() {
-  if (blumenTapeteCache) return blumenTapeteCache
-  const groesse = 512
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = groesse
-  const ctx = canvas.getContext('2d')
-  ctx.fillStyle = '#F7F1E6'
+// Deterministischer Zufall (linearer Kongruenzgenerator, Numerical Recipes). Math.random() hätte
+// die Muster bei jedem Neuladen neu gewürfelt — dieselbe gespeicherte Wand sähe nach einem Reload
+// anders aus, die Blüten säßen woanders. Für einen Raumplaner ist das inakzeptabel: Geplant ist
+// geplant. Derselbe Startwert liefert dieselbe Folge, das Muster wirkt unregelmäßig und ist
+// trotzdem jedes Mal identisch. Math.imul, weil die Multiplikation sonst die 53-Bit-Grenze von
+// JavaScript-Zahlen überschreitet und die unteren Bits verloren gingen.
+function zufallsfolge(startwert) {
+  let zustand = startwert >>> 0
+  return () => {
+    zustand = (Math.imul(zustand, 1664525) + 1013904223) >>> 0
+    return zustand / 4294967296
+  }
+}
+
+// Papiergrund mit feiner Körnung. Ohne sie wirken die Flächen wie Farbfelder, nicht wie Papier —
+// das war der Hauptmangel der alten Streifentapete.
+function zeichnePapiergrund(ctx, groesse, farbe, zufall) {
+  ctx.fillStyle = farbe
   ctx.fillRect(0, 0, groesse, groesse)
-  const raster = 8
-  const zelle = groesse / raster
+  for (let i = 0; i < 2200; i++) {
+    ctx.fillStyle = `rgba(92,76,56,${(0.015 + zufall() * 0.030).toFixed(3)})`
+    ctx.fillRect(zufall() * groesse, zufall() * groesse, 1.4, 1.4)
+  }
+}
+
+// Zeichnet ein gestreutes Element so, dass es über den Kachelrand hinaus auf der Gegenseite
+// weiterläuft. Ohne das zeigt jede gekachelte Wand ein Gitter aus Kanten, weil an jeder Naht
+// halbe Blüten abgeschnitten sind. Bis zu neun Aufrufe je Element — die acht Nachbarpositionen
+// plus die eigene —, alles außerhalb wird sofort verworfen.
+function gekachelt(groesse, x, y, radius, malen) {
+  for (const dx of [-groesse, 0, groesse]) {
+    for (const dy of [-groesse, 0, groesse]) {
+      const px = x + dx, py = y + dy
+      if (px < -radius || px > groesse + radius || py < -radius || py > groesse + radius) continue
+      malen(px, py)
+    }
+  }
+}
+
+// Gemeinsamer Papierton aller Muster. Absichtlich nicht reinweiß: Tapetenpapier ist cremefarben,
+// und ein weißer Grund neben einer weiß gestrichenen Wand sähe kalt aus.
+const TAPETEN_PAPIER = '#F4EFE4'
+
+// 1. Streifen schmal — 10 Bahnen à 5,3 cm.
+function zeichneStreifenSchmal(ctx, g) {
+  const z = zufallsfolge(11011)
+  zeichnePapiergrund(ctx, g, TAPETEN_PAPIER, z)
+  const anzahl = 10, breite = g / anzahl
+  for (let i = 0; i < anzahl; i += 2) {
+    ctx.fillStyle = 'rgba(190,170,136,0.50)'
+    ctx.fillRect(i * breite, 0, breite, g)
+  }
+}
+
+// 2. Blockstreifen — 4 Bahnen à 13,25 cm, zwei Töne.
+function zeichneBlockstreifen(ctx, g) {
+  const z = zufallsfolge(22022)
+  zeichnePapiergrund(ctx, g, TAPETEN_PAPIER, z)
+  const anzahl = 4, breite = g / anzahl
+  for (let i = 0; i < anzahl; i += 2) {
+    ctx.fillStyle = 'rgba(126,148,126,0.42)'
+    ctx.fillRect(i * breite, 0, breite, g)
+  }
+}
+
+// 3. Kreise — gestreute Ringe im Versatzraster, 4 x 4 je Kachel (rund 13 cm Abstand). Teils
+// gefüllt, teils nur umrandet, mit leichtem Versatz: ein exaktes Raster sähe gedruckt aus.
+function zeichneKreise(ctx, g) {
+  const z = zufallsfolge(33033)
+  zeichnePapiergrund(ctx, g, TAPETEN_PAPIER, z)
+  const raster = 4, zelle = g / raster
   for (let y = 0; y < raster; y++) {
     for (let x = 0; x < raster; x++) {
       const versatz = (y % 2) * (zelle / 2)
-      const cx = x * zelle + versatz + zelle / 2 + (Math.random() - 0.5) * 6
-      const cy = y * zelle + zelle / 2 + (Math.random() - 0.5) * 6
-      const radius = zelle * 0.22
-      for (let p = 0; p < 5; p++) {
-        const winkel = (p / 5) * Math.PI * 2 + Math.random() * 0.3
-        const px = cx + Math.cos(winkel) * radius * 0.6
-        const py = cy + Math.sin(winkel) * radius * 0.6
-        ctx.fillStyle = 'rgba(186,117,23,0.5)'
+      const cx = x * zelle + versatz + zelle / 2 + (z() - 0.5) * 10
+      const cy = y * zelle + zelle / 2 + (z() - 0.5) * 10
+      // Einheitliche Größe und ein fester Wechsel zwischen gefüllt und umrandet statt Zufall:
+      // Mit zufälliger Größe und Füllung klumpten sich die gefüllten Kreise in manchen Zeilen,
+      // und weil sich die Kachel alle 53 cm wiederholt, wurde daraus auf der Wand ein sichtbares
+      // Streifenmuster. Der Versatz der Position bleibt zufällig — der sorgt weiter dafür, dass
+      // es nicht gedruckt-regelmäßig aussieht.
+      const radius = zelle * 0.27
+      const gefuellt = (x + y) % 2 === 0
+      gekachelt(g, cx, cy, radius + 4, (px, py) => {
         ctx.beginPath()
-        ctx.ellipse(px, py, radius * 0.5, radius * 0.32, winkel, 0, Math.PI * 2)
-        ctx.fill()
-      }
-      ctx.fillStyle = 'rgba(122,150,90,0.6)'
-      ctx.beginPath()
-      ctx.arc(cx, cy, radius * 0.22, 0, Math.PI * 2)
-      ctx.fill()
+        ctx.arc(px, py, radius, 0, Math.PI * 2)
+        if (gefuellt) {
+          ctx.fillStyle = 'rgba(198,132,102,0.34)'
+          ctx.fill()
+        } else {
+          ctx.strokeStyle = 'rgba(160,104,78,0.62)'
+          ctx.lineWidth = 2.6
+          ctx.stroke()
+        }
+      })
     }
   }
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
-  texture.repeat.set(3, 1.5)
-  texture.colorSpace = THREE.SRGBColorSpace
-  texture.userData.persistenteTextur = true
-  blumenTapeteCache = texture
-  return texture
 }
 
-// Streifentapete: schlichte vertikale Streifen in zwei Tönen.
-let streifenTapeteCache = null
-
-export function erzeugeStreifenTapete() {
-  if (streifenTapeteCache) return streifenTapeteCache
-  const breite = 128, hoehe = 128
-  const canvas = document.createElement('canvas')
-  canvas.width = breite
-  canvas.height = hoehe
-  const ctx = canvas.getContext('2d')
-  const streifenBreite = breite / 8
-  for (let i = 0; i < 8; i++) {
-    ctx.fillStyle = i % 2 === 0 ? '#F7F1E6' : '#E4D9C4'
-    ctx.fillRect(i * streifenBreite, 0, streifenBreite, hoehe)
+// 4. Rauten — Gitter aus Diagonalen, 2 Rauten je Bahnbreite (rund 26 cm je Raute). Die Diagonalen
+// laufen bewusst über den Kachelrand hinaus (-teilung bis teilung*2), sonst blieben die Ecken leer.
+function zeichneRauten(ctx, g) {
+  const z = zufallsfolge(44044)
+  zeichnePapiergrund(ctx, g, TAPETEN_PAPIER, z)
+  // 2 statt 4 Rauten je Bahnbreite, also rund 26 cm je Raute. Mit 13 cm lagen auf einer Wand von
+  // vier Metern dreißig Rauten nebeneinander — das sah aus wie Millimeterpapier. Die dickere
+  // Linie gehört dazu: Ein größeres Feld braucht einen kräftigeren Rand, sonst wirkt das Gitter
+  // dünn und zufällig.
+  const teilung = 2, abstand = g / teilung
+  ctx.strokeStyle = 'rgba(122,120,110,0.60)'
+  ctx.lineWidth = 3.4
+  for (let i = -teilung; i <= teilung * 2; i++) {
+    ctx.beginPath()
+    ctx.moveTo(i * abstand, 0)
+    ctx.lineTo(i * abstand + g, g)
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(i * abstand, 0)
+    ctx.lineTo(i * abstand - g, g)
+    ctx.stroke()
   }
+  for (let y = 0; y < teilung; y++) {
+    for (let x = 0; x < teilung; x++) {
+      // Rautenmitte statt Kreuzung: Die beiden Diagonalenscharen schneiden sich bei
+      // (abstand/2, abstand/2) — genau dort saß der Punkt vorher und verschwand unter der
+      // Linie, die ohnehin dort liegt. Die Mitte einer Raute liegt eine halbe Zelle darüber,
+      // bei (abstand/2, 0).
+      //
+      // Und deutlich größer: rund 2 cm Durchmesser auf der Wand. Mit den vorherigen 4 Pixeln
+      // war der Punkt auf einer vier Meter langen Wand nicht zu sehen — eine Variante ganz
+      // ohne Punkte sah identisch aus. Jetzt ist es ein Motiv in jeder zweiten Raute.
+      //
+      // Jede zweite Raute heißt: in JEDER Zelle genau diese eine Mitte. Eine Kachel enthält acht
+      // Rauten (Kachel 2a x 2a, Raute a²/2), das ergibt vier Punkte. Mit (x + y) % 2 gefiltert
+      // waren es nur zwei, also jede vierte Raute. Die andere Mitte derselben Zelle,
+      // (0, abstand/2), gehört zur Nachbarraute mit gemeinsamer Kante — beide zu setzen hätte
+      // Punkte direkt nebeneinander ergeben statt eines Schachbretts. Nummeriert man die Rauten
+      // nach i = floor((x - y) / a) und j = floor((x + y) / a), haben alle Punkte hier eine
+      // gerade Summe i + j, und Nachbarn mit gemeinsamer Kante unterscheiden sich immer in genau
+      // einem Index — das ist das Schachbrett, auch über die Kachelgrenzen hinweg.
+      const cx = x * abstand + abstand / 2, cy = y * abstand
+      gekachelt(g, cx, cy, 13, (px, py) => {
+        ctx.beginPath()
+        ctx.arc(px, py, 10, 0, Math.PI * 2)
+        ctx.fillStyle = 'rgba(122,120,110,0.55)'
+        ctx.fill()
+      })
+    }
+  }
+}
+
+// 5. Blumenmotiv — Streublümchen im Versatzraster, 5 x 5 je Kachel (rund 10,6 cm Abstand).
+// Ein Blatt am Stiel statt zwei abstehender: mit zwei Blättern sah die Blüte aus wie ein Insekt.
+function zeichneBlumen(ctx, g) {
+  const z = zufallsfolge(55055)
+  zeichnePapiergrund(ctx, g, TAPETEN_PAPIER, z)
+  const raster = 5, zelle = g / raster
+  for (let y = 0; y < raster; y++) {
+    for (let x = 0; x < raster; x++) {
+      const versatz = (y % 2) * (zelle / 2)
+      const cx = x * zelle + versatz + zelle / 2 + (z() - 0.5) * 10
+      const cy = y * zelle + zelle / 2 + (z() - 0.5) * 10
+      const radius = zelle * 0.28
+      const drehung = z() * Math.PI
+      gekachelt(g, cx, cy, radius * 2, (px, py) => {
+        ctx.fillStyle = 'rgba(116,142,88,0.50)'
+        ctx.beginPath()
+        ctx.ellipse(px + Math.cos(drehung + 1.9) * radius * 1.05,
+                    py + Math.sin(drehung + 1.9) * radius * 1.05,
+                    radius * 0.40, radius * 0.20, drehung + 1.9, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.fillStyle = 'rgba(200,132,102,0.62)'
+        for (let p = 0; p < 5; p++) {
+          const winkel = drehung + (p / 5) * Math.PI * 2
+          ctx.beginPath()
+          ctx.ellipse(px + Math.cos(winkel) * radius * 0.52,
+                      py + Math.sin(winkel) * radius * 0.52,
+                      radius * 0.44, radius * 0.38, winkel, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        ctx.beginPath()
+        ctx.arc(px, py, radius * 0.26, 0, Math.PI * 2)
+        ctx.fillStyle = 'rgba(190,150,60,0.90)'
+        ctx.fill()
+      })
+    }
+  }
+}
+
+// Zeichner-Tabelle statt zehn fast gleicher Funktionen mit je eigenem Cache — dasselbe Muster wie
+// bei erzeugeRaufaserTextur(koernung) weiter unten.
+const TAPETEN_ZEICHNER = {
+  'streifen-schmal': zeichneStreifenSchmal,
+  'streifen-block':  zeichneBlockstreifen,
+  'kreise':          zeichneKreise,
+  'rauten':          zeichneRauten,
+  'blumen':          zeichneBlumen,
+}
+
+// Cache je Muster, wie bei allen anderen Texturen hier: beim ersten Aufruf gezeichnet, danach
+// wiederverwendet, als persistenteTextur markiert, damit das Aufräumen in RoomView3D.jsx sie nicht
+// entsorgt. 512 Pixel je Kachel für 53 cm — fein genug für die Blütenblätter, klein genug, dass
+// zehn Muster zusammen die Grafikkarte nicht belasten.
+const tapetenCache = {}
+
+export function erzeugeTapete(muster) {
+  if (tapetenCache[muster]) return tapetenCache[muster]
+  const zeichner = TAPETEN_ZEICHNER[muster] || zeichneStreifenSchmal
+  const groesse = 512
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = groesse
+  zeichner(canvas.getContext('2d'), groesse)
   const texture = new THREE.CanvasTexture(canvas)
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping
-  texture.repeat.set(6, 1)
+  // Nur ein Rückfallwert: Die tatsächliche Wiederholung rechnet erzeugeWandTexturFuerFlaeche aus
+  // der realen Wandgröße aus, weil jede Tapete in WAND_MUSTER_GROESSE steht.
+  texture.repeat.set(1, 1)
   texture.colorSpace = THREE.SRGBColorSpace
   texture.userData.persistenteTextur = true
-  streifenTapeteCache = texture
+  tapetenCache[muster] = texture
   return texture
 }
 
@@ -380,8 +538,13 @@ export function erzeugeRaufaserTextur(koernung) {
 // Unbekannter/fehlender Typ (auch alte Räume ohne room.wandmaterial) fällt auf den bisherigen
 // Putz zurück — kein Breaking Change für bestehende Räume.
 export function erzeugeWandTextur(wandTyp) {
-  if (wandTyp === 'wand-tapete-blumen') return erzeugeBlumenTapete()
-  if (wandTyp === 'wand-tapete-streifen') return erzeugeStreifenTapete()
+  // Die beiden ersten Klassennamen stammen aus der Zeit vor Wandmaterial v2 und bleiben
+  // absichtlich, wie sie sind: Gespeicherte Räume tragen genau diese Werte.
+  if (wandTyp === 'wand-tapete-blumen') return erzeugeTapete('blumen')
+  if (wandTyp === 'wand-tapete-streifen') return erzeugeTapete('streifen-schmal')
+  if (wandTyp === 'wand-tapete-streifen-breit') return erzeugeTapete('streifen-block')
+  if (wandTyp === 'wand-tapete-kreise') return erzeugeTapete('kreise')
+  if (wandTyp === 'wand-tapete-rauten') return erzeugeTapete('rauten')
   if (wandTyp === 'wand-holzpaneele') return erzeugeHolzpaneeleTextur()
   if (wandTyp === 'wand-akustikpaneele') return erzeugeAkustikpaneeleTextur()
   if (wandTyp === 'wand-raufaser-fein') return erzeugeRaufaserTextur('fein')
@@ -421,8 +584,11 @@ export function erzeugeWandTextur(wandTyp) {
 export const WAND_MUSTER_GROESSE = {
   'wand-akustikpaneele':  { breite: 0.60,  hoehe: 2.40 },
   'wand-holzpaneele':     { breite: 0.384, hoehe: 0.384 },
-  'wand-tapete-streifen': { breite: 0.53,  hoehe: 0.53 },
-  'wand-tapete-blumen':   { breite: 0.53,  hoehe: 0.53 },
+  'wand-tapete-streifen':       { breite: 0.53,  hoehe: 0.53 },
+  'wand-tapete-streifen-breit': { breite: 0.53,  hoehe: 0.53 },
+  'wand-tapete-kreise':         { breite: 0.53,  hoehe: 0.53 },
+  'wand-tapete-rauten':         { breite: 0.53,  hoehe: 0.53 },
+  'wand-tapete-blumen':         { breite: 0.53,  hoehe: 0.53 },
   'wand-raufaser-fein':   { breite: 0.40,  hoehe: 0.40 },
   'wand-raufaser-mittel': { breite: 0.40,  hoehe: 0.40 },
   'wand-raufaser-grob':   { breite: 0.40,  hoehe: 0.40 },
@@ -453,7 +619,7 @@ export function erzeugeWandTexturFuerFlaeche(wandTyp, breiteM, hoeheM) {
 
 // Backstein-Einfassung für den Rundbogen-Durchgang (Phase 4, Teil 3b) — Ziegelsteine im
 // klassischen Läuferverband (jede zweite Reihe um einen halben Stein versetzt), nach demselben
-// Canvas-Zeichnen-Muster wie erzeugeHolzpaneeleTextur/erzeugeStreifenTapete oben, nur als
+// Canvas-Zeichnen-Muster wie erzeugeHolzpaneeleTextur/erzeugeTapete oben, nur als
 // eigenständiges Muster statt Teil des wandMaterialien-Auswahl-Dispatchers.
 let backsteinTexturCache = null
 

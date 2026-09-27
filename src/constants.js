@@ -185,9 +185,14 @@ export const wandMaterialien = [
     // Die beiden Klassennamen bleiben absichtlich unverändert: Gespeicherte Räume tragen genau
     // diese Werte, und so öffnen sie ohne Migration weiter richtig. In Schritt 3 kommen acht
     // weitere Muster dazu.
+    // grundfarbe ist der Durchschnittston des Musters, nur für den 2D-Grundriss. Aus den
+    // gezeichneten Farben ausgerechnet, nicht geschätzt: Papiergrund und Musteranteil gemischt.
     ausfuehrungen: [
-      { name: 'Blumenmotiv', klasse: 'wand-tapete-blumen',   grundfarbe: '#F2ECDE' },
-      { name: 'Streifen',    klasse: 'wand-tapete-streifen', grundfarbe: '#EEE5D5' },
+      { name: 'Streifen schmal', klasse: 'wand-tapete-streifen',       grundfarbe: '#E6DDCD' },
+      { name: 'Blockstreifen',   klasse: 'wand-tapete-streifen-breit', grundfarbe: '#DBDCCE' },
+      { name: 'Kreise',          klasse: 'wand-tapete-kreise',         grundfarbe: '#EFE7D9' },
+      { name: 'Rauten',          klasse: 'wand-tapete-rauten',         grundfarbe: '#EFEADD' },
+      { name: 'Blumenmotiv',     klasse: 'wand-tapete-blumen',         grundfarbe: '#F0E5D8' },
     ],
   },
   { name: 'Holzpaneele',    klasse: 'wand-holzpaneele',     icon: '🪵', gestrichen: false, grundfarbe: '#B8956A' },
