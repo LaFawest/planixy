@@ -11,9 +11,17 @@ import { useDesign } from '../context/DesignContext'
 import { useFurniture } from '../context/FurnitureContext'
 import { useTrennwand } from '../context/TrennwandContext'
 import { useWizard } from '../context/WizardContext'
-import { istDeckenleuchte } from '../constants'
+import { istDeckenleuchte, istGestrichen, wandMaterialInfo } from '../constants'
 
-const wandFarbeFuer = (room, index) => room?.wandfarben?.[index] || room?.wandfarbe || '#FFFFFF'
+// Dieselbe Regel wie in der 3D-Ansicht (wandMatFuer in RoomView3D.jsx): Eine gestrichene Wand
+// zeigt die gewählte Farbe, eine gekaufte Ausführung ihren eigenen Ton. Im Grundriss gibt es
+// keine Texturen, deshalb steht hier die grundfarbe aus dem Katalog — sonst wäre eine Wand im
+// 3D-Bild aus Holz und im Grundriss daneben blau.
+const wandFarbeFuer = (room, index) => {
+  const material = room?.wandmaterialien?.[index] || room?.wandmaterial || 'wand-putz'
+  if (!istGestrichen(material)) return wandMaterialInfo(material).grundfarbe || '#FFFFFF'
+  return room?.wandfarben?.[index] || room?.wandfarbe || '#FFFFFF'
+}
 
 // Position/Größe eines Wandstreifens aus seinem Segment: die Kante selbst bildet eine
 // Seite des Streifens, der Streifen wird um die Wanddicke entgegen der Normale (also nach

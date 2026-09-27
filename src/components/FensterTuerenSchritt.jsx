@@ -1,11 +1,9 @@
-import { wandMaterialien, wandFarben, HIMMELSRICHTUNG_NAME } from '../constants'
+import { wandMaterialien, wandFarben, istGestrichen, wandMaterialInfo, HIMMELSRICHTUNG_NAME } from '../constants'
 import { himmelsrichtungAusNormale } from '../raumPolygon'
-import { useRooms } from '../context/RoomsContext'
 import { useDesign } from '../context/DesignContext'
 import { useRaumGeometrie } from '../context/useRaumGeometrie'
 
 export default function FensterTuerenSchritt() {
-  const { activeRoom } = useRooms()
   const { wandSegmente } = useRaumGeometrie()
   const {
     fussleiste, setFussleiste, fussleisteFarbe, setFussleisteFarbe,
@@ -40,6 +38,17 @@ export default function FensterTuerenSchritt() {
     setWandfarbeFuer(treffer ? treffer.farbe : hex)
   }
 
+  // Wird die gewählte Oberfläche gestrichen? Nur dann gehört die Farbpalette hierher. Eine
+  // Paneele oder eine Mustertapete kauft man in einer Ausführung, sie wird nicht überstrichen —
+  // eine Farbwahl anzubieten, die im 3D-Bild absichtlich ignoriert wird, wäre irreführend.
+  //
+  // aktuellesWandmaterial kommt aus dem DesignContext und richtet sich nach dem Wand-Chip
+  // darüber. Steht dort „Alle", ist es das Material des Raums. Tragen einzelne Wände abweichende
+  // Materialien, entscheidet also das Raum-Material darüber, ob die Palette zu sehen ist — das
+  // ist genau dieselbe Vereinfachung, die das Materialraster oben schon immer hatte, und bleibt
+  // bewusst so.
+  const wandWirdGestrichen = istGestrichen(aktuellesWandmaterial)
+
   return (
     <>
       {/* Fußleiste */}
@@ -65,7 +74,21 @@ export default function FensterTuerenSchritt() {
               { name: 'Grau',    farbe: '#B4B2A9' },
               { name: 'Schwarz', farbe: '#2C2C2A' },
               { name: 'Holz',    farbe: '#C8A97A' },
-              { name: 'Wand',    farbe: activeRoom?.wandfarbe || '#FFFFFF' },
+              // „Wand" ist die Abkürzung zum Übernehmen des Wandtons. Dafür muss der angebotene
+              // Wert der sein, den man auch sieht: bei einer gestrichenen Wand die gewählte Farbe,
+              // bei einer gekauften Ausführung deren Grundfarbe. Stand hier vorher stur
+              // room.wandfarbe, hätte die Kachel bei einer Holzpaneele die alte, im Bild nicht mehr
+              // vorhandene Farbe angeboten — eine dunkelblaue Fußleiste an einer braunen Wand.
+              //
+              // Gleichzeitig sind es jetzt aktuelleWandfarbe/aktuellesWandmaterial statt
+              // activeRoom.wandfarbe, also dieselben Werte, nach denen sich das ganze Panel richtet:
+              // Ist oben eine einzelne Wand gewählt, ist es deren Ton und nicht mehr der des Raums.
+              //
+              // Kopiert wird der Wert weiterhin nur beim Klick. Wer die Wand danach umfärbt, soll
+              // die Fußleiste nicht ungefragt mitwandern sehen.
+              { name: 'Wand',    farbe: wandWirdGestrichen
+                ? (aktuelleWandfarbe || '#FFFFFF')
+                : (wandMaterialInfo(aktuellesWandmaterial).grundfarbe || '#FFFFFF') },
             ].map(f => (
               <div key={f.name} onClick={() => setFussleisteFarbe(f.farbe)} style={{
                 width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer',
@@ -117,6 +140,10 @@ export default function FensterTuerenSchritt() {
         </div>
       </div>
 
+      {/* Farbpalette nur bei gestrichenen Oberflächen — siehe wandWirdGestrichen oben. Die
+          Einrückung des Blocks darunter bleibt absichtlich unverändert, damit der Diff klein
+          bleibt. */}
+      {wandWirdGestrichen ? (
       <div>
         <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.06em' }}>WANDFARBE</p>
         {/* Dieselbe Falle wie beim Materialraster darüber: "Terrakotta" und "Dunkelgrün" standen
@@ -176,6 +203,14 @@ export default function FensterTuerenSchritt() {
           </label>
         </div>
       </div>
+      ) : (
+        <div>
+          <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.06em' }}>AUSFÜHRUNG</p>
+          <p style={{ fontSize: '11px', color: '#888780', lineHeight: 1.45 }}>
+            Diese Oberfläche wird fertig gekauft und nicht gestrichen — die Farbe steckt im Muster selbst.
+          </p>
+        </div>
+      )}
     </>
   )
 }

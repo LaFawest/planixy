@@ -12,7 +12,7 @@ import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
 import { useUI } from './context/UIContext'
-import { wandMaterialien, istDeckenleuchte, istVerschiebbareDeckenleuchte, istEndpunktVerstellbareDeckenleuchte, istEckSkalierbareDeckenleuchte, berechneInnenmasse, bogenMasse } from './constants'
+import { wandMaterialien, istGestrichen, istDeckenleuchte, istVerschiebbareDeckenleuchte, istEndpunktVerstellbareDeckenleuchte, istEckSkalierbareDeckenleuchte, berechneInnenmasse, bogenMasse } from './constants'
 
 export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deckenFokus = false, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt } = {}) {
   const { activeRoom: room } = useRooms()
@@ -475,11 +475,29 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       }
       return wandTexturCache.get(schluessel)
     }
-    // map + color: MeshStandardMaterial multipliziert beide miteinander, die Musterstruktur bleibt
-    // dadurch mit jeder der 27 Wandfarben einfärbbar, ohne dass die Farbwahl selbst hier angefasst
-    // werden muss. laenge ist die tatsächliche Länge des Wandsegments — zusammen mit der Raumhöhe
-    // ergibt das die reale Flächengröße für die Musterdichte.
-    const wandMatFuer = (index, laenge) => new THREE.MeshStandardMaterial({ color: wandFarbeFuer(index), map: wandTexturFuer(wandMaterialFuer(index), laenge, wandHoehe), roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1 })
+    // map + color: MeshStandardMaterial multipliziert beide miteinander. Bei gestrichenen
+    // Oberflächen ist genau das gewollt — Putz und Raufaser sind fast weiß gezeichnet, die
+    // Wandfarbe legt sich als Tönung über die Struktur, und dieselbe Struktur sieht dadurch in
+    // jedem Ton richtig aus.
+    //
+    // Bei den gekauften Ausführungen ist es falsch: Deren Textur bringt ihre Farbe schon mit
+    // (Holzton, Filzgrund, bedruckter Papiergrund). Multipliziert man eine Wandfarbe hinein,
+    // entsteht kein blaues Holz, sondern eine schmutzige Mischung aus beidem. Weiß ist in der
+    // Multiplikation das neutrale Element, die Textur kommt also unverändert durch.
+    //
+    // Die gespeicherte Wandfarbe bleibt dabei unangetastet: Wer von der Paneele zurück auf
+    // Raufaser wechselt, hat seinen Ton noch.
+    //
+    // laenge ist die tatsächliche Länge des Wandsegments — zusammen mit der Raumhöhe ergibt das
+    // die reale Flächengröße für die Musterdichte.
+    const wandMatFuer = (index, laenge) => {
+      const material = wandMaterialFuer(index)
+      return new THREE.MeshStandardMaterial({
+        color: istGestrichen(material) ? wandFarbeFuer(index) : '#FFFFFF',
+        map: wandTexturFuer(material, laenge, wandHoehe),
+        roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1,
+      })
+    }
 
     const segmente = wandSegmente(eckpunkte)
 

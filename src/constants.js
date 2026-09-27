@@ -149,16 +149,44 @@ export const bodenBelaege = [
 // Die drei Raufaser-Körnungen stehen bewusst direkt hinter dem Putz: Beides sind Oberflächen, die
 // überstrichen werden, bei denen die Wandfarbe also der eigentliche Gestaltungsschritt ist. Die
 // Symbole ░ ▒ ▓ sind keine Emojis, sondern Blockzeichen — sie zeigen die Körnung unmittelbar an.
+//
+// gestrichen: Wird diese Oberfläche an der Wand gestrichen oder fertig gekauft? Putz und
+// Raufaser werden gestrichen, die Farbe wählt der Kunde im Markt — für sie bleibt die
+// Farbpalette zuständig. Paneele und Mustertapeten kauft man in einer Ausführung; sie zu
+// überstreichen ergibt keine Wand, die es im Baumarkt gibt, also wird die Farbe für sie
+// gar nicht erst angeboten. Der 3D-Wand genügt diese eine Angabe: Sie tönt die Textur nur
+// noch, wenn gestrichen wird (siehe wandMatFuer in RoomView3D.jsx).
+//
+// grundfarbe: nur bei den gekauften Ausführungen und nur für den 2D-Grundriss. Dort gibt es
+// keine Texturen, sondern einen einfarbigen Streifen je Wand — ohne diesen Wert würde der
+// Grundriss weiterhin die alte, gespeicherte Wandfarbe zeigen und damit einen anderen Stand
+// als das 3D-Bild daneben. Die Werte sind aus den Texturen selbst abgelesen
+// (src/texturen.js): der Holzton der Paneele, bei den Akustikpaneelen die Mischung aus
+// Lamelle und dunklem Grund, bei den Tapeten der cremefarbene Papiergrund.
 export const wandMaterialien = [
-  { name: 'Putz',            klasse: 'wand-putz',            icon: '⬜' },
-  { name: 'Raufaser fein',   klasse: 'wand-raufaser-fein',   icon: '░' },
-  { name: 'Raufaser mittel', klasse: 'wand-raufaser-mittel', icon: '▒' },
-  { name: 'Raufaser grob',   klasse: 'wand-raufaser-grob',   icon: '▓' },
-  { name: 'Blumentapete',   klasse: 'wand-tapete-blumen',   icon: '🌸' },
-  { name: 'Streifentapete', klasse: 'wand-tapete-streifen', icon: '〰️' },
-  { name: 'Holzpaneele',    klasse: 'wand-holzpaneele',     icon: '🪵' },
-  { name: 'Akustikpaneele', klasse: 'wand-akustikpaneele',  icon: '🎛️' },
+  { name: 'Putz',            klasse: 'wand-putz',            icon: '⬜', gestrichen: true },
+  { name: 'Raufaser fein',   klasse: 'wand-raufaser-fein',   icon: '░', gestrichen: true },
+  { name: 'Raufaser mittel', klasse: 'wand-raufaser-mittel', icon: '▒', gestrichen: true },
+  { name: 'Raufaser grob',   klasse: 'wand-raufaser-grob',   icon: '▓', gestrichen: true },
+  { name: 'Blumentapete',   klasse: 'wand-tapete-blumen',   icon: '🌸', gestrichen: false, grundfarbe: '#F2ECDE' },
+  { name: 'Streifentapete', klasse: 'wand-tapete-streifen', icon: '〰️', gestrichen: false, grundfarbe: '#EEE5D5' },
+  { name: 'Holzpaneele',    klasse: 'wand-holzpaneele',     icon: '🪵', gestrichen: false, grundfarbe: '#B8956A' },
+  { name: 'Akustikpaneele', klasse: 'wand-akustikpaneele',  icon: '🎛️', gestrichen: false, grundfarbe: '#8E7454' },
 ]
+
+// Nachschlagen nach Klasse. Der Rückfall auf den ersten Eintrag (Putz) ist wichtig für
+// gespeicherte Räume: dort kann eine Materialklasse stehen, die es nicht mehr gibt, und Putz
+// ist überall in der App der Standardrückfall — auch in erzeugeWandTextur in texturen.js.
+export function wandMaterialInfo(klasse) {
+  return wandMaterialien.find(m => m.klasse === klasse) || wandMaterialien[0]
+}
+
+// Bewusst `!== false` und nicht `=== true`: Käme irgendwann ein Material ohne die Angabe
+// dazu, wäre „wird gestrichen" das harmlosere Verhalten — die Farbpalette bliebe sichtbar,
+// statt dass eine Auswahl unerreichbar verschwindet.
+export function istGestrichen(klasse) {
+  return wandMaterialInfo(klasse).gestrichen !== false
+}
 export const wandFarben = [
   { name: 'Weiß',       farbe: '#FFFFFF' }, { name: 'Cremeweiß',  farbe: '#F5F0E8' },
   { name: 'Schwarz',    farbe: '#1A1A1A' },
