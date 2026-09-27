@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { entferneLokaleGastdaten } from '../context/projekteStorage'
 import LegalLinks from './LegalLinks'
 
 // Rohe GoTrue-Fehlermeldungen (Englisch) auf verständliche deutsche Hinweise abbilden — analog zu
@@ -206,6 +207,13 @@ function LoeschenDialog({ user, onAbbrechen }) {
       setFehler(await leseFunktionsFehler(error))
       return
     }
+    // Vor dem Abmelden, nicht danach: signOut() löst über onAuthStateChange den Wechsel auf den
+    // Gast-Pfad aus, und der liest sofort loadProjekte(). Wer erst danach aufräumt, hat die alten
+    // Gast-Projekte schon im Zustand — und der Nutzer sieht sie.
+    //
+    // Und erst nach dem erfolgreichen Löschen: Schlägt die Edge Function fehl, behält der Nutzer
+    // sein Konto und soll auch seine lokalen Entwürfe behalten.
+    entferneLokaleGastdaten()
     await signOut()
     navigate('/', { replace: true })
   }
@@ -216,7 +224,8 @@ function LoeschenDialog({ user, onAbbrechen }) {
         Konto endgültig löschen?
       </p>
       <p style={{ fontSize: '13px', color: '#444441', lineHeight: 1.5, marginBottom: '16px' }}>
-        Löscht dein Konto und alle Projekte endgültig. Das kann nicht rückgängig gemacht werden.
+        Löscht dein Konto und alle Projekte endgültig — auch Entwürfe, die noch von einer früheren
+        Nutzung ohne Konto auf diesem Gerät liegen. Das kann nicht rückgängig gemacht werden.
       </p>
 
       {hatPasswort ? (

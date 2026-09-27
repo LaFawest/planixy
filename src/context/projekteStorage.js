@@ -168,6 +168,28 @@ export const clearProjekte = () => {
   localStorage.removeItem(STORAGE_KEY)
 }
 
+// Räumt alles ab, was an Projektdaten auf diesem Gerät liegt — für das Löschen des Kontos.
+//
+// Der Dialog dort verspricht, Konto und Projekte endgültig zu löschen. Die Edge Function erledigt
+// die Serverseite; hier liegt aber noch, was der Nutzer als Gast angelegt hatte, bevor er sich
+// registriert hat. Ohne dieses Aufräumen sieht er direkt nach dem Löschen wieder Räume vor sich:
+// Das Abmelden macht ihn zum Gast, und der Gast-Pfad lädt genau diese Daten.
+//
+// Dass es technisch andere Räume sind als die im Konto, ist für den Nutzer kein Trost — er hat um
+// Löschung gebeten. Im Zweifel lieber zu viel weg als zu wenig.
+//
+// Die Ablehnung-Markierung muss mit, sonst gälte eine spätere, wirklich neue Gast-Aktivität mit
+// derselben Projekt-ID fälschlich als "schon mal abgelehnt" (siehe loadProjekte weiter unten,
+// dort aus demselben Grund).
+//
+// Bewusst NICHT dabei: der Schlüssel des Gast-Banners. Das ist eine Anzeigeeinstellung, keine
+// Projektdaten — und wer den Hinweis einmal weggeklickt hat, will ihn nach dem Löschen nicht
+// wieder vorfinden.
+export const entferneLokaleGastdaten = () => {
+  clearProjekte()
+  localStorage.removeItem(MIGRATION_ABLEHNUNG_KEY)
+}
+
 // true, wenn seit der letzten Änderung an JEDEM lokalen Projekt mehr als AUFRAEUM_SCHWELLE_TAGE
 // vergangen sind — ein einziges kürzlich angefasstes Projekt reicht, um die ganze Liste zu behalten.
 // Für ein nie geändertes Projekt ist geaendertAm === erstelltAm (siehe neuesProjektObjekt), zählt

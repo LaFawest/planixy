@@ -19,6 +19,16 @@ export function ProjekteListeProvider({ children }) {
   const eingeloggt = !!user
 
   const [projekte, setProjekte] = useState([])
+  // Woher stammt der aktuelle Inhalt von `projekte` — aus localStorage ('gast') oder aus Supabase
+  // ('konto')? Das ist NICHT dasselbe wie der Auth-Status, auch wenn es im Normalbetrieb so
+  // aussieht: Beim Abmelden ist `user` bereits null, während `projekte` noch die Kontoprojekte
+  // enthält. Der Speicher-Effekt unten hat in genau diesem Render beides gesehen und die
+  // Kontoprojekte nach localStorage geschrieben. Sie wurden zwar im nächsten Render wieder
+  // überschrieben — nach einer Kontolöschung lagen die gerade gelöschten Daten aber einen Render
+  // lang auf dem Gerät, und beim Schließen des Tabs in diesem Moment dauerhaft.
+  //
+  // null, solange nichts geladen ist.
+  const [quelle, setQuelle] = useState(null)
   // true, solange die Datenquelle (Auth-Status selbst, dann localStorage bzw. Supabase-Fetch) noch
   // nicht feststeht — Dashboard.jsx nutzt das, um in diesem kurzen Fenster nicht fälschlich "kein
   // Projekt angelegt" zu zeigen, bevor die echten Daten da sind.
@@ -71,7 +81,10 @@ export function ProjekteListeProvider({ children }) {
     flushAlle()
     let abgebrochen = false
     setProjekteLadeStatus(true)
+    // Die Herkunft wird sofort gesetzt, nicht erst wenn die Daten da sind: Sie beschreibt, welcher
+    // Pfad gerade zuständig ist, nicht ob er schon geliefert hat.
     if (user) {
+      setQuelle('konto')
       ladeProjekteSupabase(user.id)
         .then(geladen => { if (!abgebrochen) setProjekte(geladen) })
         .catch(err => {
@@ -80,6 +93,7 @@ export function ProjekteListeProvider({ children }) {
         })
         .finally(() => { if (!abgebrochen) setProjekteLadeStatus(false) })
     } else {
+      setQuelle('gast')
       setProjekte(loadProjekte())
       setProjekteLadeStatus(false)
     }
@@ -103,10 +117,16 @@ export function ProjekteListeProvider({ children }) {
   // Eingeloggter Pfad: Persistenz läuft granular über die einzelnen Mutatoren unten (debounceSpeichern
   // / erstelleProjektSupabase / loescheProjektSupabase) — kein Blanket-Save hier, sonst würde bei
   // jeder Änderung die komplette Projektliste statt nur der betroffenen Zeile geschrieben.
+  //
+  // Gefragt wird nach der HERKUNFT der Daten, nicht nach dem Auth-Status (siehe `quelle` oben).
+  // Mit `eingeloggt` schrieb dieser Effekt beim Abmelden einen Render lang die Kontoprojekte nach
+  // localStorage: `user` war da schon null, `projekte` aber noch der Kontostand. Mit der Herkunft
+  // passiert das nicht mehr, weil sie zusammen mit den Daten umgestellt wird und in diesem Render
+  // noch 'konto' ist.
   useEffect(() => {
-    if (eingeloggt || projekteLadeStatus) return
+    if (quelle !== 'gast' || projekteLadeStatus) return
     saveProjekte(projekte)
-  }, [projekte, eingeloggt, projekteLadeStatus])
+  }, [projekte, quelle, projekteLadeStatus])
 
   // Offene Debounce-Saves beim Verlassen der Seite nicht verwerfen.
   useEffect(() => flushAlle, [flushAlle])
