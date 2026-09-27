@@ -24,6 +24,22 @@ export default function FensterTuerenSchritt() {
     })),
   ]
 
+  // Stammt die aktuelle Wandfarbe aus der Palette oder hat jemand sie selbst gewählt? Danach
+  // richtet sich, ob die Kachel "Eigene Farbe" hervorgehoben ist und ihren Hex-Wert anzeigt.
+  // Kleinschreibung auf beiden Seiten, weil der Farbwähler des Browsers Kleinbuchstaben liefert,
+  // die Palette in constants.js aber Großbuchstaben verwendet — sonst gälte "#FFFFFF" aus der
+  // Palette und "#ffffff" aus dem Wähler als zwei verschiedene Farben.
+  const istEigeneFarbe = !!aktuelleWandfarbe &&
+    !wandFarben.some(w => w.farbe.toLowerCase() === aktuelleWandfarbe.toLowerCase())
+
+  // Wert aus dem Farbwähler übernehmen. Trifft er zufällig einen Paletteneintrag, wird dessen
+  // Schreibweise gespeichert — die Palettenkacheln vergleichen exakt (===), sonst wäre bei
+  // "#ffffff" aus dem Wähler weder "Weiß" noch "Eigene Farbe" hervorgehoben.
+  const setEigeneWandfarbe = (hex) => {
+    const treffer = wandFarben.find(w => w.farbe.toLowerCase() === hex.toLowerCase())
+    setWandfarbeFuer(treffer ? treffer.farbe : hex)
+  }
+
   return (
     <>
       {/* Fußleiste */}
@@ -107,6 +123,47 @@ export default function FensterTuerenSchritt() {
               <div style={{ fontSize: '10px', color: aktuelleWandfarbe === wand.farbe ? '#185FA5' : '#444441', fontWeight: aktuelleWandfarbe === wand.farbe ? '500' : '400' }}>{wand.name}</div>
             </div>
           ))}
+
+          {/* "Eigene Farbe": öffnet den Farbwähler des Browsers, dieselbe Technik wie beim
+              LED-Streifen in LichtSchritt.jsx. Der Dialog bietet Hex- und RGB-Eingabe von sich aus
+              an, ein eigenes Textfeld wäre also doppelt gemoppelt.
+
+              Bewusst als LETZTE Kachel: Wer nichts Bestimmtes sucht, soll zuerst die fertigen Töne
+              sehen. Die Palette bleibt die Empfehlung, der Wähler ist der Ausweg für alle, die
+              ihren Ton schon kennen.
+
+              Das eigentliche input liegt unsichtbar im label — ein Klick auf die Kachel öffnet
+              dadurch den Wähler, ohne dass das Kästchen des Browsers die Gestaltung stört.
+              Bewusst NICHT display:none, sonst erreicht der Klick das Feld je nach Browser nicht
+              mehr; ein Feld ohne Größe und ohne Zeigerereignisse tut dasselbe und bleibt
+              erreichbar. */}
+          <label style={{
+            display: 'block', padding: '8px 4px', borderRadius: '10px', textAlign: 'center',
+            cursor: 'pointer', transition: 'all 0.15s',
+            border: `${istEigeneFarbe ? '2px' : '1px'} solid ${istEigeneFarbe ? '#185FA5' : '#E8E6E0'}`,
+            background: istEigeneFarbe ? '#EEF4FC' : '#FAFAF8',
+          }}>
+            <div style={{
+              width: '28px', height: '28px', borderRadius: '50%', margin: '0 auto 4px',
+              border: '1px solid #E8E6E0',
+              background: istEigeneFarbe
+                ? aktuelleWandfarbe
+                : 'conic-gradient(#E8927C, #F5E6A0, #A8D5C2, #B8D4E8, #C4B8D4, #E8927C)',
+            }}></div>
+            <div style={{
+              fontSize: '10px',
+              color: istEigeneFarbe ? '#185FA5' : '#444441',
+              fontWeight: istEigeneFarbe ? '500' : '400',
+            }}>
+              {istEigeneFarbe ? aktuelleWandfarbe.toUpperCase() : 'Eigene Farbe'}
+            </div>
+            <input
+              type="color"
+              value={aktuelleWandfarbe || '#FFFFFF'}
+              onChange={e => setEigeneWandfarbe(e.target.value)}
+              style={{ width: 0, height: 0, opacity: 0, pointerEvents: 'none', border: 'none', padding: 0 }}
+            />
+          </label>
         </div>
       </div>
     </>
