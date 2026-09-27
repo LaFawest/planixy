@@ -101,9 +101,13 @@ export const kategorieFarben = {
   'Fenster & Türen': { bg: '#E6F1FB', color: '#185FA5' },
 }
 export const wandElemente = [
+  // „Drehtür" gab es hier als eigenen Eintrag. Im Türenhandel ist eine Drehtür
+  // (Drehflügeltür) aber genau das, was „Tür" schon ist — zwei Einträge für dieselbe Sache
+  // sind keine Auswahl, sondern eine Falle. Gespeicherte Räume behalten ihre vorhandenen
+  // Drehtüren: Sie tragen ihre Kopie des Eintrags selbst und werden weiter als normale Tür
+  // gezeichnet, sie lassen sich nur nicht mehr neu einfügen.
   { name: 'Tür',           typ: 'tuer',    width: 40, height: 12, color: '#FFF8E6', border: '#BA7517' },
-  { name: 'Drehtür',       typ: 'tuer',    width: 44, height: 12, color: '#FFF8E6', border: '#BA7517' },
-  { name: 'Schiebetür',    typ: 'tuer',    width: 50, height: 10, color: '#FFF8E6', border: '#BA7517' },
+  { name: 'Schiebetür',    typ: 'tuer',    stil: 'schiebe', width: 50, height: 10, color: '#FFF8E6', border: '#BA7517' },
   { name: 'Fenster klein', typ: 'fenster', width: 40, height: 10, color: '#E6F4FB', border: '#185FA5' },
   { name: 'Fenster groß',  typ: 'fenster', width: 70, height: 10, color: '#E6F4FB', border: '#185FA5' },
   // Phase 4, Teil 1a: stil unterscheidet die 3D-Optik innerhalb desselben typ (siehe

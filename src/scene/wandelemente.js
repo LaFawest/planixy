@@ -8,6 +8,33 @@ const TUER_HOEHE = 2.1
 // === WANDELEMENTE (Tür/Fenster) ===
 // holzTextur (erzeugeHolzTextur aus texturen.js, wie schon bei Möbel-Holzbeinen in moebel.js)
 // ersetzt die bisherigen flachen Farben an Tür/Rahmen/Fensterrahmen durch eine Holzmaserung.
+// Drückerklinke: Rosette auf dem Blatt, kurzer Hals nach vorn, waagerechter Drücker.
+//
+// Bisher saßen an den Zimmertüren Kugelknäufe. In deutschen Wohnungen ist der Knauf die
+// Ausnahme — er sitzt meist außen an einer Haustür, wo er sich absichtlich nicht drehen lässt.
+// Drinnen ist der Drücker der Normalfall.
+//
+// Der Drücker zeigt zur Bandseite, also nach innen zur Türmitte: An einer echten Tür zeigt er
+// weg vom Schloss, damit die Hand beim Herunterdrücken nicht gegen die Zarge stößt.
+//
+// z ist die VORDERE Fläche des Türblatts an der Stelle des Griffs. Sie ist nicht bei jeder Tür
+// gleich: Wo Stege oder Füllungen aufliegen, liegt sie weiter vorn, sonst läge die Rosette im
+// Holz. Deshalb übergibt jeder Zweig seinen eigenen Wert.
+function baueKlinke(gruppe, x, y, z, farbe) {
+  const mat = new THREE.MeshStandardMaterial({ color: farbe, roughness: 0.25, metalness: 0.8 })
+  const rosette = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.014, 16), mat)
+  rosette.rotation.x = Math.PI / 2
+  rosette.position.set(x, y, z + 0.007)
+  gruppe.add(rosette)
+  const hals = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.05, 10), mat)
+  hals.rotation.x = Math.PI / 2
+  hals.position.set(x, y, z + 0.035)
+  gruppe.add(hals)
+  const druecker = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.024, 0.024), mat)
+  druecker.position.set(x - 0.055, y, z + 0.055)
+  gruppe.add(druecker)
+}
+
 export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur) {
   const elBreite = item.width / 60
   const gruppe = new THREE.Group()
@@ -187,6 +214,16 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
   } else {
     const elHoehe = item.hoeheReal ?? TUER_HOEHE
 
+    // Alte Schiebetüren tragen kein stil-Feld: Der Katalogeintrag hat es erst bekommen, als die
+    // Schiebetür ihr eigenes Aussehen bekam, und jedes eingefügte Element trägt seine eigene
+    // Kopie des Eintrags aus der Zeit seines Einfügens. Ohne diesen Nachschlag sähen zwei
+    // Schiebetüren im selben Raum verschieden aus, je nachdem, wann sie eingefügt wurden.
+    //
+    // Bewusst nur hier beim Zeichnen und nicht als Änderung an den gespeicherten Daten: Das ist
+    // jederzeit umkehrbar und kann keine Projektdatei beschädigen. Und bewusst nur für die
+    // Schiebetür — alle anderen Stile hatten ihr Feld von Anfang an.
+    const stil = item.stil || (item.name === 'Schiebetür' ? 'schiebe' : undefined)
+
     if (item.stil === 'balkon-einzel') {
       // Balkontür Einzelflügel: wie eine normale Tür aufgebaut (Rahmen, Griff), aber mit einer
       // durchgehenden Glasscheibe statt der zwei Holzfüllungen.
@@ -255,6 +292,56 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
       const rahmenO = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.16, 0.08, 0.15), rahmenMat)
       rahmenO.position.set(0, elHoehe + 0.04, 0)
       gruppe.add(rahmenO)
+    } else if (stil === 'schiebe') {
+      // Schiebetür. Was sie ausmacht, ist nicht das Blatt, sondern was fehlt und was dazukommt:
+      // keine Zarge, sondern eine flache Laibung; eine Laufschiene über der Öffnung; das Blatt
+      // VOR der Wand statt in der Öffnung; und ein Muschelgriff statt einer Klinke — ein Drücker
+      // würde beim Aufschieben an der Wand anstoßen.
+      const metallMat = new THREE.MeshStandardMaterial({ color: '#8A8A87', roughness: 0.3, metalness: 0.8 })
+
+      // Flache Laibung statt Zarge: Eine Schiebetür sitzt nicht in einem Rahmen, die Öffnung
+      // wird nur sauber eingefasst.
+      const laibungMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
+      ;[-1, 1].forEach(seite => {
+        const laibung = new THREE.Mesh(new THREE.BoxGeometry(0.03, elHoehe + 0.03, 0.14), laibungMat)
+        laibung.position.set(seite * (elBreite / 2 + 0.015), elHoehe / 2, 0)
+        gruppe.add(laibung)
+      })
+      const laibungO = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.06, 0.03, 0.14), laibungMat)
+      laibungO.position.set(0, elHoehe + 0.015, 0)
+      gruppe.add(laibungO)
+
+      // Die Schiene ist fast doppelt so lang wie die Öffnung und nach rechts versetzt — dorthin
+      // schiebt sich die Tür. Eine Schiene, die genau über der Öffnung endet, wäre die
+      // häufigste Ungenauigkeit an so einer Darstellung.
+      const schiene = new THREE.Mesh(new THREE.BoxGeometry(elBreite * 1.95, 0.05, 0.05), metallMat)
+      schiene.position.set(elBreite * 0.42, elHoehe + 0.11, 0.10)
+      gruppe.add(schiene)
+      ;[-0.32, 0.32].forEach(faktor => {
+        const halter = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.10, 0.02), metallMat)
+        halter.position.set(elBreite * faktor, elHoehe + 0.05, 0.10)
+        gruppe.add(halter)
+      })
+
+      // Blatt vor der Wand, etwas breiter als die Öffnung, damit es sie im geschlossenen
+      // Zustand überdeckt. Ohne Füllungen — Schiebetüren sind flach.
+      const blattMat = new THREE.MeshStandardMaterial({ color: '#C8A97A', roughness: 0.7, metalness: 0.0, map: holzTextur })
+      const blatt = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.08, elHoehe, 0.04), blattMat)
+      blatt.position.set(0, elHoehe / 2, 0.09)
+      blatt.castShadow = true
+      gruppe.add(blatt)
+
+      const muschelMat = new THREE.MeshStandardMaterial({ color: '#3A3A38', roughness: 0.5, metalness: 0.5 })
+      const muschel = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.14, 0.012), muschelMat)
+      // z = 0.106: Das Blatt reicht von 0.07 bis 0.11. Bei 0.104 lag die Vorderseite der Mulde
+      // (0.104 + 0.006) genau in der Blattfläche — zwei Flächen in derselben Ebene flimmern
+      // gegeneinander, und die Mulde wäre je nach Blickwinkel verschwunden. So steht sie 2 mm vor.
+      // Linke Kante, nicht rechte: Die Schiene ist nach rechts versetzt, die Tür fährt also
+      // nach rechts auf. Die linke Kante ist damit die, die beim Schließen an die Laibung
+      // anschlägt — dort greift man hin. Rechts läge die Mulde bei offener Tür mitten über der
+      // Wand.
+      muschel.position.set(-(elBreite / 2 - 0.06), elHoehe * 0.47, 0.106)
+      gruppe.add(muschel)
     } else if (item.stil === 'haustuer') {
       // Hauseingangstür Alu/Anthrazit: dunkle Anthrazit-Türfüllung in einem hellen Alu-Rahmen,
       // schmaler vertikaler Glasstreifen nahe der Schlossseite (typisch für moderne Haustüren) und
@@ -317,10 +404,10 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
         gruppe.add(fuellung)
       })
 
-      const knaufMat = new THREE.MeshStandardMaterial({ color: '#C8A050', roughness: 0.1, metalness: 0.9 })
-      const knauf = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), knaufMat)
-      knauf.position.set(elBreite/2 - 0.12, elHoehe * 0.5, 0.08)
-      gruppe.add(knauf)
+      // z = 0.08, weil hier die Kassetten-Stege bis 0.075 und die Füllungen darauf bis 0.08 nach
+      // vorn reichen — der mittlere Steg deckt die Griffhöhe ganz ab. Mit dem Wert der
+      // Blattfläche läge die Rosette im Steg. Messington passend zum klassischen Stil.
+      baueKlinke(gruppe, elBreite/2 - 0.09, elHoehe * 0.47, 0.08, '#B99648')
     } else if (item.stil === 'glas-zimmer') {
       // Glastür (Zimmertür): wie Balkontür-Einzelflügel aufgebaut, aber mit hellem/weißem Rahmen
       // statt Holzoptik, mattierter (weniger transparenter) Glasfüllung und einem modernen
@@ -347,10 +434,9 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
       rahmenO.position.set(0, elHoehe + 0.03, 0)
       gruppe.add(rahmenO)
 
-      const griffMat = new THREE.MeshStandardMaterial({ color: '#888780', metalness: 0.7, roughness: 0.3 })
-      const griff = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.025, 0.025), griffMat)
-      griff.position.set(elBreite/2 - 0.15, elHoehe * 0.5, 0.08)
-      gruppe.add(griff)
+      // z = 0.06: Die Glasfüllung reicht bis dorthin, und der Griff sitzt bei dieser Tür über
+      // dem Glas. Edelstahlton, wie an Glastüren üblich.
+      baueKlinke(gruppe, elBreite/2 - 0.09, elHoehe * 0.47, 0.06, '#A8A8A5')
     } else if (item.stil === 'landhaus') {
       // Landhaustür: weiß lackierte Tür mit Sprossen-Gitter (2 senkrechte + 3 waagerechte Stege
       // ergeben ein 6-Felder-Kassettierung), schmiedeeisen-artiger Knauf für den Landhausstil.
@@ -384,10 +470,13 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
         gruppe.add(stegH)
       })
 
-      const griffMat = new THREE.MeshStandardMaterial({ color: '#2C2C2A', roughness: 0.4, metalness: 0.6 })
-      const griff = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 12), griffMat)
-      griff.position.set(elBreite/2 - 0.12, elHoehe * 0.5, 0.08)
-      gruppe.add(griff)
+      // z = 0.06, die Blattfläche. Die Sprossen (vorn bei 0.07) liegen fast ganz neben der
+      // Rosette: Die senkrechten sitzen bei ±elBreite/6, weit weg vom Schloss, und die mittlere
+      // waagerechte bei 0.5 · elHoehe streift die Rosette nur mit 5 mm. Auf der Sprossenebene
+      // hätte die Rosette auf dem übrigen Umfang 1,5 cm vor dem Blatt geschwebt; so sitzt sie auf
+      // dem Holz, und ihre Vorderseite (0.074) liegt trotzdem vor der Sprosse. Dunkler, matter
+      // Ton statt Metallglanz — am Landhausstil sitzt Schmiedeeisen, kein polierter Edelstahl.
+      baueKlinke(gruppe, elBreite/2 - 0.09, elHoehe * 0.47, 0.06, '#3A3835')
     } else {
       const tuerMat = new THREE.MeshStandardMaterial({ color: '#C8A97A', roughness: 0.7, metalness: 0.0, map: holzTextur })
 
@@ -417,14 +506,23 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
       fuellung2.position.y = elHoehe * 0.25
       gruppe.add(fuellung2)
 
-      const knaufMat = new THREE.MeshStandardMaterial({ color: '#C8A050', roughness: 0.1, metalness: 0.9 })
-      const knauf = new THREE.Mesh(new THREE.SphereGeometry(0.04, 16, 16), knaufMat)
-      knauf.position.set(elBreite/2 - 0.12, elHoehe * 0.5, 0.08)
-      gruppe.add(knauf)
+      // z = 0.06, die Blattfläche selbst: Die beiden Füllungen sind schmaler als das Blatt, der
+      // Griff sitzt neben ihnen auf dem Holz. Matter Edelstahlton, der häufigste Fall.
+      //
+      // x = elBreite/2 - 0.065 statt - 0.09 wie bei den anderen Türen: Die obere Füllung reicht
+      // hier bis elBreite/2 - 0.1 und deckt die Griffhöhe 0.47 · elHoehe ganz ab (0,945 m bis
+      // 1,785 m). Bei - 0.09 hätte die Rosette 2,5 cm weit in der Füllung gesteckt. 6,5 cm vom
+      // Rand ist zudem das übliche Maß an einer Zimmertür (55 mm Dornmaß plus Falz).
+      const klinkeX = elBreite/2 - 0.065, klinkeY = elHoehe * 0.47
+      baueKlinke(gruppe, klinkeX, klinkeY, 0.06, '#9A9A97')
 
+      // Schlüsselloch senkrecht unter der Klinke, 8,5 cm tiefer. An seiner alten Stelle
+      // (elBreite/2 - 0.12, 0.5 · elHoehe - 0.08) saß es 2 cm unter der Griffmitte und steckte
+      // damit in der Rosette und im Drücker. z = 0.08, damit der Zylinder (Radius 0.02) auf dem
+      // Blatt aufsitzt statt davor zu schweben.
       const schluesselMat = new THREE.MeshStandardMaterial({ color: '#888780', metalness: 0.8, roughness: 0.2 })
       const schluessel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.02, 8), schluesselMat)
-      schluessel.position.set(elBreite/2 - 0.12, elHoehe * 0.5 - 0.08, 0.09)
+      schluessel.position.set(klinkeX, klinkeY - 0.085, 0.08)
       gruppe.add(schluessel)
     }
   }
