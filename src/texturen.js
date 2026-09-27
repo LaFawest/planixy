@@ -622,86 +622,172 @@ export function erzeugeTapete(muster) {
   return texture
 }
 
-// Holzpaneele: wie erzeugeHolzTextur() (Holzmaserung per Zufalls-Linien), zusätzlich mit
-// vertikalen Paneel-Fugen, damit einzelne Bretter/Paneele erkennbar sind statt einer
-// durchgehenden Fläche.
-let holzpaneeleTexturCache = null
+// ---------------------------------------------------------------------------
+// Wandpaneele (Wandmaterial v2, Schritt 4)
+//
+// Zwei Bauarten, jede in mehreren Ausführungen: Profilholz aus senkrechten Brettern und
+// Akustikpaneele aus Lamellen auf Filz. Die Farben stecken in den Tabellen weiter unten, der
+// Zeichner kennt nur die Form.
+//
+// Die Maserung läuft LÄNGS des Bretts, also senkrecht. Bisher lief sie quer — ein Brett, dessen
+// Maserung quer läuft, gibt es nicht.
+// ---------------------------------------------------------------------------
 
-export function erzeugeHolzpaneeleTextur() {
-  if (holzpaneeleTexturCache) return holzpaneeleTexturCache
-  const groesse = 256
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = groesse
-  const ctx = canvas.getContext('2d')
-  ctx.fillStyle = '#B8956A'
-  ctx.fillRect(0, 0, groesse, groesse)
-  for (let i = 0; i < 90; i++) {
-    const y = Math.random() * groesse
-    const dunkel = 0.08 + Math.random() * 0.18
-    ctx.strokeStyle = `rgba(80,52,22,${dunkel.toFixed(2)})`
-    ctx.lineWidth = 0.6 + Math.random() * 1.6
-    ctx.beginPath()
-    let x = 0
-    ctx.moveTo(x, y)
-    while (x < groesse) {
-      x += 6
-      ctx.lineTo(x, y + Math.sin(x * 0.04 + i) * 3 + (Math.random() - 0.5) * 1.5)
-    }
-    ctx.stroke()
-  }
-  const anzahlPaneele = 4
-  const paneelBreite = groesse / anzahlPaneele
-  ctx.strokeStyle = 'rgba(50,32,14,0.4)'
-  ctx.lineWidth = 2
-  for (let i = 1; i < anzahlPaneele; i++) {
-    ctx.beginPath()
-    ctx.moveTo(i * paneelBreite, 0)
-    ctx.lineTo(i * paneelBreite, groesse)
-    ctx.stroke()
-  }
-  const texture = new THREE.CanvasTexture(canvas)
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
-  texture.repeat.set(3, 1.5)
-  texture.colorSpace = THREE.SRGBColorSpace
-  texture.userData.persistenteTextur = true
-  holzpaneeleTexturCache = texture
-  return texture
-}
+// Profilholz: acht Bretter à 9,6 cm je Kachel, Nut-und-Feder-Fuge dazwischen.
+//
+// Acht und nicht vier: Jedes Brett bekommt eine leicht andere Helligkeit, und bei vier Brettern
+// je Kachel sah man auf der Wand die Wiederholung dieser vier deutlich. Die Kachel ist dafür
+// 0,768 m breit statt 0,384 m (siehe WAND_MUSTER_GROESSE), die Bretter bleiben gleich breit.
+//
+// farben: { grund, maserung, fuge, kante }. In `maserung` steht ALPHA als Platzhalter, weil jede
+// Linie ihre eigene Deckkraft bekommt.
+function zeichneProfilholz(ctx, g, farben, startwert) {
+  const z = zufallsfolge(startwert)
+  ctx.fillStyle = farben.grund
+  ctx.fillRect(0, 0, g, g)
+  const bretter = 8, breite = g / bretter
 
-// Akustikpaneele: abwechselnd Holzlamellen und dunkle Zwischenräume (Filzoptik), wie die
-// aktuell verbreiteten Akustik-Wandpaneele aus dem Baumarkt.
-let akustikpaneeleTexturCache = null
+  for (let b = 0; b < bretter; b++) {
+    const x0 = b * breite
+    // Jedes Brett etwas anders hell — echtes Profilholz ist nie einheitlich.
+    const helligkeit = (z() - 0.5) * 0.10
+    ctx.fillStyle = `rgba(${helligkeit > 0 ? '255,255,255' : '0,0,0'},${Math.abs(helligkeit).toFixed(3)})`
+    ctx.fillRect(x0, 0, breite, g)
 
-export function erzeugeAkustikpaneeleTextur() {
-  if (akustikpaneeleTexturCache) return akustikpaneeleTexturCache
-  const groesse = 256
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = groesse
-  const ctx = canvas.getContext('2d')
-  ctx.fillStyle = '#2C2622'
-  ctx.fillRect(0, 0, groesse, groesse)
-  const lamellenAnzahl = 12
-  const lamellenBreite = groesse / lamellenAnzahl
-  for (let i = 0; i < lamellenAnzahl; i++) {
-    const x = i * lamellenBreite
-    ctx.fillStyle = '#B8956A'
-    ctx.fillRect(x, 0, lamellenBreite * 0.7, groesse)
-    for (let g = 0; g < 8; g++) {
-      const gy = Math.random() * groesse
-      ctx.strokeStyle = `rgba(80,52,22,${(0.1 + Math.random() * 0.15).toFixed(2)})`
-      ctx.lineWidth = 0.6
+    for (let i = 0; i < 16; i++) {
+      const x = x0 + 3 + z() * (breite - 6)
+      const staerke = 0.06 + z() * 0.16
+      ctx.strokeStyle = farben.maserung.replace('ALPHA', staerke.toFixed(2))
+      ctx.lineWidth = 0.5 + z() * 1.4
+      // Die Welle muss über die Kachelhöhe periodisch sein, sonst hat die Maserlinie oben einen
+      // anderen seitlichen Versatz als unten und springt an jeder Naht. Drei volle Perioden je
+      // Kachel: Bei y = 0 und y = g ist der Sinus damit gleich.
+      //
+      // Deshalb beginnt die Linie auch schon MIT dem Versatz: moveTo(x, 0) ohne Sinus hätte oben
+      // bei x angefangen und unten bei x + sin(phase) · 2,2 aufgehört — derselbe Sprung, nur
+      // über den Startpunkt eingeschleppt.
+      const phase = z() * Math.PI * 2
       ctx.beginPath()
-      ctx.moveTo(x, gy)
-      ctx.lineTo(x + lamellenBreite * 0.7, gy + (Math.random() - 0.5) * 4)
+      ctx.moveTo(x + Math.sin(phase) * 2.2, 0)
+      let y = 0
+      while (y <= g) {
+        y += 8
+        ctx.lineTo(x + Math.sin((y / g) * Math.PI * 6 + phase) * 2.2, y)
+      }
       ctx.stroke()
     }
+    // Astansatz auf etwa jedem zweiten Brett. Über gekachelt(), weil ay überall in der Höhe
+    // liegen kann: Ein Ast nah am oberen Rand muss unten weiterlaufen, sonst ist er an der Naht
+    // halb abgeschnitten.
+    if (z() > 0.55) {
+      const ax = x0 + breite * (0.3 + z() * 0.4), ay = z() * g
+      gekachelt(g, ax, ay, 12, (px, py) => {
+        ctx.strokeStyle = farben.maserung.replace('ALPHA', '0.30')
+        ctx.lineWidth = 1.2
+        for (let r = 3; r < 11; r += 2.5) {
+          ctx.beginPath()
+          ctx.ellipse(px, py, r * 0.55, r, 0, 0, Math.PI * 2)
+          ctx.stroke()
+        }
+      })
+    }
   }
+
+  // Nut-und-Feder-Fuge: dunkler Schatten plus heller Grat daneben. Das ist das, was man an einer
+  // Profilholzwand tatsächlich sieht — nicht eine Linie, sondern eine Kante mit Licht und
+  // Schatten. Die Schleife läuft bis einschließlich `bretter`, damit auch die Fuge am rechten
+  // Kachelrand gezeichnet wird; sie trifft dort auf die der nächsten Kachel.
+  for (let b = 0; b <= bretter; b++) {
+    const x = b * breite
+    ctx.fillStyle = farben.fuge
+    ctx.fillRect(x - 2.4, 0, 4.8, g)
+    ctx.fillStyle = farben.kante
+    ctx.fillRect(x + 2.4, 0, 1.6, g)
+  }
+}
+
+// Akustikpaneele: 12 Lamellen auf Filz, Lamellenbreite 70 % der Teilung.
+//
+// Die Kachel ist 0,60 m breit und 2,40 m hoch, das Bild wird beim Auflegen also senkrecht
+// gestreckt. Deshalb hier nur zwei Wellenperioden statt drei: gestreckt würden mehr unruhig.
+//
+// farben: { filz, lamelle, maserung, kante }
+function zeichneAkustik(ctx, g, farben, startwert) {
+  const z = zufallsfolge(startwert)
+  ctx.fillStyle = farben.filz
+  ctx.fillRect(0, 0, g, g)
+  const lamellen = 12, teilung = g / lamellen, breite = teilung * 0.70
+
+  for (let i = 0; i < lamellen; i++) {
+    const x = i * teilung
+    ctx.fillStyle = farben.lamelle
+    ctx.fillRect(x, 0, breite, g)
+    const helligkeit = (z() - 0.5) * 0.08
+    ctx.fillStyle = `rgba(${helligkeit > 0 ? '255,255,255' : '0,0,0'},${Math.abs(helligkeit).toFixed(3)})`
+    ctx.fillRect(x, 0, breite, g)
+    for (let m = 0; m < 10; m++) {
+      const mx = x + 2 + z() * (breite - 4)
+      ctx.strokeStyle = farben.maserung.replace('ALPHA', (0.05 + z() * 0.12).toFixed(2))
+      ctx.lineWidth = 0.6 + z() * 1.0
+      // Startpunkt mit Versatz, aus demselben Grund wie beim Profilholz oben.
+      const phase = z() * Math.PI * 2
+      ctx.beginPath()
+      ctx.moveTo(mx + Math.sin(phase) * 1.4, 0)
+      let y = 0
+      while (y <= g) {
+        y += 14
+        ctx.lineTo(mx + Math.sin((y / g) * Math.PI * 4 + phase) * 1.4, y)
+      }
+      ctx.stroke()
+    }
+    // Kantenlicht links, Schatten rechts: Die Lamelle steht vor dem Filz, und genau diese
+    // Plastizität macht den Unterschied zu aufgemalten Streifen.
+    ctx.fillStyle = farben.kante
+    ctx.fillRect(x, 0, 1.4, g)
+    ctx.fillStyle = 'rgba(0,0,0,0.22)'
+    ctx.fillRect(x + breite - 1.4, 0, 1.4, g)
+  }
+}
+
+// Die Ausführungen. startwert legt das Zufallsmuster fest — feste Werte, damit jede Ausführung
+// anders aussieht und jede einzelne nach jedem Neuladen gleich.
+const HOLZ_AUSFUEHRUNGEN = {
+  'eiche':        { startwert: 1137, grund: '#B8956A', maserung: 'rgba(80,52,22,ALPHA)',    fuge: 'rgba(50,32,14,0.42)',   kante: 'rgba(255,245,225,0.20)' },
+  'fichte':       { startwert: 1274, grund: '#DFC79C', maserung: 'rgba(146,104,52,ALPHA)',  fuge: 'rgba(120,88,44,0.36)',  kante: 'rgba(255,250,235,0.26)' },
+  'fichte-weiss': { startwert: 1411, grund: '#EFEAE1', maserung: 'rgba(150,140,124,ALPHA)', fuge: 'rgba(136,128,116,0.30)', kante: 'rgba(255,255,255,0.40)' },
+}
+
+// Der Filz ist bei den hellen Ausführungen bewusst nicht schwarz, sondern mittelgrau: Ein weißes
+// Paneel mit schwarzen Fugen gibt es so nicht, dort ist auch der Filz hell.
+const AKUSTIK_AUSFUEHRUNGEN = {
+  'eiche':        { startwert: 1548, filz: '#2C2622', lamelle: '#B8956A', maserung: 'rgba(80,52,22,ALPHA)',    kante: 'rgba(255,245,225,0.16)' },
+  'eiche-dunkel': { startwert: 1685, filz: '#241F1C', lamelle: '#8A653F', maserung: 'rgba(52,32,14,ALPHA)',    kante: 'rgba(255,240,215,0.12)' },
+  'nussbaum':     { startwert: 1822, filz: '#241F1C', lamelle: '#6E4A32', maserung: 'rgba(38,22,12,ALPHA)',    kante: 'rgba(255,238,212,0.12)' },
+  'schwarz':      { startwert: 1959, filz: '#1A1715', lamelle: '#33302C', maserung: 'rgba(0,0,0,ALPHA)',       kante: 'rgba(255,255,255,0.10)' },
+  'weiss':        { startwert: 2096, filz: '#9E9A94', lamelle: '#F2F0EB', maserung: 'rgba(150,145,138,ALPHA)', kante: 'rgba(255,255,255,0.45)' },
+}
+
+// Cache je Bauart und Ausführung, wie erzeugeTapete(muster) weiter oben.
+const paneelCache = {}
+
+export function erzeugePaneel(bauart, ausfuehrung) {
+  const schluessel = `${bauart}|${ausfuehrung}`
+  if (paneelCache[schluessel]) return paneelCache[schluessel]
+  const holz = bauart === 'holz'
+  const tabelle = holz ? HOLZ_AUSFUEHRUNGEN : AKUSTIK_AUSFUEHRUNGEN
+  const farben = tabelle[ausfuehrung] || tabelle['eiche']
+  const groesse = 512
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = groesse
+  const zeichner = holz ? zeichneProfilholz : zeichneAkustik
+  zeichner(canvas.getContext('2d'), groesse, farben, farben.startwert)
   const texture = new THREE.CanvasTexture(canvas)
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping
-  texture.repeat.set(4, 1.5)
+  // Nur ein Rückfallwert, die tatsächliche Wiederholung kommt aus WAND_MUSTER_GROESSE.
+  texture.repeat.set(1, 1)
   texture.colorSpace = THREE.SRGBColorSpace
   texture.userData.persistenteTextur = true
-  akustikpaneeleTexturCache = texture
+  paneelCache[schluessel] = texture
   return texture
 }
 
@@ -777,8 +863,16 @@ export function erzeugeWandTextur(wandTyp) {
   if (wandTyp === 'wand-tapete-beton') return erzeugeTapete('beton')
   if (wandTyp === 'wand-tapete-ziegel') return erzeugeTapete('ziegel')
   if (wandTyp === 'wand-tapete-terrazzo') return erzeugeTapete('terrazzo')
-  if (wandTyp === 'wand-holzpaneele') return erzeugeHolzpaneeleTextur()
-  if (wandTyp === 'wand-akustikpaneele') return erzeugeAkustikpaneeleTextur()
+  // Die beiden namenlosen Klassen sind die aus der Zeit vor Wandmaterial v2 und bleiben, wie sie
+  // sind: Gespeicherte Räume tragen sie. Inhaltlich sind es Eiche bzw. Eiche natur.
+  if (wandTyp === 'wand-holzpaneele') return erzeugePaneel('holz', 'eiche')
+  if (wandTyp === 'wand-holzpaneele-fichte') return erzeugePaneel('holz', 'fichte')
+  if (wandTyp === 'wand-holzpaneele-fichte-weiss') return erzeugePaneel('holz', 'fichte-weiss')
+  if (wandTyp === 'wand-akustikpaneele') return erzeugePaneel('akustik', 'eiche')
+  if (wandTyp === 'wand-akustikpaneele-dunkel') return erzeugePaneel('akustik', 'eiche-dunkel')
+  if (wandTyp === 'wand-akustikpaneele-nussbaum') return erzeugePaneel('akustik', 'nussbaum')
+  if (wandTyp === 'wand-akustikpaneele-schwarz') return erzeugePaneel('akustik', 'schwarz')
+  if (wandTyp === 'wand-akustikpaneele-weiss') return erzeugePaneel('akustik', 'weiss')
   if (wandTyp === 'wand-raufaser-fein') return erzeugeRaufaserTextur('fein')
   if (wandTyp === 'wand-raufaser-mittel') return erzeugeRaufaserTextur('mittel')
   if (wandTyp === 'wand-raufaser-grob') return erzeugeRaufaserTextur('grob')
@@ -799,7 +893,7 @@ export function erzeugeWandTextur(wandTyp) {
 //                   Bei üblicher Raumhöhe liegt die Wiederholung damit praktisch außerhalb der
 //                   Wand, statt wie bei den früheren 1,60 m eine Fuge vorzutäuschen, die es nicht
 //                   gibt.
-//   Holzpaneele     0,384 m = 4 Bretter à 9,6 cm. 9,6 cm ist die Standard-Deckbreite von
+//   Holzpaneele     0,768 m = 8 Bretter à 9,6 cm. 9,6 cm ist die Standard-Deckbreite von
 //                   Profilholz im Handel. Vorher standen hier 20 cm je Brett — damit sah man
 //                   keine Bretter, sondern breite Felder.
 //   Streifentapete  0,53 m = 8 Streifen à 6,6 cm
@@ -814,8 +908,17 @@ export function erzeugeWandTextur(wandTyp) {
 // Grafikkarte geladen. Die Raufaser dagegen zeichnen wir selbst, sie kann deshalb gefahrlos pro
 // Fläche geklont werden und bekommt dadurch auf jeder Wand dieselbe Spangröße.
 export const WAND_MUSTER_GROESSE = {
-  'wand-akustikpaneele':  { breite: 0.60,  hoehe: 2.40 },
-  'wand-holzpaneele':     { breite: 0.384, hoehe: 0.384 },
+  'wand-akustikpaneele':          { breite: 0.60,  hoehe: 2.40 },
+  'wand-akustikpaneele-dunkel':   { breite: 0.60,  hoehe: 2.40 },
+  'wand-akustikpaneele-nussbaum': { breite: 0.60,  hoehe: 2.40 },
+  'wand-akustikpaneele-schwarz':  { breite: 0.60,  hoehe: 2.40 },
+  'wand-akustikpaneele-weiss':    { breite: 0.60,  hoehe: 2.40 },
+  // 0,768 m statt bisher 0,384 m: acht Bretter à 9,6 cm je Kachel statt vier. Die Deckbreite
+  // des einzelnen Bretts ändert sich dadurch nicht, nur die Wiederholung liegt weiter
+  // auseinander — bei vier Brettern sah man die Helligkeitsfolge der vier auf der Wand.
+  'wand-holzpaneele':              { breite: 0.768, hoehe: 0.768 },
+  'wand-holzpaneele-fichte':       { breite: 0.768, hoehe: 0.768 },
+  'wand-holzpaneele-fichte-weiss': { breite: 0.768, hoehe: 0.768 },
   'wand-tapete-streifen':       { breite: 0.53,  hoehe: 0.53 },
   'wand-tapete-streifen-breit': { breite: 0.53,  hoehe: 0.53 },
   'wand-tapete-kreise':         { breite: 0.53,  hoehe: 0.53 },
@@ -856,7 +959,7 @@ export function erzeugeWandTexturFuerFlaeche(wandTyp, breiteM, hoeheM) {
 
 // Backstein-Einfassung für den Rundbogen-Durchgang (Phase 4, Teil 3b) — Ziegelsteine im
 // klassischen Läuferverband (jede zweite Reihe um einen halben Stein versetzt), nach demselben
-// Canvas-Zeichnen-Muster wie erzeugeHolzpaneeleTextur/erzeugeTapete oben, nur als
+// Canvas-Zeichnen-Muster wie erzeugePaneel/erzeugeTapete oben, nur als
 // eigenständiges Muster statt Teil des wandMaterialien-Auswahl-Dispatchers.
 let backsteinTexturCache = null
 

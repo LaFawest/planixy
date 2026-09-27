@@ -208,8 +208,30 @@ export const wandMaterialien = [
       { name: 'Terrazzo',        klasse: 'wand-tapete-terrazzo',       grundfarbe: '#D8D2C8' },
     ],
   },
-  { name: 'Holzpaneele',    klasse: 'wand-holzpaneele',     icon: '🪵', gestrichen: false, grundfarbe: '#B8956A' },
-  { name: 'Akustikpaneele', klasse: 'wand-akustikpaneele',  icon: '🎛️', gestrichen: false, grundfarbe: '#8E7454' },
+  {
+    name: 'Holzpaneele', klasse: 'wand-holzpaneele', icon: '🪵',
+    gestrichen: false, grundfarbe: '#B8956A',
+    // Eiche steht vorn, damit ein Klick auf die Kachel weiterhin wand-holzpaneele wählt — die
+    // Klasse, die in gespeicherten Räumen steht.
+    ausfuehrungen: [
+      { name: 'Eiche',        klasse: 'wand-holzpaneele',              grundfarbe: '#B8956A' },
+      { name: 'Fichte natur', klasse: 'wand-holzpaneele-fichte',       grundfarbe: '#DFC79C' },
+      { name: 'Fichte weiß',  klasse: 'wand-holzpaneele-fichte-weiss', grundfarbe: '#EFEAE1' },
+    ],
+  },
+  {
+    name: 'Akustikpaneele', klasse: 'wand-akustikpaneele', icon: '🎛️',
+    gestrichen: false, grundfarbe: '#8E7454',
+    // Die Grundfarben sind aus Lamelle und Filz im Verhältnis 70 zu 30 gemischt, so wie die
+    // Lamelle 70 % der Teilung breit ist.
+    ausfuehrungen: [
+      { name: 'Eiche natur',  klasse: 'wand-akustikpaneele',           grundfarbe: '#8E7454' },
+      { name: 'Eiche dunkel', klasse: 'wand-akustikpaneele-dunkel',    grundfarbe: '#6B5034' },
+      { name: 'Nussbaum',     klasse: 'wand-akustikpaneele-nussbaum',  grundfarbe: '#583D2B' },
+      { name: 'Schwarz',      klasse: 'wand-akustikpaneele-schwarz',   grundfarbe: '#2B2825' },
+      { name: 'Weiß',         klasse: 'wand-akustikpaneele-weiss',     grundfarbe: '#D9D6D1' },
+    ],
+  },
 ]
 
 // Nachschlagen nach Klasse. Der Rückfall auf den ersten Eintrag (Putz) ist wichtig für
