@@ -1657,10 +1657,25 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         const { u, v } = weltpunktZuUV(schnitt, segment)
         const uKlamm = Math.max(0, Math.min(segment.laenge, u))
         const vKlamm = Math.max(0, Math.min(wandHoehe, v))
-        const neuU = Math.min(anchorU, uKlamm)
-        const neuBreite = Math.max(MIN_BEREICH_GROESSE, Math.abs(uKlamm - anchorU))
-        const neuV = Math.min(anchorV, vKlamm)
-        const neuHoehe = Math.max(MIN_BEREICH_GROESSE, Math.abs(vKlamm - anchorV))
+        // Dieselbe Regel wie beim Aufziehen (siehe dort): Tattoos bleiben quadratisch, die feste
+        // Ecke bleibt fest, und das Quadrat wächst nicht über die Wand hinaus.
+        const quadratisch = istWandtattoo(bereich.material)
+        let neuBreite = Math.max(MIN_BEREICH_GROESSE, Math.abs(uKlamm - anchorU))
+        let neuHoehe = Math.max(MIN_BEREICH_GROESSE, Math.abs(vKlamm - anchorV))
+        if (quadratisch) {
+          const platzU = uKlamm >= anchorU ? segment.laenge - anchorU : anchorU
+          const platzV = vKlamm >= anchorV ? wandHoehe - anchorV : anchorV
+          const seite = Math.max(MIN_BEREICH_GROESSE, Math.min(Math.max(neuBreite, neuHoehe), platzU, platzV))
+          neuBreite = seite
+          neuHoehe = seite
+        }
+        // Zum Schluss in die Wand geklemmt. Nötig wegen MIN_BEREICH_GROESSE: Liegt die feste Ecke
+        // näher als 10 cm am Wandrand und wird zu ihm hin gezogen, erzwingt die Mindestgröße mehr
+        // Fläche, als bis zum Rand da ist — ohne Klemmen hinge der Bereich dann über die Wand
+        // hinaus. Das alte Math.min(anchor, zeiger) hatte das durch Wandern der Ecke vermieden. Die
+        // feste Ecke gibt in diesem Grenzfall nach; sonst bleibt sie, wo sie ist.
+        const neuU = Math.max(0, Math.min(segment.laenge - neuBreite, uKlamm >= anchorU ? anchorU : anchorU - neuBreite))
+        const neuV = Math.max(0, Math.min(wandHoehe - neuHoehe, vKlamm >= anchorV ? anchorV : anchorV - neuHoehe))
         wandBereichHandleDrag.aktuellU = neuU
         wandBereichHandleDrag.aktuellV = neuV
         wandBereichHandleDrag.aktuellBreite = neuBreite
@@ -1690,10 +1705,34 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         const { u, v } = weltpunktZuUV(schnitt, segment)
         const uKlamm = Math.max(0, Math.min(segment.laenge, u))
         const vKlamm = Math.max(0, Math.min(wandHoehe, v))
-        const u0 = Math.min(startU, uKlamm)
-        const breite = Math.abs(uKlamm - startU)
-        const v0 = Math.min(startV, vKlamm)
-        const hoehe = Math.abs(vKlamm - startV)
+        // Wandtattoos werden quadratisch aufgezogen, alles andere frei. Grund: Ein Tattoo ist ein
+        // einzelnes Motiv, das sich nicht verzerren lassen darf — ein breit gezogener Baum ist
+        // keine Gestaltung, sondern ein Fehler. Eine Tapete darf sich dagegen der Fläche anpassen,
+        // sie kachelt ohnehin.
+        //
+        // Die Motive selbst sind alle auf quadratischer Fläche gezeichnet und tragen ihren
+        // Freiraum in sich (die Bergkette ein breites Band mit Platz darüber und darunter), ein
+        // Quadrat zeigt sie also unverzerrt. Dass die Auswahlfläche dabei größer sein kann als das
+        // Sichtbare, entspricht dem Trägerbogen einer Klebefolie.
+        const quadratisch = istWandtattoo(wandZeichnenDrag.material)
+        let breite = Math.abs(uKlamm - startU)
+        let hoehe = Math.abs(vKlamm - startV)
+        if (quadratisch) {
+          // Die längere gezogene Seite gewinnt — und wird auf den Platz begrenzt, der in
+          // Zugrichtung auf BEIDEN Achsen noch bis zum Wandrand da ist. Ohne diese Grenze könnte
+          // die kürzere Achse die längere über die Wand hinausziehen; bisher verhinderte das
+          // allein das Klemmen des Zeigers, was jetzt nicht mehr reicht.
+          const platzU = uKlamm >= startU ? segment.laenge - startU : startU
+          const platzV = vKlamm >= startV ? wandHoehe - startV : startV
+          const seite = Math.min(Math.max(breite, hoehe), platzU, platzV)
+          breite = seite
+          hoehe = seite
+        }
+        // Aus Zugrichtung und Seitenlänge statt Math.min(start, zeiger): Sobald die Seitenlänge von
+        // der Zeigerposition abweicht (siehe oben), würde Math.min die eigentlich feste Anfangsecke
+        // mitwandern lassen.
+        const u0 = uKlamm >= startU ? startU : startU - breite
+        const v0 = vKlamm >= startV ? startV : startV - hoehe
         wandZeichnenDrag.aktuellU = u0
         wandZeichnenDrag.aktuellV = v0
         wandZeichnenDrag.aktuellBreite = breite
