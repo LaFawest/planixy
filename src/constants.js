@@ -146,8 +146,14 @@ export const bodenBelaege = [
   { name: 'Kork',     klasse: 'boden-kork',      icon: '🌰' },
   { name: 'Schiefer', klasse: 'boden-schiefer',  icon: '🌑' },
 ]
+// Die drei Raufaser-Körnungen stehen bewusst direkt hinter dem Putz: Beides sind Oberflächen, die
+// überstrichen werden, bei denen die Wandfarbe also der eigentliche Gestaltungsschritt ist. Die
+// Symbole ░ ▒ ▓ sind keine Emojis, sondern Blockzeichen — sie zeigen die Körnung unmittelbar an.
 export const wandMaterialien = [
-  { name: 'Putz',           klasse: 'wand-putz',            icon: '⬜' },
+  { name: 'Putz',            klasse: 'wand-putz',            icon: '⬜' },
+  { name: 'Raufaser fein',   klasse: 'wand-raufaser-fein',   icon: '░' },
+  { name: 'Raufaser mittel', klasse: 'wand-raufaser-mittel', icon: '▒' },
+  { name: 'Raufaser grob',   klasse: 'wand-raufaser-grob',   icon: '▓' },
   { name: 'Blumentapete',   klasse: 'wand-tapete-blumen',   icon: '🌸' },
   { name: 'Streifentapete', klasse: 'wand-tapete-streifen', icon: '〰️' },
   { name: 'Holzpaneele',    klasse: 'wand-holzpaneele',     icon: '🪵' },

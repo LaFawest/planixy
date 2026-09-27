@@ -95,13 +95,20 @@ export default function FensterTuerenSchritt() {
 
       <div>
         <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.06em' }}>WANDMATERIAL</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+        {/* minmax(0, 1fr) statt 1fr: Die Kurzform 1fr bedeutet minmax(auto, 1fr), und dieses auto
+            heißt "mindestens so breit wie der längste unteilbare Inhalt". Lange Bezeichnungen wie
+            "Raufaser mittel" haben das Raster dadurch über die Panelbreite hinausgedrückt. Die 0
+            als Mindestbreite erlaubt den Spalten überhaupt erst zu schrumpfen — zusammen mit der
+            Umbruchregel an der Beschriftung weiter unten, ohne die der Text nur abgeschnitten
+            würde statt umzubrechen. */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px' }}>
           {wandMaterialien.map(material => (
             <div key={material.name} onClick={() => setWandmaterialFuer(material.klasse)} style={{
               padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s',
               border: `${aktuellesWandmaterial === material.klasse ? '2px' : '1px'} solid ${aktuellesWandmaterial === material.klasse ? '#185FA5' : '#E8E6E0'}`,
               background: aktuellesWandmaterial === material.klasse ? '#EEF4FC' : '#FAFAF8',
               fontSize: '10px', color: aktuellesWandmaterial === material.klasse ? '#185FA5' : '#444441',
+              overflowWrap: 'anywhere', lineHeight: 1.25,
             }}>
               <div style={{ fontSize: '18px', marginBottom: '4px' }}>{material.icon}</div>
               {material.name}
@@ -112,7 +119,10 @@ export default function FensterTuerenSchritt() {
 
       <div>
         <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.06em' }}>WANDFARBE</p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+        {/* Dieselbe Falle wie beim Materialraster darüber: "Terrakotta" und "Dunkelgrün" standen
+            schon vorher am Rand. Gleich mitbehoben, sonst fällt es beim nächsten langen Farbnamen
+            wieder auf. */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px' }}>
           {wandFarben.map(wand => (
             <div key={wand.name} onClick={() => setWandfarbeFuer(wand.farbe)} style={{
               padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s',
@@ -120,7 +130,7 @@ export default function FensterTuerenSchritt() {
               background: aktuelleWandfarbe === wand.farbe ? '#EEF4FC' : '#FAFAF8',
             }}>
               <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: wand.farbe, margin: '0 auto 4px', border: '1px solid #E8E6E0' }}></div>
-              <div style={{ fontSize: '10px', color: aktuelleWandfarbe === wand.farbe ? '#185FA5' : '#444441', fontWeight: aktuelleWandfarbe === wand.farbe ? '500' : '400' }}>{wand.name}</div>
+              <div style={{ fontSize: '10px', color: aktuelleWandfarbe === wand.farbe ? '#185FA5' : '#444441', fontWeight: aktuelleWandfarbe === wand.farbe ? '500' : '400', overflowWrap: 'anywhere', lineHeight: 1.25 }}>{wand.name}</div>
             </div>
           ))}
 

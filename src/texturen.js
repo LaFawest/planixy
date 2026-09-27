@@ -320,6 +320,62 @@ export function erzeugeAkustikpaneeleTextur() {
   return texture
 }
 
+// Raufaser: die häufigste Wandoberfläche in deutschen Wohnungen und in jedem Baumarkt
+// Standardware. Technisch ist sie der Glücksfall dieses Systems — Raufaser wird überstrichen, die
+// Wandfarbe als Tönung über die Struktur zu legen ist hier also nicht nur erlaubt, sondern genau
+// richtig. Deshalb bleibt der gezeichnete Grund fast weiß: Nur so ergibt color × map in
+// RoomView3D.jsx am Ende wirklich den gewählten Ton und nicht eine schmutzige Mischung.
+//
+// Drei Körnungen wie im Handel. Der Unterschied steckt allein in Größe und Dichte der Holzspäne —
+// gröbere Späne sind größer und liegen weiter auseinander.
+const RAUFASER_KOERNUNGEN = {
+  fein:   { spanMin: 1.6, spanMax: 3.0, anzahl: 2800 },
+  mittel: { spanMin: 2.6, spanMax: 5.0, anzahl: 1900 },
+  grob:   { spanMin: 4.0, spanMax: 8.0, anzahl: 1300 },
+}
+
+const raufaserCache = {}
+
+export function erzeugeRaufaserTextur(koernung) {
+  if (raufaserCache[koernung]) return raufaserCache[koernung]
+  const { spanMin, spanMax, anzahl } = RAUFASER_KOERNUNGEN[koernung] || RAUFASER_KOERNUNGEN.mittel
+  const groesse = 512
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = groesse
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = '#FBFAF8'
+  ctx.fillRect(0, 0, groesse, groesse)
+  for (let i = 0; i < anzahl; i++) {
+    const laenge = spanMin + Math.random() * (spanMax - spanMin)
+    const dicke = Math.max(0.8, laenge * 0.35)
+    const x = Math.random() * groesse
+    const y = Math.random() * groesse
+    const winkel = Math.random() * Math.PI
+    // Mal heller, mal dunkler als der Grund: Ein Span wirft einen Schatten und fängt zugleich
+    // Licht. Nur dunkle Striche sähen aus wie Schmutz statt wie Struktur.
+    const heller = Math.random() < 0.45
+    ctx.fillStyle = heller
+      ? `rgba(255,255,255,${(0.5 + Math.random() * 0.4).toFixed(2)})`
+      : `rgba(150,142,130,${(0.12 + Math.random() * 0.18).toFixed(2)})`
+    ctx.save()
+    ctx.translate(x, y)
+    ctx.rotate(winkel)
+    ctx.beginPath()
+    ctx.ellipse(0, 0, laenge / 2, dicke / 2, 0, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
+  }
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+  // Nur ein Notnagel für einen direkten Aufruf — die tatsächliche Wiederholung rechnet
+  // erzeugeWandTexturFuerFlaeche aus der Kachelgröße weiter unten aus.
+  texture.repeat.set(6, 3)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.userData.persistenteTextur = true
+  raufaserCache[koernung] = texture
+  return texture
+}
+
 // Liefert die Textur für das gewählte Wandmaterial (siehe wandMaterialien in constants.js).
 // Unbekannter/fehlender Typ (auch alte Räume ohne room.wandmaterial) fällt auf den bisherigen
 // Putz zurück — kein Breaking Change für bestehende Räume.
@@ -328,6 +384,9 @@ export function erzeugeWandTextur(wandTyp) {
   if (wandTyp === 'wand-tapete-streifen') return erzeugeStreifenTapete()
   if (wandTyp === 'wand-holzpaneele') return erzeugeHolzpaneeleTextur()
   if (wandTyp === 'wand-akustikpaneele') return erzeugeAkustikpaneeleTextur()
+  if (wandTyp === 'wand-raufaser-fein') return erzeugeRaufaserTextur('fein')
+  if (wandTyp === 'wand-raufaser-mittel') return erzeugeRaufaserTextur('mittel')
+  if (wandTyp === 'wand-raufaser-grob') return erzeugeRaufaserTextur('grob')
   return erzeugeWandputzTextur()
 }
 
@@ -337,19 +396,36 @@ export function erzeugeWandTextur(wandTyp) {
 // breite Lamellen, auf einer kurzen schmale. Mit einer realen Kachelgröße lässt sich die
 // Wiederholung stattdessen pro Fläche ausrechnen (siehe erzeugeWandTexturFuerFlaeche unten), das
 // Muster ist dann überall gleich groß.
-// breite/hoehe beziehen sich auf EINE Kachel des jeweiligen Musters:
-//   Akustikpaneele  0,60 m = 12 Lamellen à 5 cm (mit Hassan abgestimmt)
-//   Holzpaneele     0,80 m = 4 Paneele à 20 cm
-//   Streifentapete  0,80 m = 8 Streifen à 10 cm
-//   Blumentapete    0,96 m = 8 Blüten à 12 cm
+// breite/hoehe beziehen sich auf EINE Kachel des jeweiligen Musters. Die Werte sind seit
+// Wandmaterial v2 an dem ausgerichtet, was tatsächlich im Baumarkt liegt — vorher waren sie
+// geschätzt und entsprechend daneben:
+//   Akustikpaneele  0,60 m = 12 Lamellen à 5 cm (mit Hassan abgestimmt, gröber als echte
+//                   Paneele, aber bewusst so). Höhe 2,40 m, weil ein echtes Paneel so hoch ist:
+//                   Bei üblicher Raumhöhe liegt die Wiederholung damit praktisch außerhalb der
+//                   Wand, statt wie bei den früheren 1,60 m eine Fuge vorzutäuschen, die es nicht
+//                   gibt.
+//   Holzpaneele     0,384 m = 4 Bretter à 9,6 cm. 9,6 cm ist die Standard-Deckbreite von
+//                   Profilholz im Handel. Vorher standen hier 20 cm je Brett — damit sah man
+//                   keine Bretter, sondern breite Felder.
+//   Streifentapete  0,53 m = 8 Streifen à 6,6 cm
+//   Blumentapete    0,53 m = 8 Blüten à 6,6 cm
+//   Raufaser        0,40 m je Kachel, in allen drei Körnungen gleich — die Spangröße steckt im
+//                   gezeichneten Bild, nicht im Maßstab.
+// 0,53 m ist bei beiden Tapeten kein Zufall: So breit ist eine Tapetenbahn, und weil das Muster
+// an der Bahnkante aufgehen muss, ist der Rapport genau diese Breite (oder die Hälfte davon).
+//
 // Der Wandputz steht bewusst NICHT in dieser Liste: feine Foto-Struktur ohne erkennbares Muster,
 // dort fällt der Maßstab nicht auf — und er würde als Foto-Textur pro Wand erneut auf die
-// Grafikkarte geladen. Materialien ohne Eintrag verhalten sich unverändert wie bisher.
+// Grafikkarte geladen. Die Raufaser dagegen zeichnen wir selbst, sie kann deshalb gefahrlos pro
+// Fläche geklont werden und bekommt dadurch auf jeder Wand dieselbe Spangröße.
 export const WAND_MUSTER_GROESSE = {
-  'wand-akustikpaneele': { breite: 0.60, hoehe: 1.60 },
-  'wand-holzpaneele':    { breite: 0.80, hoehe: 0.80 },
-  'wand-tapete-streifen':{ breite: 0.80, hoehe: 0.80 },
-  'wand-tapete-blumen':  { breite: 0.96, hoehe: 0.96 },
+  'wand-akustikpaneele':  { breite: 0.60,  hoehe: 2.40 },
+  'wand-holzpaneele':     { breite: 0.384, hoehe: 0.384 },
+  'wand-tapete-streifen': { breite: 0.53,  hoehe: 0.53 },
+  'wand-tapete-blumen':   { breite: 0.53,  hoehe: 0.53 },
+  'wand-raufaser-fein':   { breite: 0.40,  hoehe: 0.40 },
+  'wand-raufaser-mittel': { breite: 0.40,  hoehe: 0.40 },
+  'wand-raufaser-grob':   { breite: 0.40,  hoehe: 0.40 },
 }
 
 // Liefert die Textur für eine konkrete Wandfläche: gleiche Musterkachel wie erzeugeWandTextur(),
