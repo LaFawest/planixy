@@ -180,19 +180,32 @@ export const wandMaterialien = [
   { name: 'Raufaser mittel', klasse: 'wand-raufaser-mittel', icon: '▒', gestrichen: true },
   { name: 'Raufaser grob',   klasse: 'wand-raufaser-grob',   icon: '▓', gestrichen: true },
   {
-    name: 'Mustertapete', klasse: 'wand-tapete-blumen', icon: '🌸',
-    gestrichen: false, grundfarbe: '#F2ECDE',
-    // Die beiden Klassennamen bleiben absichtlich unverändert: Gespeicherte Räume tragen genau
-    // diese Werte, und so öffnen sie ohne Migration weiter richtig. In Schritt 3 kommen acht
-    // weitere Muster dazu.
+    // Symbol statt 🌸: Mit zehn Mustern, von denen drei floral sind, führte eine Blüte in die
+    // Irre. Das Blockzeichen passt zu ░ ▒ ▓ bei der Raufaser und behauptet nichts.
+    //
+    // klasse ist die Ausführung, die ein Klick auf die Kachel auswählt — jetzt die erste der
+    // Liste, wie es die Regel sagt. In Schritt 3b stand hier noch das Blumenmotiv.
+    name: 'Mustertapete', klasse: 'wand-tapete-streifen', icon: '▦',
+    gestrichen: false, grundfarbe: '#E6DDCD',
+    // wand-tapete-blumen und wand-tapete-streifen stammen aus der Zeit vor Wandmaterial v2 und
+    // bleiben absichtlich unverändert: Gespeicherte Räume tragen genau diese Werte, und so öffnen
+    // sie ohne Migration weiter richtig.
+    //
     // grundfarbe ist der Durchschnittston des Musters, nur für den 2D-Grundriss. Aus den
     // gezeichneten Farben ausgerechnet, nicht geschätzt: Papiergrund und Musteranteil gemischt.
+    // Sortiert nach Familie, nicht nach Entstehung: erst die Streifen, dann die grafischen,
+    // dann die floralen, dann die Steinoptik. Wer stöbert, findet so Verwandtes beieinander.
     ausfuehrungen: [
       { name: 'Streifen schmal', klasse: 'wand-tapete-streifen',       grundfarbe: '#E6DDCD' },
       { name: 'Blockstreifen',   klasse: 'wand-tapete-streifen-breit', grundfarbe: '#DBDCCE' },
-      { name: 'Kreise',          klasse: 'wand-tapete-kreise',         grundfarbe: '#EFE7D9' },
       { name: 'Rauten',          klasse: 'wand-tapete-rauten',         grundfarbe: '#EFEADD' },
+      { name: 'Kreise',          klasse: 'wand-tapete-kreise',         grundfarbe: '#EFE7D9' },
       { name: 'Blumenmotiv',     klasse: 'wand-tapete-blumen',         grundfarbe: '#F0E5D8' },
+      { name: 'Aquarell',        klasse: 'wand-tapete-aquarell',       grundfarbe: '#E8E9DC' },
+      { name: 'Dschungel',       klasse: 'wand-tapete-dschungel',      grundfarbe: '#AFBCA2' },
+      { name: 'Betonoptik',      klasse: 'wand-tapete-beton',          grundfarbe: '#CFCBC4' },
+      { name: 'Ziegelmauer',     klasse: 'wand-tapete-ziegel',         grundfarbe: '#A96450' },
+      { name: 'Terrazzo',        klasse: 'wand-tapete-terrazzo',       grundfarbe: '#D8D2C8' },
     ],
   },
   { name: 'Holzpaneele',    klasse: 'wand-holzpaneele',     icon: '🪵', gestrichen: false, grundfarbe: '#B8956A' },

@@ -201,6 +201,18 @@ function zeichnePapiergrund(ctx, groesse, farbe, zufall) {
 // weiterläuft. Ohne das zeigt jede gekachelte Wand ein Gitter aus Kanten, weil an jeder Naht
 // halbe Blüten abgeschnitten sind. Bis zu neun Aufrufe je Element — die acht Nachbarpositionen
 // plus die eigene —, alles außerhalb wird sofort verworfen.
+//
+// ACHTUNG beim Schreiben neuer Muster: In `malen` darf NICHT gewürfelt werden. Die Funktion
+// läuft für dasselbe Element mehrfach, und jeder Aufruf bekäme andere Zufallswerte — dasselbe
+// Blatt hätte links der Naht eine andere Form als rechts, derselbe Ziegel eine andere Farbe.
+// Alles Zufällige vorher ausrechnen und als fertigen Wert in `malen` hineinreichen (siehe
+// `radien` bei zeichneTerrazzo und `lagen` bei zeichneAquarellBlaetter). Der Fehler fällt
+// nicht beim Zeichnen auf, sondern erst als Naht auf einer langen Wand.
+//
+// Dieselbe Regel gilt für jedes Muster, das die Kachelgrenze auf eigene Faust überbrückt, auch
+// ohne diese Funktion: zeichneZiegel setzt die Randsteine mit einer eigenen Schleife von -1 bis
+// spalten fort, und derselbe Stein kommt darin zweimal vor. Deshalb liegen Farbe und Sprenkel
+// dort je Spalte vorab in `steine`.
 function gekachelt(groesse, x, y, radius, malen) {
   for (const dx of [-groesse, 0, groesse]) {
     for (const dy of [-groesse, 0, groesse]) {
@@ -361,6 +373,216 @@ function zeichneBlumen(ctx, g) {
   }
 }
 
+// 6. Aquarell-Blätter — weiche, lasierte Blattformen wie bei den Aquarell-Tapeten im Handel.
+// Jedes Blatt besteht aus fünf übereinanderliegenden, sehr durchsichtigen Ellipsen mit leichtem
+// Versatz; erst die Überlagerung ergibt den wolkigen Rand, den eine einzelne Ellipse nie hätte.
+// Fünf Farbtöne statt einem: Aquarell lebt davon, dass kein Blatt aussieht wie das nächste.
+function zeichneAquarellBlaetter(ctx, g) {
+  const z = zufallsfolge(66066)
+  zeichnePapiergrund(ctx, g, TAPETEN_PAPIER, z)
+  const raster = 2, zelle = g / raster
+  const toene = ['rgba(122,152,118,0.13)', 'rgba(150,172,132,0.12)', 'rgba(104,138,126,0.12)',
+                 'rgba(168,150,110,0.11)', 'rgba(96,126,140,0.11)']
+  for (let y = 0; y < raster * 2; y++) {
+    for (let x = 0; x < raster; x++) {
+      const versatz = (y % 2) * (zelle / 2)
+      const cx = x * zelle + versatz + zelle / 2 + (z() - 0.5) * 30
+      const cy = y * (zelle / 2) + zelle / 4 + (z() - 0.5) * 20
+      const laenge = zelle * (0.34 + z() * 0.20)
+      const drehung = z() * Math.PI * 2
+      const ton = toene[Math.floor(z() * toene.length)]
+      // Versatz der fünf Lagen vorher auswürfeln, nicht erst beim Zeichnen — dieselbe Regel wie
+      // bei den Eckradien des Terrazzo: gekachelt() malt das Blatt bis zu neunmal, und jede Kopie
+      // muss exakt gleich aussehen, sonst passt an der Kachelgrenze links nicht zu rechts.
+      const lagen = []
+      for (let lage = 0; lage < 5; lage++) {
+        lagen.push([(z() - 0.5) * laenge * 0.34, (z() - 0.5) * laenge * 0.34])
+      }
+      gekachelt(g, cx, cy, laenge * 1.6, (px, py) => {
+        ctx.fillStyle = ton
+        for (const [dx, dy] of lagen) {
+          const vx = px + dx
+          const vy = py + dy
+          ctx.beginPath()
+          ctx.ellipse(vx, vy, laenge, laenge * 0.40, drehung, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        ctx.strokeStyle = 'rgba(88,118,86,0.22)'
+        ctx.lineWidth = 1.4
+        ctx.beginPath()
+        ctx.moveTo(px - Math.cos(drehung) * laenge * 0.9, py - Math.sin(drehung) * laenge * 0.9)
+        ctx.lineTo(px + Math.cos(drehung) * laenge * 0.9, py + Math.sin(drehung) * laenge * 0.9)
+        ctx.stroke()
+      })
+    }
+  }
+}
+
+// 7. Dschungel — große Palmwedel, satte Grüntöne, dicht gestellt. Ein Wedel entsteht aus einem
+// Mittelstiel und elf paarweise ansetzenden Fiedern, die zu den Enden hin kürzer werden.
+function zeichneDschungel(ctx, g) {
+  const z = zufallsfolge(77077)
+  zeichnePapiergrund(ctx, g, '#EFE9DC', z)
+  const raster = 2, zelle = g / raster
+  const toene = ['rgba(62,104,66,0.82)', 'rgba(94,134,78,0.78)', 'rgba(44,84,68,0.80)']
+  for (let y = 0; y < raster * 2; y++) {
+    for (let x = 0; x < raster; x++) {
+      const versatz = (y % 2) * (zelle / 2)
+      const cx = x * zelle + versatz + zelle / 2 + (z() - 0.5) * 40
+      const cy = y * (zelle / 2) + zelle / 4 + (z() - 0.5) * 30
+      const laenge = zelle * (0.56 + z() * 0.18)
+      const drehung = z() * Math.PI * 2
+      const ton = toene[Math.floor(z() * toene.length)]
+      gekachelt(g, cx, cy, laenge * 1.3, (px, py) => {
+        const ax = Math.cos(drehung), ay = Math.sin(drehung)
+        ctx.strokeStyle = ton
+        ctx.lineWidth = 3
+        ctx.beginPath()
+        ctx.moveTo(px - ax * laenge, py - ay * laenge)
+        ctx.lineTo(px + ax * laenge, py + ay * laenge)
+        ctx.stroke()
+        ctx.fillStyle = ton
+        const fiedern = 11
+        for (let i = 0; i < fiedern; i++) {
+          const t = -0.85 + (i / (fiedern - 1)) * 1.7
+          const bx = px + ax * laenge * t
+          const by = py + ay * laenge * t
+          const spanne = laenge * 0.46 * (1 - Math.abs(t) * 0.55)
+          for (const seite of [-1, 1]) {
+            const winkel = drehung + seite * 1.05
+            ctx.beginPath()
+            ctx.ellipse(bx + Math.cos(winkel) * spanne * 0.5,
+                        by + Math.sin(winkel) * spanne * 0.5,
+                        spanne * 0.5, spanne * 0.16, winkel, 0, Math.PI * 2)
+            ctx.fill()
+          }
+        }
+      })
+    }
+  }
+}
+
+// 8. Betonoptik — grauer Grund mit feiner Wolkigkeit und Poren, ohne erkennbares Motiv.
+//
+// Bewusst kleinteilig, und das ist der Kern dieses Musters: Eine Fläche ohne Motiv verrät ihre
+// Wiederholung am stärksten. Sobald etwas Großes darin vorkommt, sieht man auf der Wand alle
+// 53 cm dasselbe Gebilde. Eine Zwischenfassung mit großflächiger Helligkeitsschwankung sah in
+// der Kachel besser aus und auf einer vier Meter langen Wand deutlich schlechter — die Wolken
+// haben das Kachelraster sichtbar gemacht. Deshalb hier nur viele kleine Flecken, dazu dichte
+// Körnung und ein paar helle Striche.
+//
+// Die Flecken sind Farbverläufe, keine Kreise: Ein Betonfleck hat keinen Rand.
+function zeichneBeton(ctx, g) {
+  const z = zufallsfolge(88088)
+  ctx.fillStyle = '#CFCBC4'
+  ctx.fillRect(0, 0, g, g)
+  for (let i = 0; i < 260; i++) {
+    const cx = z() * g, cy = z() * g
+    const radius = g * (0.02 + z() * 0.07)
+    const dunkel = z() > 0.5
+    gekachelt(g, cx, cy, radius, (px, py) => {
+      const verlauf = ctx.createRadialGradient(px, py, 0, px, py, radius)
+      verlauf.addColorStop(0, dunkel ? 'rgba(120,116,110,0.13)' : 'rgba(234,231,225,0.15)')
+      verlauf.addColorStop(1, 'rgba(207,203,196,0)')
+      ctx.fillStyle = verlauf
+      ctx.beginPath()
+      ctx.arc(px, py, radius, 0, Math.PI * 2)
+      ctx.fill()
+    })
+  }
+  for (let i = 0; i < 9000; i++) {
+    ctx.fillStyle = `rgba(70,68,64,${(0.03 + z() * 0.09).toFixed(3)})`
+    ctx.fillRect(z() * g, z() * g, 1.4, 1.4)
+  }
+  for (let i = 0; i < 600; i++) {
+    ctx.fillStyle = `rgba(248,246,242,${(0.05 + z() * 0.10).toFixed(3)})`
+    ctx.fillRect(z() * g, z() * g, 2.2, 1.2)
+  }
+}
+
+// 9. Ziegelmauer — Läuferverband. 2 Steine je Bahnbreite und 6 Schichten je Kachel ergeben
+// 24,5 cm Breite und 7,8 cm Höhe je Stein plus 1 cm Fuge — nah am Normalformat aus dem
+// Baustoffhandel. Die Schichtzahl muss gerade sein, sonst geht der halbe Versatz an der
+// Kachelgrenze nicht auf und die Mauer bekäme dort eine durchgehende senkrechte Fuge.
+//
+// Nicht zu verwechseln mit erzeugeBacksteinTextur weiter unten: Das ist die Einfassung des
+// Rundbogen-Durchgangs, also echtes Mauerwerk. Hier geht es um Steinoptik-Tapete.
+//
+// Die Schleife läuft von -1 bis spalten, damit der versetzte Stein am linken Rand nicht fehlt.
+// Dabei ist in den versetzten Schichten derselbe Stein zweimal angeschnitten zu sehen: sein
+// rechtes Stück am rechten Rand (i = 1) und sein linkes Stück am linken Rand (i = -1). Beide
+// müssen denselben Ton und dieselben Poren haben, sonst wechselt der Stein an der Kachelgrenze
+// mitten im Stein die Farbe — alle 53 cm eine sichtbare Naht. Deshalb wird je Schicht einmal
+// pro Spalte gewürfelt, und i wird beim Zeichnen auf seine Spalte zurückgerechnet.
+function zeichneZiegel(ctx, g) {
+  const z = zufallsfolge(99099)
+  ctx.fillStyle = '#B9AFA4'
+  ctx.fillRect(0, 0, g, g)
+  const spalten = 2, schichten = 6
+  const breite = g / spalten, hoehe = g / schichten
+  const fuge = g * (0.01 / 0.53)
+  const toene = [[176, 96, 74], [158, 84, 66], [190, 112, 86], [166, 92, 78], [148, 78, 62]]
+  for (let s = 0; s < schichten; s++) {
+    const versatz = (s % 2) * (breite / 2)
+    const steine = []
+    for (let i = 0; i < spalten; i++) {
+      const [r, gr, b] = toene[Math.floor(z() * toene.length)]
+      const abweichung = Math.floor((z() - 0.5) * 16)
+      const poren = []
+      for (let p = 0; p < 26; p++) poren.push([z(), z(), (0.03 + z() * 0.07).toFixed(3)])
+      steine.push({ farbe: `rgb(${r + abweichung},${gr + abweichung},${b + abweichung})`, poren })
+    }
+    for (let i = -1; i <= spalten; i++) {
+      const stein = steine[((i % spalten) + spalten) % spalten]
+      const x = i * breite + versatz
+      const y = s * hoehe
+      ctx.fillStyle = stein.farbe
+      ctx.fillRect(x + fuge / 2, y + fuge / 2, breite - fuge, hoehe - fuge)
+      for (const [px, py, deckkraft] of stein.poren) {
+        ctx.fillStyle = `rgba(60,34,26,${deckkraft})`
+        ctx.fillRect(x + fuge + px * (breite - fuge * 2), y + fuge + py * (hoehe - fuge * 2), 2, 2)
+      }
+    }
+  }
+}
+
+// 10. Terrazzo — Splitter in sechs Farben auf hellem Grund. Unregelmäßige Vielecke mit
+// schwankenden Eckradien, keine Kreise: runde Flecken sähen nach Konfetti aus, Terrazzo besteht
+// aus gebrochenem Stein.
+function zeichneTerrazzo(ctx, g) {
+  const z = zufallsfolge(10110)
+  ctx.fillStyle = '#EFEBE3'
+  ctx.fillRect(0, 0, g, g)
+  const toene = [
+    'rgba(180,104,86,0.70)', 'rgba(96,120,102,0.70)', 'rgba(70,70,68,0.62)',
+    'rgba(206,186,140,0.70)', 'rgba(150,150,146,0.60)', 'rgba(122,138,158,0.60)',
+  ]
+  for (let i = 0; i < 300; i++) {
+    const cx = z() * g, cy = z() * g
+    const groesse = g * (0.018 + z() * 0.040)
+    const ecken = 5 + Math.floor(z() * 3)
+    const drehung = z() * Math.PI * 2
+    const ton = toene[Math.floor(z() * toene.length)]
+    // Die Eckradien vorher ausrechnen, nicht erst beim Zeichnen: gekachelt() malt denselben
+    // Splitter bis zu neunmal, und mit Zufallswerten im Zeichnen sähe jede Kopie anders aus —
+    // an der Kachelgrenze wäre dann links ein anderer Stein als rechts.
+    const radien = []
+    for (let e = 0; e < ecken; e++) radien.push(groesse * (0.6 + z() * 0.7))
+    gekachelt(g, cx, cy, groesse * 1.5, (px, py) => {
+      ctx.fillStyle = ton
+      ctx.beginPath()
+      for (let e = 0; e < ecken; e++) {
+        const winkel = drehung + (e / ecken) * Math.PI * 2
+        const rx = px + Math.cos(winkel) * radien[e]
+        const ry = py + Math.sin(winkel) * radien[e]
+        if (e === 0) ctx.moveTo(rx, ry); else ctx.lineTo(rx, ry)
+      }
+      ctx.closePath()
+      ctx.fill()
+    })
+  }
+}
+
 // Zeichner-Tabelle statt zehn fast gleicher Funktionen mit je eigenem Cache — dasselbe Muster wie
 // bei erzeugeRaufaserTextur(koernung) weiter unten.
 const TAPETEN_ZEICHNER = {
@@ -369,6 +591,11 @@ const TAPETEN_ZEICHNER = {
   'kreise':          zeichneKreise,
   'rauten':          zeichneRauten,
   'blumen':          zeichneBlumen,
+  'aquarell':        zeichneAquarellBlaetter,
+  'dschungel':       zeichneDschungel,
+  'beton':           zeichneBeton,
+  'ziegel':          zeichneZiegel,
+  'terrazzo':        zeichneTerrazzo,
 }
 
 // Cache je Muster, wie bei allen anderen Texturen hier: beim ersten Aufruf gezeichnet, danach
@@ -545,6 +772,11 @@ export function erzeugeWandTextur(wandTyp) {
   if (wandTyp === 'wand-tapete-streifen-breit') return erzeugeTapete('streifen-block')
   if (wandTyp === 'wand-tapete-kreise') return erzeugeTapete('kreise')
   if (wandTyp === 'wand-tapete-rauten') return erzeugeTapete('rauten')
+  if (wandTyp === 'wand-tapete-aquarell') return erzeugeTapete('aquarell')
+  if (wandTyp === 'wand-tapete-dschungel') return erzeugeTapete('dschungel')
+  if (wandTyp === 'wand-tapete-beton') return erzeugeTapete('beton')
+  if (wandTyp === 'wand-tapete-ziegel') return erzeugeTapete('ziegel')
+  if (wandTyp === 'wand-tapete-terrazzo') return erzeugeTapete('terrazzo')
   if (wandTyp === 'wand-holzpaneele') return erzeugeHolzpaneeleTextur()
   if (wandTyp === 'wand-akustikpaneele') return erzeugeAkustikpaneeleTextur()
   if (wandTyp === 'wand-raufaser-fein') return erzeugeRaufaserTextur('fein')
@@ -589,6 +821,11 @@ export const WAND_MUSTER_GROESSE = {
   'wand-tapete-kreise':         { breite: 0.53,  hoehe: 0.53 },
   'wand-tapete-rauten':         { breite: 0.53,  hoehe: 0.53 },
   'wand-tapete-blumen':         { breite: 0.53,  hoehe: 0.53 },
+  'wand-tapete-aquarell':       { breite: 0.53,  hoehe: 0.53 },
+  'wand-tapete-dschungel':      { breite: 0.53,  hoehe: 0.53 },
+  'wand-tapete-beton':          { breite: 0.53,  hoehe: 0.53 },
+  'wand-tapete-ziegel':         { breite: 0.53,  hoehe: 0.53 },
+  'wand-tapete-terrazzo':       { breite: 0.53,  hoehe: 0.53 },
   'wand-raufaser-fein':   { breite: 0.40,  hoehe: 0.40 },
   'wand-raufaser-mittel': { breite: 0.40,  hoehe: 0.40 },
   'wand-raufaser-grob':   { breite: 0.40,  hoehe: 0.40 },
