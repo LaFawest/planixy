@@ -12,7 +12,7 @@ import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
 import { useUI } from './context/UIContext'
-import { wandMaterialien, istGestrichen, wandMaterialInfo, istDeckenleuchte, istVerschiebbareDeckenleuchte, istEndpunktVerstellbareDeckenleuchte, istEckSkalierbareDeckenleuchte, berechneInnenmasse, bogenMasse } from './constants'
+import { wandMaterialien, istGestrichen, wandMaterialInfo, istWandtattoo, istDeckenleuchte, istVerschiebbareDeckenleuchte, istEndpunktVerstellbareDeckenleuchte, istEckSkalierbareDeckenleuchte, berechneInnenmasse, bogenMasse } from './constants'
 
 export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deckenFokus = false, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt } = {}) {
   const { activeRoom: room } = useRooms()
@@ -694,7 +694,17 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       const segment = wandMeshe[bereich.wandSegment]
       if (!segment) return
       const geo = new THREE.PlaneGeometry(bereich.breite, bereich.hoehe)
-      const mat = new THREE.MeshStandardMaterial({ map: wandTexturFuer(bereich.material, bereich.breite, bereich.hoehe), roughness: 0.9, metalness: 0.0 })
+      // Ein Wandtattoo ist ein Motiv auf leerem Grund, kein gefülltes Material: transparent
+      // lässt die Wand ringsum durchscheinen. alphaTest verwirft zusätzlich die fast leeren
+      // Pixel ganz — ohne das läge über der ganzen Fläche ein matter Hof, weil sie als Ganzes
+      // gemischt würde statt nur an den Rändern des Motivs.
+      const istTattoo = istWandtattoo(bereich.material)
+      const mat = new THREE.MeshStandardMaterial({
+        map: wandTexturFuer(bereich.material, bereich.breite, bereich.hoehe),
+        roughness: 0.9, metalness: 0.0,
+        transparent: istTattoo,
+        alphaTest: istTattoo ? 0.05 : 0,
+      })
       const mesh = new THREE.Mesh(geo, mat)
       const t = (bereich.u + bereich.breite / 2) / (segment.laenge || 1)
       mesh.position.set(
@@ -2263,10 +2273,14 @@ return () => {
                         background: zeichenModusMaterial === ausfuehrung.klasse ? '#EEF4FC' : 'transparent',
                         color: zeichenModusMaterial === ausfuehrung.klasse ? '#185FA5' : '#444441',
                       }}>
-                        <span style={{
-                          width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0,
-                          background: ausfuehrung.grundfarbe || '#FFFFFF', border: '1px solid #E8E6E0',
-                        }}></span>
+                        {ausfuehrung.icon ? (
+                          <span style={{ fontSize: '14px', width: '16px', flexShrink: 0, textAlign: 'center' }}>{ausfuehrung.icon}</span>
+                        ) : (
+                          <span style={{
+                            width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0,
+                            background: ausfuehrung.grundfarbe || '#FFFFFF', border: '1px solid #E8E6E0',
+                          }}></span>
+                        )}
                         {ausfuehrung.name}
                       </div>
                     ))}

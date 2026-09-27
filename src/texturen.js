@@ -847,6 +847,68 @@ export function erzeugeRaufaserTextur(koernung) {
   return texture
 }
 
+// ---------------------------------------------------------------------------
+// Wandtattoos (Wandmaterial v2, Schritt 5)
+//
+// Anders als alle Materialien darüber: ein einzelnes Motiv auf leerem Grund, kein gekacheltes
+// Muster. Der Grund bleibt durchsichtig, damit die Wand ringsum sichtbar bleibt; das Material
+// des Wandbereichs setzt dafür transparent (siehe wandBereiche in RoomView3D.jsx).
+//
+// Einfarbig anthrazit, so wie geplottete Klebefolie aussieht. Eine Farbwahl je Tattoo braucht
+// ein eigenes Feld am Wandbereich und ist deshalb ein eigener Schritt.
+//
+// Die Tattoo-Klassen stehen bewusst NICHT in WAND_MUSTER_GROESSE: Dadurch gibt
+// erzeugeWandTexturFuerFlaeche die Grundtextur unverändert zurück, und die wiederholt sich
+// genau einmal über die Fläche. Ein Tattoo, das sich kachelt, wäre eine Tapete.
+// ---------------------------------------------------------------------------
+
+const TATTOO_FARBE = '#2E2C28'
+
+// 1. Baum — Stamm mit sich gabelnden Ästen, ohne Blattmasse. Rekursiv: Jeder Ast bringt zwei
+// dünnere hervor, ab der vierten Ebene zusätzlich einen kurzen dritten, damit die Krone nicht
+// zu gleichmäßig wird. Abbruch bei zu dünn oder zu tief, sonst liefe die Rekursion endlos.
+function zeichneTattooBaum(ctx, g) {
+  ctx.fillStyle = TATTOO_FARBE
+  ctx.strokeStyle = TATTOO_FARBE
+  ctx.lineCap = 'round'
+  const ast = (x, y, laenge, winkel, dicke, tiefe) => {
+    if (tiefe === 0 || dicke < 0.9) return
+    const x2 = x + Math.cos(winkel) * laenge
+    const y2 = y + Math.sin(winkel) * laenge
+    ctx.lineWidth = dicke
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x2, y2); ctx.stroke()
+    ast(x2, y2, laenge * 0.74, winkel - 0.42, dicke * 0.68, tiefe - 1)
+    ast(x2, y2, laenge * 0.74, winkel + 0.40, dicke * 0.68, tiefe - 1)
+    if (tiefe > 3) ast(x2, y2, laenge * 0.52, winkel + 0.05, dicke * 0.52, tiefe - 2)
+  }
+  ast(g * 0.5, g * 0.98, g * 0.22, -Math.PI / 2, 24, 6)
+}
+
+const TATTOO_ZEICHNER = {
+  'baum': zeichneTattooBaum,
+}
+
+const tattooCache = {}
+
+export function erzeugeWandtattoo(motiv) {
+  if (tattooCache[motiv]) return tattooCache[motiv]
+  const zeichner = TATTOO_ZEICHNER[motiv] || zeichneTattooBaum
+  const groesse = 512
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = groesse
+  // Kein fillRect: Der Grund bleibt leer und damit durchsichtig. Genau das ist der Unterschied
+  // zu allen Mustern weiter oben, die als Erstes ihren Grund füllen.
+  zeichner(canvas.getContext('2d'), groesse)
+  const texture = new THREE.CanvasTexture(canvas)
+  // ClampToEdge statt Repeat: Das Motiv soll sich an keiner Kante fortsetzen, auch dann nicht,
+  // wenn die Wiederholung durch Rundung minimal über 1 liegt.
+  texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.userData.persistenteTextur = true
+  tattooCache[motiv] = texture
+  return texture
+}
+
 // Liefert die Textur für das gewählte Wandmaterial (siehe wandMaterialien in constants.js).
 // Unbekannter/fehlender Typ (auch alte Räume ohne room.wandmaterial) fällt auf den bisherigen
 // Putz zurück — kein Breaking Change für bestehende Räume.
@@ -865,6 +927,7 @@ export function erzeugeWandTextur(wandTyp) {
   if (wandTyp === 'wand-tapete-terrazzo') return erzeugeTapete('terrazzo')
   // Die beiden namenlosen Klassen sind die aus der Zeit vor Wandmaterial v2 und bleiben, wie sie
   // sind: Gespeicherte Räume tragen sie. Inhaltlich sind es Eiche bzw. Eiche natur.
+  if (wandTyp === 'wand-tattoo-baum') return erzeugeWandtattoo('baum')
   if (wandTyp === 'wand-holzpaneele') return erzeugePaneel('holz', 'eiche')
   if (wandTyp === 'wand-holzpaneele-fichte') return erzeugePaneel('holz', 'fichte')
   if (wandTyp === 'wand-holzpaneele-fichte-weiss') return erzeugePaneel('holz', 'fichte-weiss')

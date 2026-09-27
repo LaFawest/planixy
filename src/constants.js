@@ -232,6 +232,20 @@ export const wandMaterialien = [
       { name: 'Weiß',         klasse: 'wand-akustikpaneele-weiss',     grundfarbe: '#D9D6D1' },
     ],
   },
+  {
+    // tattoo: Ein Wandtattoo ist keine Wandoberfläche, sondern ein Motiv, das an einer Stelle
+    // klebt. Eine ganze Wand darauf zu stellen ergäbe einen über vier Meter gezerrten Baum,
+    // deshalb erscheint diese Kachel nur in der Materialleiste des Paint-Werkzeugs und nicht
+    // im Wandraster der Seitenleiste.
+    //
+    // Die Ausführungen tragen ein icon statt einer grundfarbe: Zehn Motive in derselben
+    // Klebefolienfarbe wären zehn gleiche Punkte, das Symbol sagt mehr.
+    name: 'Wandtattoo', klasse: 'wand-tattoo-baum', icon: '✿',
+    gestrichen: false, grundfarbe: '#2E2C28', tattoo: true,
+    ausfuehrungen: [
+      { name: 'Baum', klasse: 'wand-tattoo-baum', icon: '🌳' },
+    ],
+  },
 ]
 
 // Nachschlagen nach Klasse. Der Rückfall auf den ersten Eintrag (Putz) ist wichtig für
@@ -252,6 +266,13 @@ export function wandMaterialInfo(klasse) {
 // Auswahl" unterscheiden kann.
 export function wandAusfuehrungen(klasse) {
   return wandMaterialInfo(klasse).ausfuehrungen || null
+}
+
+// Ist diese Klasse ein Wandtattoo? Davon hängen zwei Dinge ab: dass das Material des
+// Wandbereichs durchsichtig wird, und dass die Kachel im Wandraster der Seitenleiste nicht
+// auftaucht.
+export function istWandtattoo(klasse) {
+  return wandMaterialInfo(klasse).tattoo === true
 }
 
 // Die Farbe, in der diese Oberfläche im 2D-Grundriss erscheint. Genauer als die Kachel: Zwei

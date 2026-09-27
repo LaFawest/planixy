@@ -132,7 +132,10 @@ export default function FensterTuerenSchritt() {
             Umbruchregel an der Beschriftung weiter unten, ohne die der Text nur abgeschnitten
             würde statt umzubrechen. */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px' }}>
-          {wandMaterialien.map(material => (
+          {/* Ohne die Tattoos: Sie sind keine Wandoberfläche, sondern ein Motiv für eine
+              aufgezogene Fläche, und gehören deshalb nur in die Materialleiste des
+              Paint-Werkzeugs im 3D-Bild. */}
+          {wandMaterialien.filter(material => !material.tattoo).map(material => (
             // aktuelleKachel statt aktuellesWandmaterial: Steht die Wand auf „Streifen", ist die
             // gespeicherte Klasse wand-tapete-streifen, hervorgehoben gehört aber die Kachel
             // Mustertapete. Ein Klick wählt weiterhin material.klasse, also die erste Ausführung.
@@ -229,10 +232,14 @@ export default function FensterTuerenSchritt() {
                   border: `${aktuellesWandmaterial === ausfuehrung.klasse ? '2px' : '1px'} solid ${aktuellesWandmaterial === ausfuehrung.klasse ? '#185FA5' : '#E8E6E0'}`,
                   background: aktuellesWandmaterial === ausfuehrung.klasse ? '#EEF4FC' : '#FAFAF8',
                 }}>
-                  <div style={{
-                    width: '28px', height: '28px', borderRadius: '50%', margin: '0 auto 4px',
-                    background: ausfuehrung.grundfarbe || '#FFFFFF', border: '1px solid #E8E6E0',
-                  }}></div>
+                  {ausfuehrung.icon ? (
+                    <div style={{ fontSize: '18px', marginBottom: '4px' }}>{ausfuehrung.icon}</div>
+                  ) : (
+                    <div style={{
+                      width: '28px', height: '28px', borderRadius: '50%', margin: '0 auto 4px',
+                      background: ausfuehrung.grundfarbe || '#FFFFFF', border: '1px solid #E8E6E0',
+                    }}></div>
+                  )}
                   <div style={{
                     fontSize: '10px',
                     color: aktuellesWandmaterial === ausfuehrung.klasse ? '#185FA5' : '#444441',
