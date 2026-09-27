@@ -1,4 +1,4 @@
-import { wandMaterialien, wandFarben, istGestrichen, wandMaterialInfo, HIMMELSRICHTUNG_NAME } from '../constants'
+import { wandMaterialien, wandFarben, istGestrichen, wandMaterialInfo, wandAusfuehrungen, wandGrundfarbe, HIMMELSRICHTUNG_NAME } from '../constants'
 import { himmelsrichtungAusNormale } from '../raumPolygon'
 import { useDesign } from '../context/DesignContext'
 import { useRaumGeometrie } from '../context/useRaumGeometrie'
@@ -49,6 +49,13 @@ export default function FensterTuerenSchritt() {
   // bewusst so.
   const wandWirdGestrichen = istGestrichen(aktuellesWandmaterial)
 
+  // Die Kachel, zu der das gewählte Material gehört, und ihre Ausführungen. Gespeichert ist die
+  // Ausführung (z.B. wand-tapete-streifen), hervorgehoben werden muss die Kachel
+  // (Mustertapete) — sonst bliebe das Raster ohne Markierung, sobald jemand eine andere
+  // Ausführung als die erste wählt.
+  const aktuelleKachel = wandMaterialInfo(aktuellesWandmaterial)
+  const aktuelleAusfuehrungen = wandAusfuehrungen(aktuellesWandmaterial)
+
   return (
     <>
       {/* Fußleiste */}
@@ -88,7 +95,7 @@ export default function FensterTuerenSchritt() {
               // die Fußleiste nicht ungefragt mitwandern sehen.
               { name: 'Wand',    farbe: wandWirdGestrichen
                 ? (aktuelleWandfarbe || '#FFFFFF')
-                : (wandMaterialInfo(aktuellesWandmaterial).grundfarbe || '#FFFFFF') },
+                : wandGrundfarbe(aktuellesWandmaterial) },
             ].map(f => (
               <div key={f.name} onClick={() => setFussleisteFarbe(f.farbe)} style={{
                 width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer',
@@ -126,11 +133,14 @@ export default function FensterTuerenSchritt() {
             würde statt umzubrechen. */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px' }}>
           {wandMaterialien.map(material => (
+            // aktuelleKachel statt aktuellesWandmaterial: Steht die Wand auf „Streifen", ist die
+            // gespeicherte Klasse wand-tapete-streifen, hervorgehoben gehört aber die Kachel
+            // Mustertapete. Ein Klick wählt weiterhin material.klasse, also die erste Ausführung.
             <div key={material.name} onClick={() => setWandmaterialFuer(material.klasse)} style={{
               padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s',
-              border: `${aktuellesWandmaterial === material.klasse ? '2px' : '1px'} solid ${aktuellesWandmaterial === material.klasse ? '#185FA5' : '#E8E6E0'}`,
-              background: aktuellesWandmaterial === material.klasse ? '#EEF4FC' : '#FAFAF8',
-              fontSize: '10px', color: aktuellesWandmaterial === material.klasse ? '#185FA5' : '#444441',
+              border: `${aktuelleKachel.klasse === material.klasse ? '2px' : '1px'} solid ${aktuelleKachel.klasse === material.klasse ? '#185FA5' : '#E8E6E0'}`,
+              background: aktuelleKachel.klasse === material.klasse ? '#EEF4FC' : '#FAFAF8',
+              fontSize: '10px', color: aktuelleKachel.klasse === material.klasse ? '#185FA5' : '#444441',
               overflowWrap: 'anywhere', lineHeight: 1.25,
             }}>
               <div style={{ fontSize: '18px', marginBottom: '4px' }}>{material.icon}</div>
@@ -206,9 +216,37 @@ export default function FensterTuerenSchritt() {
       ) : (
         <div>
           <p style={{ fontSize: '10px', color: '#B4B2A9', marginBottom: '10px', letterSpacing: '0.06em' }}>AUSFÜHRUNG</p>
-          <p style={{ fontSize: '11px', color: '#888780', lineHeight: 1.45 }}>
-            Diese Oberfläche wird fertig gekauft und nicht gestrichen — die Farbe steckt im Muster selbst.
-          </p>
+          {aktuelleAusfuehrungen ? (
+            // Dasselbe Raster wie bei der Farbpalette darüber, inklusive minmax(0, 1fr) und der
+            // Umbruchregel — die Namen der Muster werden nicht kürzer als „Dunkelgrün".
+            // Der Kreis zeigt die Grundfarbe. Das ist bewusst keine Vorschau des Musters: ein
+            // 28-Pixel-Kreis kann kein Blumenmuster zeigen, und ein unleserliches Miniaturbild
+            // wäre irreführender als ein ehrlicher Farbpunkt.
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px' }}>
+              {aktuelleAusfuehrungen.map(ausfuehrung => (
+                <div key={ausfuehrung.klasse} onClick={() => setWandmaterialFuer(ausfuehrung.klasse)} style={{
+                  padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s',
+                  border: `${aktuellesWandmaterial === ausfuehrung.klasse ? '2px' : '1px'} solid ${aktuellesWandmaterial === ausfuehrung.klasse ? '#185FA5' : '#E8E6E0'}`,
+                  background: aktuellesWandmaterial === ausfuehrung.klasse ? '#EEF4FC' : '#FAFAF8',
+                }}>
+                  <div style={{
+                    width: '28px', height: '28px', borderRadius: '50%', margin: '0 auto 4px',
+                    background: ausfuehrung.grundfarbe || '#FFFFFF', border: '1px solid #E8E6E0',
+                  }}></div>
+                  <div style={{
+                    fontSize: '10px',
+                    color: aktuellesWandmaterial === ausfuehrung.klasse ? '#185FA5' : '#444441',
+                    fontWeight: aktuellesWandmaterial === ausfuehrung.klasse ? '500' : '400',
+                    overflowWrap: 'anywhere', lineHeight: 1.25,
+                  }}>{ausfuehrung.name}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p style={{ fontSize: '11px', color: '#888780', lineHeight: 1.45 }}>
+              Diese Oberfläche wird fertig gekauft und nicht gestrichen — die Farbe steckt im Muster selbst.
+            </p>
+          )}
         </div>
       )}
     </>

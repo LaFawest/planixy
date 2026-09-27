@@ -163,13 +163,33 @@ export const bodenBelaege = [
 // als das 3D-Bild daneben. Die Werte sind aus den Texturen selbst abgelesen
 // (src/texturen.js): der Holzton der Paneele, bei den Akustikpaneelen die Mischung aus
 // Lamelle und dunklem Grund, bei den Tapeten der cremefarbene Papiergrund.
+//
+// ausfuehrungen: Ein Eintrag kann mehrere Ausführungen zusammenfassen. Das Materialraster zeigt
+// dann weiterhin EINE Kachel, die Ausführungen erscheinen darunter im Abschnitt AUSFÜHRUNG.
+// Ohne diese zweite Ebene stünden in Schritt 3 und 4 sechzehn statt acht Kacheln nebeneinander,
+// und sie stünden falsch: „Dschungeltapete" und „Akustikpaneele" sind keine gleichrangigen
+// Entscheidungen. Man wählt erst Tapete, dann ein Muster.
+//
+// Entscheidend ist, was dabei NICHT passiert: Gespeichert wird weiterhin genau eine
+// Materialklasse je Wand — die der Ausführung. `klasse` am Eintrag selbst ist die Ausführung,
+// die ein Klick auf die Kachel auswählt, also die erste. Weder die Räume noch der DesignContext
+// noch RoomView3D wissen von Gruppen.
 export const wandMaterialien = [
   { name: 'Putz',            klasse: 'wand-putz',            icon: '⬜', gestrichen: true },
   { name: 'Raufaser fein',   klasse: 'wand-raufaser-fein',   icon: '░', gestrichen: true },
   { name: 'Raufaser mittel', klasse: 'wand-raufaser-mittel', icon: '▒', gestrichen: true },
   { name: 'Raufaser grob',   klasse: 'wand-raufaser-grob',   icon: '▓', gestrichen: true },
-  { name: 'Blumentapete',   klasse: 'wand-tapete-blumen',   icon: '🌸', gestrichen: false, grundfarbe: '#F2ECDE' },
-  { name: 'Streifentapete', klasse: 'wand-tapete-streifen', icon: '〰️', gestrichen: false, grundfarbe: '#EEE5D5' },
+  {
+    name: 'Mustertapete', klasse: 'wand-tapete-blumen', icon: '🌸',
+    gestrichen: false, grundfarbe: '#F2ECDE',
+    // Die beiden Klassennamen bleiben absichtlich unverändert: Gespeicherte Räume tragen genau
+    // diese Werte, und so öffnen sie ohne Migration weiter richtig. In Schritt 3 kommen acht
+    // weitere Muster dazu.
+    ausfuehrungen: [
+      { name: 'Blumenmotiv', klasse: 'wand-tapete-blumen',   grundfarbe: '#F2ECDE' },
+      { name: 'Streifen',    klasse: 'wand-tapete-streifen', grundfarbe: '#EEE5D5' },
+    ],
+  },
   { name: 'Holzpaneele',    klasse: 'wand-holzpaneele',     icon: '🪵', gestrichen: false, grundfarbe: '#B8956A' },
   { name: 'Akustikpaneele', klasse: 'wand-akustikpaneele',  icon: '🎛️', gestrichen: false, grundfarbe: '#8E7454' },
 ]
@@ -177,8 +197,30 @@ export const wandMaterialien = [
 // Nachschlagen nach Klasse. Der Rückfall auf den ersten Eintrag (Putz) ist wichtig für
 // gespeicherte Räume: dort kann eine Materialklasse stehen, die es nicht mehr gibt, und Putz
 // ist überall in der App der Standardrückfall — auch in erzeugeWandTextur in texturen.js.
+//
+// Liefert den Katalog-Eintrag (die Kachel) zu einer gespeicherten Materialklasse. Zuerst wird
+// direkt gesucht, dann unter den Ausführungen — eine Wand speichert die Ausführung, angezeigt
+// und hervorgehoben wird aber die Kachel, zu der sie gehört.
 export function wandMaterialInfo(klasse) {
-  return wandMaterialien.find(m => m.klasse === klasse) || wandMaterialien[0]
+  return wandMaterialien.find(m => m.klasse === klasse)
+    || wandMaterialien.find(m => m.ausfuehrungen?.some(a => a.klasse === klasse))
+    || wandMaterialien[0]
+}
+
+// Die Ausführungen der Kachel, zu der diese Klasse gehört — oder null, wenn die Kachel keine
+// hat. null und nicht [], damit die Seitenleiste „hat keine Auswahl" von „hat eine leere
+// Auswahl" unterscheiden kann.
+export function wandAusfuehrungen(klasse) {
+  return wandMaterialInfo(klasse).ausfuehrungen || null
+}
+
+// Die Farbe, in der diese Oberfläche im 2D-Grundriss erscheint. Genauer als die Kachel: Zwei
+// Muster derselben Kachel können verschiedene Papiergründe haben. Ohne eigene Angabe gilt die
+// der Kachel, sonst Weiß.
+export function wandGrundfarbe(klasse) {
+  const kachel = wandMaterialInfo(klasse)
+  const ausfuehrung = kachel.ausfuehrungen?.find(a => a.klasse === klasse)
+  return ausfuehrung?.grundfarbe || kachel.grundfarbe || '#FFFFFF'
 }
 
 // Bewusst `!== false` und nicht `=== true`: Käme irgendwann ein Material ohne die Angabe

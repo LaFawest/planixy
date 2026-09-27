@@ -12,7 +12,7 @@ import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
 import { useUI } from './context/UIContext'
-import { wandMaterialien, istGestrichen, istDeckenleuchte, istVerschiebbareDeckenleuchte, istEndpunktVerstellbareDeckenleuchte, istEckSkalierbareDeckenleuchte, berechneInnenmasse, bogenMasse } from './constants'
+import { wandMaterialien, istGestrichen, wandMaterialInfo, istDeckenleuchte, istVerschiebbareDeckenleuchte, istEndpunktVerstellbareDeckenleuchte, istEckSkalierbareDeckenleuchte, berechneInnenmasse, bogenMasse } from './constants'
 
 export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deckenFokus = false, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt } = {}) {
   const { activeRoom: room } = useRooms()
@@ -128,6 +128,12 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   const zeichenModusMaterialRef = useRef(null)
   const [zeichenModusMaterial, setZeichenModusMaterialState] = useState(null)
   const setZeichenModusMaterial = (material) => { zeichenModusMaterialRef.current = material; setZeichenModusMaterialState(material) }
+
+  // Welche Kachel der Materialleiste ist gerade aufgeklappt? Reiner Anzeige-State der Leiste,
+  // bewusst ohne Ref: Die Maus-Handler im Szenen-Effekt lesen weiterhin nur
+  // zeichenModusMaterialRef, also das armierte Material. Was aufgeklappt ist, geht das Zeichnen
+  // nichts an.
+  const [offeneKachel, setOffeneKachel] = useState(null)
   const [zeichnenLiveGroesse, setZeichnenLiveGroesse] = useState(null) // { breiteCm, hoeheCm } | null, während des Aufziehens
   // Bricht einen laufenden Zeichenvorgang ab (siehe Escape-Effect unten) — muss das
   // Vorschau-Mesh und den wandZeichnenDrag-Zustand im Effekt-Scope erreichen, die als reine
@@ -176,6 +182,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // oben zurückgesetzt (reine Ref-Mutation dort, unproblematisch).
     if (zeichenModusMaterial !== null) setZeichenModusMaterialState(null)
     if (zeichnenLiveGroesse !== null) setZeichnenLiveGroesse(null)
+    // Sonst hinge eine aufgeklappte Liste nach dem Wandwechsel weiter unter einer Leiste, in der
+    // nichts mehr ausgewählt ist.
+    if (offeneKachel !== null) setOffeneKachel(null)
   }
 
   // Lädt die echten 3D-Modelle (siehe scene/modelle.js) — seit App-schneller-machen Schritt 2 nur
@@ -241,6 +250,28 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   // Armiert/deaktiviert das Zeichnen-Werkzeug für ein Material — Klick auf denselben Swatch
   // schaltet wieder aus (wie ein Werkzeug in der Toolbar an-/abwählen). Das eigentliche Aufziehen
   // passiert per Maus direkt auf der Wand (siehe wandElementMausDown/Move/Up im Effekt unten).
+  // Klick auf eine Kachel der Materialleiste. Hat sie Ausführungen, wird nur auf- und zugeklappt
+  // — armiert wird dann erst mit der Ausführung darunter. Ohne Ausführungen bleibt es beim
+  // bisherigen Verhalten: sofort armieren, erneuter Klick armiert ab.
+  const kachelAngeklickt = (material) => {
+    if (material.ausfuehrungen) {
+      setOffeneKachel(offeneKachel === material.klasse ? null : material.klasse)
+      return
+    }
+    setOffeneKachel(null)
+    armeZeichenModus(material.klasse)
+  }
+
+  // Klick auf eine Ausführung in der aufgeklappten Liste: armieren und zuklappen.
+  const ausfuehrungAngeklickt = (klasse) => {
+    armeZeichenModus(klasse)
+    setOffeneKachel(null)
+  }
+
+  // Die Kachel, zu der das armierte Material gehört — dieselbe Unterscheidung wie in der
+  // Seitenleiste: armiert ist die Ausführung, hervorgehoben gehört die Kachel.
+  const armierteKachel = zeichenModusMaterial ? wandMaterialInfo(zeichenModusMaterial) : null
+
   const armeZeichenModus = (klasse) => {
     setZeichenModusMaterial(zeichenModusMaterial === klasse ? null : klasse)
   }
@@ -2197,14 +2228,53 @@ return () => {
           background: 'white', border: '1px solid #E8E6E0', borderRadius: '10px',
           boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
         }}>
-          {wandMaterialien.map(material => (
-            <div key={material.klasse} onClick={() => armeZeichenModus(material.klasse)} title={material.name} style={{
-              width: '26px', height: '26px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '14px', cursor: 'pointer',
-              border: `${zeichenModusMaterial === material.klasse ? '2px' : '1px'} solid ${zeichenModusMaterial === material.klasse ? '#185FA5' : '#E8E6E0'}`,
-              background: zeichenModusMaterial === material.klasse ? '#EEF4FC' : '#FAFAF8',
-            }}>{material.icon}</div>
-          ))}
+          {wandMaterialien.map(material => {
+            // Hervorgehoben wird die Kachel, zu der das armierte Material gehört: Ist „Streifen"
+            // armiert, leuchtet die Kachel „Mustertapete". Zusätzlich markiert ein Rahmen die
+            // aufgeklappte Kachel, auch wenn noch nichts armiert ist.
+            const istArmiert = armierteKachel?.klasse === material.klasse
+            const istOffen = offeneKachel === material.klasse
+            return (
+              <div key={material.klasse} style={{ position: 'relative' }}>
+                <div onClick={() => kachelAngeklickt(material)} title={material.name} style={{
+                  width: '26px', height: '26px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '14px', cursor: 'pointer',
+                  border: `${istArmiert || istOffen ? '2px' : '1px'} solid ${istArmiert || istOffen ? '#185FA5' : '#E8E6E0'}`,
+                  background: istArmiert ? '#EEF4FC' : '#FAFAF8',
+                }}>{material.icon}</div>
+                {material.ausfuehrungen && istOffen && (
+                  // Name ausgeschrieben statt nur als Tooltip: Bei zehn Tapetenmustern ist ein
+                  // Farbpunkt allein nicht unterscheidbar. maxHeight plus Scrollen, damit die
+                  // Liste auch bei zehn Einträgen nicht aus dem Bild läuft.
+                  // Eigene Schriftart, weil dieser Bereich im 3D-Container sitzt und die des
+                  // Panels nicht erbt — dieselbe Angabe steht aus demselben Grund schon an der
+                  // Größenanzeige weiter unten.
+                  <div style={{
+                    position: 'absolute', top: '34px', left: 0, zIndex: 11,
+                    width: '150px', maxHeight: '240px', overflowY: 'auto', padding: '6px',
+                    background: 'white', border: '1px solid #E8E6E0', borderRadius: '10px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+                    fontFamily: "'DM Sans', sans-serif",
+                  }}>
+                    {material.ausfuehrungen.map(ausfuehrung => (
+                      <div key={ausfuehrung.klasse} onClick={() => ausfuehrungAngeklickt(ausfuehrung.klasse)} style={{
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        padding: '5px 6px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px',
+                        background: zeichenModusMaterial === ausfuehrung.klasse ? '#EEF4FC' : 'transparent',
+                        color: zeichenModusMaterial === ausfuehrung.klasse ? '#185FA5' : '#444441',
+                      }}>
+                        <span style={{
+                          width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0,
+                          background: ausfuehrung.grundfarbe || '#FFFFFF', border: '1px solid #E8E6E0',
+                        }}></span>
+                        {ausfuehrung.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
       {fokusWand != null && zeichnenLiveGroesse && (

@@ -11,7 +11,7 @@ import { useDesign } from '../context/DesignContext'
 import { useFurniture } from '../context/FurnitureContext'
 import { useTrennwand } from '../context/TrennwandContext'
 import { useWizard } from '../context/WizardContext'
-import { istDeckenleuchte, istGestrichen, wandMaterialInfo } from '../constants'
+import { istDeckenleuchte, istGestrichen, wandGrundfarbe } from '../constants'
 
 // Dieselbe Regel wie in der 3D-Ansicht (wandMatFuer in RoomView3D.jsx): Eine gestrichene Wand
 // zeigt die gewählte Farbe, eine gekaufte Ausführung ihren eigenen Ton. Im Grundriss gibt es
@@ -19,7 +19,7 @@ import { istDeckenleuchte, istGestrichen, wandMaterialInfo } from '../constants'
 // 3D-Bild aus Holz und im Grundriss daneben blau.
 const wandFarbeFuer = (room, index) => {
   const material = room?.wandmaterialien?.[index] || room?.wandmaterial || 'wand-putz'
-  if (!istGestrichen(material)) return wandMaterialInfo(material).grundfarbe || '#FFFFFF'
+  if (!istGestrichen(material)) return wandGrundfarbe(material)
   return room?.wandfarben?.[index] || room?.wandfarbe || '#FFFFFF'
 }
 
