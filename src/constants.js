@@ -9,7 +9,7 @@ export const furnitureLibrary = [
   { name: 'TV',             kategorie: 'Elektrogeräte', width: 80,  height: 24,  color: '#D3D1C7', border: '#444441' },
   { name: 'TV-Board',       kategorie: 'Wohnen',     width: 100, height: 30,  color: '#D3D1C7', border: '#5F5E5A' },
   { name: 'Esstisch',       kategorie: 'Wohnen',     width: 80,  height: 60,  color: '#C0DD97', border: '#639922' },
-  { name: 'Essstuhl',       kategorie: 'Wohnen',     width: 32,  height: 32,  color: '#E1D4F4', border: '#7F77DD' },
+  { name: 'Essstuhl',       kategorie: 'Wohnen',     width: 27,  height: 30,  color: '#E1D4F4', border: '#7F77DD' },
   { name: 'Vitrine',        kategorie: 'Wohnen',     width: 50,  height: 30,  color: '#D3D1C7', border: '#888780' },
   { name: 'Sideboard',      kategorie: 'Wohnen',     width: 90,  height: 30,  color: '#D3D1C7', border: '#5F5E5A' },
   { name: 'Bücherregal',    kategorie: 'Wohnen',     width: 60,  height: 24,  color: '#FAC775', border: '#BA7517' },
