@@ -10,6 +10,7 @@ const MODELL_DATEIEN = {
   'Doppelbett': '/modelle/doppelbett.glb',
   'Esstisch': '/modelle/esstisch.glb',
   'Sessel': '/modelle/sessel.glb',
+  'Couchtisch': '/modelle/couchtisch.glb',
 }
 
 // Normalerweise wird die Höhe eines geladenen Modells automatisch im selben Verhältnis wie die

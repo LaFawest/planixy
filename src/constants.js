@@ -5,7 +5,7 @@ export const furnitureLibrary = [
   { name: 'Sofa 3-Sitzer',  kategorie: 'Wohnen',     width: 140, height: 55,  color: '#B5D4F4', border: '#378ADD' },
   { name: 'Ecksofa',        kategorie: 'Wohnen',     width: 160, height: 100, color: '#B5D4F4', border: '#378ADD' },
   { name: 'Sessel',         kategorie: 'Wohnen',     width: 50,  height: 50,  color: '#B5D4F4', border: '#378ADD' },
-  { name: 'Couchtisch',     kategorie: 'Wohnen',     width: 64,  height: 40,  color: '#C0DD97', border: '#639922' },
+  { name: 'Couchtisch',     kategorie: 'Wohnen',     width: 60,  height: 34,  color: '#C0DD97', border: '#639922' },
   { name: 'TV',             kategorie: 'Elektrogeräte', width: 80,  height: 24,  color: '#D3D1C7', border: '#444441' },
   { name: 'TV-Board',       kategorie: 'Wohnen',     width: 100, height: 30,  color: '#D3D1C7', border: '#5F5E5A' },
   { name: 'Esstisch',       kategorie: 'Wohnen',     width: 80,  height: 60,  color: '#C0DD97', border: '#639922' },
