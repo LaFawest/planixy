@@ -4,8 +4,16 @@ import { produktEmpfehlungen } from '../data/produktempfehlungen'
 import PlanixyLogo from './PlanixyLogo'
 import LegalLinks from './LegalLinks'
 
+// preis darf in produktempfehlungen.js null sein: Bei einigen Produkten weist Amazon
+// keinen Preis aus. Ohne diese Abfrage wird daraus beim Rechnen eine 0 und die Summe
+// stimmt still nicht mehr.
 function formatPreis(preis) {
+  if (typeof preis !== 'number' || Number.isNaN(preis)) return '—'
   return preis.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
+}
+
+function hatPreis(produkt) {
+  return produkt != null && typeof produkt.preis === 'number'
 }
 
 // Gruppiert die Möbel eines Raums nach (Name + gefundenem Produkt), damit z.B. 4 gleiche
@@ -15,7 +23,10 @@ function gruppiere(furniture) {
   const gruppen = new Map()
   for (const item of furniture) {
     if (item.istWandElement) continue
-    const produkt = produktEmpfehlungen.find(p => p.moebelName === item.name)
+    // Das im Editor gewählte Produkt; ältere Möbel ohne produktId (oder mit einer, die es nicht
+    // mehr gibt) fallen auf das erste Produkt des Möbeltyps zurück.
+    const produkt = produktEmpfehlungen.find(p => p.id === item.produktId)
+      ?? produktEmpfehlungen.find(p => p.moebelName === item.name)
     const key = item.name + '::' + (produkt?.id ?? 'kein-vorschlag')
     if (!gruppen.has(key)) {
       gruppen.set(key, { name: item.name, produkt, anzahl: 0 })
@@ -32,8 +43,9 @@ export default function ZusammenfassungSeite() {
 
   const raeume = rooms.map(room => {
     const gruppen = gruppiere(room.furniture || [])
-    const raumSumme = gruppen.reduce((summe, g) => summe + (g.produkt ? g.produkt.preis * g.anzahl : 0), 0)
-    return { room, gruppen, raumSumme }
+    const raumSumme = gruppen.reduce((summe, g) => summe + (hatPreis(g.produkt) ? g.produkt.preis * g.anzahl : 0), 0)
+    const ohnePreis = gruppen.filter(g => g.produkt && !hatPreis(g.produkt)).length
+    return { room, gruppen, raumSumme, ohnePreis }
   })
   const gesamtpreis = raeume.reduce((summe, r) => summe + r.raumSumme, 0)
 
@@ -69,7 +81,7 @@ export default function ZusammenfassungSeite() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {gruppen.map(g => (
                   <div key={g.name + (g.produkt?.id ?? '')} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {g.produkt ? (
+                    {g.produkt?.bild ? (
                       <img src={g.produkt.bild} alt={g.produkt.name}
                         onError={e => { e.currentTarget.style.display = 'none' }}
                         style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0, background: '#F7F6F2' }} />
@@ -92,7 +104,7 @@ export default function ZusammenfassungSeite() {
                       )}
                     </div>
                     <div style={{ fontSize: '13px', fontWeight: '600', color: '#2C2C2A', flexShrink: 0 }}>
-                      {g.produkt ? formatPreis(g.produkt.preis * g.anzahl) : '—'}
+                      {hatPreis(g.produkt) ? formatPreis(g.produkt.preis * g.anzahl) : '—'}
                     </div>
                   </div>
                 ))}
@@ -104,7 +116,10 @@ export default function ZusammenfassungSeite() {
         <div style={{ background: '#2F4B39', borderRadius: '14px', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
           <div>
             <div style={{ fontSize: '11px', color: '#C9E0D2', letterSpacing: '0.06em' }}>GESCHÄTZTE GESAMTSUMME</div>
-            <div style={{ fontSize: '11px', color: '#C9E0D2', marginTop: '2px' }}>Nur für Möbel mit Produktvorschlag · Amazon-Preise können sich ändern</div>
+            <div style={{ fontSize: '11px', color: '#C9E0D2', marginTop: '2px' }}>
+              Nur für Möbel mit Produktvorschlag · Amazon-Preise können sich ändern
+              {raeume.reduce((n, r) => n + r.ohnePreis, 0) > 0 && ' · einzelne Produkte ohne Preisangabe sind nicht enthalten'}
+            </div>
           </div>
           <div style={{ fontSize: '24px', fontWeight: '600', color: 'white', fontFamily: "'Playfair Display', serif" }}>
             {formatPreis(gesamtpreis)}
