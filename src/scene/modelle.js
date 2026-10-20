@@ -17,6 +17,12 @@ const MODELL_DATEIEN = {
   'TV': '/modelle/tv.glb',
   'Sitzbank': '/modelle/sitzbank.glb',
   'TV-Board': '/modelle/tv-board.glb',
+  'Nachttisch': '/modelle/nachttisch.glb',
+  'Kommode': '/modelle/kommode.glb',
+  'Kleiderschrank': '/modelle/kleiderschrank.glb',
+  'Spiegel': '/modelle/spiegel.glb',
+  'Hocker': '/modelle/hocker.glb',
+  'Schminktisch': '/modelle/schminktisch.glb',
 }
 
 // Normalerweise wird die Höhe eines geladenen Modells automatisch im selben Verhältnis wie die
@@ -26,6 +32,7 @@ const MODELL_DATEIEN = {
 // Zielhöhe (Meter) hinterlegen, die auf das gesamte Modell (Möbelstück + Deko) angewendet wird.
 export const MODELL_HOEHE_UEBERSCHREIBUNG = {
   'Esstisch': 0.75,
+  'Kleiderschrank': 2.35,
 }
 
 const dracoLoader = new DRACOLoader()

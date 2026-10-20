@@ -24,7 +24,7 @@ export const furnitureLibrary = [
   { name: 'Kommode',        kategorie: 'Schlafen',   width: 60,  height: 36,  color: '#D3D1C7', border: '#888780' },
   { name: 'Spiegel',        kategorie: 'Schlafen',   width: 30,  height: 60,  color: '#B5D4F4', border: '#378ADD' },
   { name: 'Hocker',         kategorie: 'Schlafen',   width: 36,  height: 36,  color: '#E1D4F4', border: '#7F77DD' },
-  { name: 'Schminktisch',   kategorie: 'Schlafen',   width: 70,  height: 40,  color: '#FAC775', border: '#BA7517' },
+  { name: 'Schminktisch',   kategorie: 'Schlafen',   width: 48,  height: 47,  color: '#FAC775', border: '#BA7517' },
   { name: 'Bettbank',       kategorie: 'Schlafen',   width: 90,  height: 35,  color: '#F5C4B3', border: '#D85A30' },
   { name: 'Schreibtisch',   kategorie: 'Büro',       width: 80,  height: 44,  color: '#D3D1C7', border: '#888780' },
   { name: 'Bürostuhl',      kategorie: 'Büro',       width: 36,  height: 36,  color: '#E1D4F4', border: '#7F77DD' },
