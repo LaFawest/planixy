@@ -63,6 +63,11 @@ const MODELL_DATEIEN = {
   'Waschmaschine': '/modelle/waschmaschine-01.glb',
   'Wasserkocher': '/modelle/wasserkocher-01.glb',
   'WC': '/modelle/wc-01.glb',
+  'Sofa 2-Sitzer': '/modelle/sofa-2-sitzer-01.glb',
+  'Boxspringbett': '/modelle/boxspringbett-01.glb',
+  'Einzelbett': '/modelle/einzelbett-01.glb',
+  'Oberschrank': '/modelle/oberschrank-01.glb',
+  'Herd': '/modelle/herd-02.glb',
 }
 
 // Normalerweise wird die Höhe eines geladenen Modells automatisch im selben Verhältnis wie die
@@ -81,6 +86,9 @@ export const MODELL_HOEHE_UEBERSCHREIBUNG = {
   'Ventilator': 1.40,
   'Wanduhr': 0.54,
   'Duschkabine Eck': 1.95,
+  // Paket 6
+  'Boxspringbett': 0.88,
+  'Einzelbett': 0.95,
 }
 
 const dracoLoader = new DRACOLoader()
