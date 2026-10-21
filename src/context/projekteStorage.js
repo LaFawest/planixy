@@ -1,6 +1,7 @@
 import { initialRooms, DEFAULT_WIZARD_SCHRITT, HIMMELSRICHTUNG_JE_SEGMENT } from '../constants'
 import { migriereRaum } from './roomsStorage'
 import { rechteckPolygon } from '../raumPolygon'
+import { raeumeBereinigen } from '../data/moebelFilter'
 
 const STORAGE_KEY = 'planixy-rooms'
 export const SCHEMA_VERSION = 7
@@ -157,7 +158,18 @@ export const migriereProjekteDaten = (rohDaten) => {
   if (daten.schemaVersion === 6) {
     daten = migriereV6ZuV7(daten)
   }
-  return daten.schemaVersion === SCHEMA_VERSION ? daten.projekte : undefined
+  if (daten.schemaVersion !== SCHEMA_VERSION) return undefined
+  // Möbel ohne 3D-Modell verschwinden auch aus bestehenden Projekten, nicht nur aus dem Katalog
+  // (Hassans Entscheidung) — sonst behielte jemand ein Klötzchen im Raum, das er nicht mehr neu
+  // setzen könnte. Hier statt im RoomsContext, weil alle drei Ladewege durch diese Funktion
+  // laufen: Gast (loadProjekte), Konto (projekteSupabaseStorage.js) und Datei-Import
+  // (projektExport.js). Bewusst nur beim Laden, nie beim Speichern: Ist die Regel einmal falsch,
+  // bleibt es ein Anzeigefehler, bis das Projekt das nächste Mal gespeichert wird. Kein Schema-
+  // Bump, weil die Regel an MODELL_DATEIEN hängt und sich mit jedem neuen Modell ändert.
+  return daten.projekte.map(projekt => {
+    const raeume = raeumeBereinigen(projekt.raeume)
+    return raeume === projekt.raeume ? projekt : { ...projekt, raeume }
+  })
 }
 
 // Entfernt den Key komplett statt ihn leer zu speichern, damit loadProjekte() beim nächsten

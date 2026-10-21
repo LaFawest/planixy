@@ -1,5 +1,6 @@
 import { createContext, useContext, useCallback, useMemo, useState } from 'react'
 import { alleKatalogItems, kategorien, WIZARD_SCHRITTE } from '../constants'
+import { darfVorkommen } from '../data/moebelFilter'
 import { produkteFuerTyp, produktAufKatalogItemAnwenden } from '../data/produktAuswahl'
 import { useFurniture } from './FurnitureContext'
 import { useWizard } from './WizardContext'
@@ -16,10 +17,18 @@ const MOEBEL_SCHRITT = 4
 // sonst könnte man schon in Schritt 1 möblieren, was den Wizard sinnlos macht. Fenster & Türen
 // gehören zu Schritt 2, Leuchten zu Schritt 3, alles andere zu Schritt 4 — jeder dieser drei
 // Schritte bekommt hier seine eigene Kategorie-Filterregel; Schritt 1 hat keinen Katalog.
+// Schritt 4 bietet zusätzlich nur noch an, was auch wirklich als 3D-Modell erscheint. Ein Typ
+// ohne Modell würde als Klötzchen im Raum stehen, und ein Klötzchen ist kein Möbelstück,
+// sondern ein Platzhalter. Kommt ein neues Meshy-Modell dazu, taucht der Typ hier von selbst
+// wieder auf — die Liste steht in MODELL_DATEIEN, nicht hier.
+// Schritt 2 und 3 bleiben bewusst ohne diese Bedingung: Fenster, Türen und Leuchten sind
+// gezeichnete Geometrie und haben nie ein Modell gehabt.
 const KATEGORIE_FILTER_JE_SCHRITT = {
   [FENSTER_TUEREN_SCHRITT]: (item) => item.kategorie === FENSTER_TUEREN_KATEGORIE,
   [LICHT_SCHRITT]: (item) => item.kategorie === LICHT_KATEGORIE,
-  [MOEBEL_SCHRITT]: (item) => item.kategorie !== FENSTER_TUEREN_KATEGORIE && item.kategorie !== LICHT_KATEGORIE,
+  [MOEBEL_SCHRITT]: (item) => item.kategorie !== FENSTER_TUEREN_KATEGORIE
+    && item.kategorie !== LICHT_KATEGORIE
+    && darfVorkommen(item),
 }
 const KATALOG_SCHRITTE = Object.keys(KATEGORIE_FILTER_JE_SCHRITT).map(Number)
 

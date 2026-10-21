@@ -132,3 +132,10 @@ export function ladeModelle(benoetigteNamen) {
 export function getModell(name) {
   return cache.get(name) || null
 }
+
+// Gibt es für diesen Möbelnamen überhaupt ein Modell? Unabhängig davon, ob es schon geladen ist —
+// getModell() oben beantwortet die Ladefrage, diese hier die Katalogfrage. Genutzt von
+// data/moebelFilter.js, damit Schritt 4 nur anbietet, was auch als Modell erscheint.
+export function hatModell(name) {
+  return Boolean(MODELL_DATEIEN[name])
+}
