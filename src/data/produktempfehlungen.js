@@ -1388,6 +1388,7 @@ export const produktEmpfehlungen = [
     farbe: "Taupe",
     preis: 22.46,
     breite: 45,
+    tiefe: 15,
     hoehe: 45,
     bild: "https://m.media-amazon.com/images/I/91jJPCa085L._AC_SL1500_.jpg",
     link: "https://www.amazon.de/Como-Dekokissen-Sofakissen-Noppenoptik-Kissenbezug/dp/B0D7MNQ9R8",

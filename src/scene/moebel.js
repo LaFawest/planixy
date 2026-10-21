@@ -159,6 +159,24 @@ export function baueMoebel(scene, item, furniture, raumBreite, raumTiefe, wandHo
     modell.traverse(obj => { if (obj.isMesh) { obj.castShadow = true; obj.receiveShadow = true } })
     gruppe.add(modell)
     gruppe.castShadow = true
+    // Leuchtende Möbel behalten ihr Licht auch mit echtem 3D-Modell. Die Klötzchen-Bauweise unten
+    // bestellt für Lampen/Wandleuchten/Kamin Licht beim Vorrat (scene/lichtPool.js) — dieser Zweig
+    // ersetzt sie komplett und muss die Bestellung deshalb selbst nachholen. Werte wie in den
+    // jeweiligen Klötzchen-Zweigen (Lampe: 0.5 / halbe Raumgröße, Wandleuchte: 0.4 / 0.4,
+    // Kamin: orange, 0.5 / 0.3). Deckenleuchten haben keine Modelle und laufen hier nie durch.
+    if (lichtAn && !istDeckenleuchte(item.name)) {
+      const modellHoehe = box2.max.y - box2.min.y
+      if (name.includes('kamin')) {
+        bestelleLicht(gruppe, 0, modellHoehe * 0.25, moebelTiefe * 0.3,
+          '#FF8A3D', 0.5, Math.max(raumBreite, raumTiefe) * 0.3)
+      } else if (name.includes('wandleuchte')) {
+        bestelleLicht(gruppe, 0, modellHoehe * 0.6, 0,
+          lichtFarbe, 0.4, Math.max(raumBreite, raumTiefe) * 0.4)
+      } else if (name.includes('lampe') || name.includes('leuchte')) {
+        bestelleLicht(gruppe, 0, modellHoehe * 0.75, 0,
+          lichtFarbe, 0.5, Math.max(raumBreite, raumTiefe) * 0.5)
+      }
+    }
     // id am Gruppen-Root hinterlegen + zurückgeben — Grundlage fürs Anklicken in der neuen
     // Decken-Ansicht (RoomView3D.jsx, Phase 6 Teilschritt 1). Für alle anderen Möbeltypen bisher
     // ungenutzt, aber unschädlich.
