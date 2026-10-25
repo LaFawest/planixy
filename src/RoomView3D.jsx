@@ -316,6 +316,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     renderer.toneMapping = THREE.ACESFilmicToneMapping
     renderer.toneMappingExposure = 1.2
     renderer.outputColorSpace = THREE.SRGBColorSpace
+    // Alle Gesten auf der Leinwand gehören der 3D-Steuerung — ohne das deutet der Browser zwei
+    // Finger als Seiten-Zoom bzw. Scrollen, bevor das Verschieben/Kneifen im Rundumblick greift.
+    renderer.domElement.style.touchAction = 'none'
     mount.appendChild(renderer.domElement)
 
     sceneRef.current = scene
@@ -795,12 +798,26 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     let isDragging = false
     let previousMouse = { x: 0, y: 0 }
     let spherical = { theta: Math.PI / 4, phi: Math.PI / 3, radius: 18 }
+    // Blickpunkt, um den die Kamera kreist. Bisher war das fest die Raummitte auf Fussbodenhoehe
+    // — man konnte drehen und zoomen, aber nie woanders hinsehen, und beim Zoomen fuhr man immer
+    // auf die Raummitte zu statt auf das, was man ansehen wollte. Startwert (0,0,0), damit die
+    // Ansicht beim Oeffnen unveraendert ist.
+    const kameraZiel = new THREE.Vector3(0, 0, 0)
+    // Hält den Blickpunkt beim Verschieben im Raum (Ausmaße plus 2 m Luft), sonst schiebt man sich
+    // ins Nichts und findet nicht zurück. y nicht unter 0: Die Kamera steht nie tiefer als ihr
+    // Blickpunkt (phi ≤ 1,55), ein Blickpunkt unter dem Boden zöge sie also mit darunter.
+    const ZIEL_LUFT = 2
+    const klemmeKameraZiel = () => {
+      kameraZiel.x = Math.max(-raumBreite / 2 - ZIEL_LUFT, Math.min(raumBreite / 2 + ZIEL_LUFT, kameraZiel.x))
+      kameraZiel.z = Math.max(-raumTiefe / 2 - ZIEL_LUFT, Math.min(raumTiefe / 2 + ZIEL_LUFT, kameraZiel.z))
+      kameraZiel.y = Math.max(0, Math.min(wandHoehe + 1, kameraZiel.y))
+    }
 
     const updateOrbitCamera = () => {
-      camera.position.x = spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta)
-      camera.position.y = spherical.radius * Math.cos(spherical.phi)
-      camera.position.z = spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta)
-      camera.lookAt(0, 0, 0)
+      camera.position.x = kameraZiel.x + spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta)
+      camera.position.y = kameraZiel.y + spherical.radius * Math.cos(spherical.phi)
+      camera.position.z = kameraZiel.z + spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta)
+      camera.lookAt(kameraZiel)
 
       // Decke ausblenden wenn Kamera von oben schaut (phi < 30°)
       const phiGrad = spherical.phi * 180 / Math.PI
@@ -812,8 +829,16 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       // Außenseite). Für ein Rechteck reduziert sich das exakt auf die bisherigen 4 Sonderfälle
       // camX/camZ ></< 0 — siehe Analyse Schritt 7 zu Innenecken (dieselbe Vereinfachung wie
       // heute schon bei einer Diagonalansicht, keine echte Verdeckungsberechnung).
+      // Gemessen ab der Wand selbst, nicht ab dem Nullpunkt. Bisher hiess der Test "die Kamera
+      // liegt auf der Aussenseite einer Ebene durch die Raummitte" — fuer eine Kamera weit
+      // ausserhalb ergibt das dasselbe Ergebnis, fuer eine Kamera INNERHALB des Raums aber nicht:
+      // Wer nahe an der Nordwand steht und sie ansieht, liegt noerdlich der Raummitte, und die
+      // Wand waere nach dem alten Test ausgeblendet — also genau die, die man gerade betrachtet.
+      // Mit dem Abstand zur Wandebene verschwindet von innen keine Wand mehr. Das ersetzt
+      // nebenbei die Sonderbehandlung, die der Rundgang dafuer brauchte.
       wandMeshe.forEach(wand => {
-        const versteckt = camera.position.x * wand.normale.x + camera.position.z * wand.normale.z > 0
+        const zurKamera = camera.position.clone().sub(wand.mesh.position)
+        const versteckt = zurKamera.x * wand.normale.x + zurKamera.z * wand.normale.z > 0
         setzeWandSichtbar(wand, !versteckt)
       })
     }
@@ -1877,6 +1902,51 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       }
     }
 
+    // Rundumblick: Drehen und Verschieben, gemeinsam für Maus und Touch.
+    let istSchieben = false // rechte oder mittlere Maustaste: verschieben statt drehen (Touch: zwei Finger, siehe unten)
+    const dreheOrbitKamera = (dx, dy) => {
+      spherical.theta -= dx * 0.01
+      // Neigung bis knapp unter die Waagerechte (1,55 rad sind 88,8°). Darueber hinaus kaeme
+      // die Kamera unter den Fussboden.
+      spherical.phi = Math.max(0.05, Math.min(1.55, spherical.phi + dy * 0.01))
+    }
+    const verschiebeKameraZiel = (dx, dy) => {
+      // Verschieben statt Drehen: Der Blickpunkt wandert in der Bildebene der Kamera, damit
+      // sich der Raum unter dem Mauszeiger mitbewegt. Der Faktor kommt aus dem Oeffnungswinkel
+      // und dem Abstand, nicht aus einer geratenen Zahl — sonst schoebe es aus der Naehe zu
+      // schnell und aus der Ferne zu langsam.
+      const hoehe = mount.clientHeight || 1
+      const weltProPixel = (2 * Math.tan((camera.fov * Math.PI / 180) / 2) * spherical.radius) / hoehe
+      const rechts = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0)
+      const hoch = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1)
+      const verschiebung = new THREE.Vector3()
+        .addScaledVector(rechts, -dx * weltProPixel)
+        .addScaledVector(hoch, dy * weltProPixel)
+      // Der Blickpunkt startet auf dem Boden (y 0) und darf nicht darunter. Wer den Raum nach oben
+      // zieht, schiebt ihn aber nach unten — ohne Ausgleich ginge die Höhe einfach verloren, und
+      // der Raum bliebe hinter dem Zeiger zurück. Den Höhenanteil, der nicht mehr geht, deshalb
+      // auf den Boden umlegen: entlang der waagerechten Richtung von "hoch" so weit, dass sich der
+      // Blickpunkt im Bild genauso weit bewegt. (rechts ist waagerecht, davon unberührt.)
+      const yRoh = kameraZiel.y + verschiebung.y
+      const verloren = yRoh - Math.max(0, Math.min(wandHoehe + 1, yRoh))
+      if (verloren !== 0) {
+        verschiebung.y -= verloren
+        const hochWaagerecht = Math.hypot(hoch.x, hoch.z)
+        // Bei fast waagerechtem Blick gibt es keinen Boden-Ersatz — dort einfach anhalten.
+        if (hochWaagerecht > 0.05) {
+          const t = verloren * hoch.y / hochWaagerecht
+          verschiebung.x += hoch.x / hochWaagerecht * t
+          verschiebung.z += hoch.z / hochWaagerecht * t
+        }
+      }
+      kameraZiel.add(verschiebung)
+      klemmeKameraZiel()
+    }
+    // Rechtsklick verschiebt — ohne das klappte dabei das Browsermenü auf.
+    const onContextMenu = (e) => {
+      if (e.target === renderer.domElement) e.preventDefault()
+    }
+
     const onMouseDown = (e) => {
       // mount enthält neben dem Canvas auch die React-gerenderten HTML-Overlays (Kameramodus-
       // Buttons, Maßlinien-Zahlen/-Eingabefelder) — deren mousedown bubbelt sonst hierher hoch und
@@ -1891,6 +1961,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         return
       }
       isDragging = true
+      istSchieben = e.button === 1 || e.button === 2
+      // Mittlere Taste: sonst startet der Browser sein eigenes Auto-Scrollen.
+      if (e.button === 1) e.preventDefault()
       previousMouse = { x: e.clientX, y: e.clientY }
     }
     const onMouseUp = () => {
@@ -1907,6 +1980,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         return
       }
       isDragging = false
+      istSchieben = false
     }
     const onMouseMove = (e) => {
       if (fokusWandRef.current != null) { wandElementMausMove(e.clientX, e.clientY); return }
@@ -1926,20 +2000,45 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       if (!isDragging) return
       const dx = e.clientX - previousMouse.x
       const dy = e.clientY - previousMouse.y
-      spherical.theta -= dx * 0.01
-      spherical.phi = Math.max(0.1, Math.min(Math.PI / 2.2, spherical.phi + dy * 0.01))
+      if (istSchieben) {
+        verschiebeKameraZiel(dx, dy)
+      } else {
+        dreheOrbitKamera(dx, dy)
+      }
       previousMouse = { x: e.clientX, y: e.clientY }
       updateCamera()
     }
     const onWheel = (e) => {
+      // Kneifen auf einem Touchpad kommt als Mausrad mit Strg an. Ohne das hier zoomt Chrome
+      // zusaetzlich die ganze Seite, waehrend die Kamera heranfaehrt. Bewusst nur bei ctrlKey:
+      // Ein gewoehnliches Mausrad soll sich ausserhalb der 3D-Ansicht weiter normal verhalten.
+      if (e.ctrlKey) e.preventDefault()
       if (fokusWandRef.current != null) return
       if (deckenFokusRef.current) return
       if (kameraModusRef.current === 'rundgang') return
-      spherical.radius = Math.max(4, Math.min(30, spherical.radius + e.deltaY * 0.05))
+      // Untergrenze von 4 m auf 0,6 m: In einem kleinen Raum kam man bisher an nichts heran,
+      // weil 4 m Abstand zur Raummitte schon ausserhalb der Waende liegen konnten.
+      //
+      // Multiplikativ statt additiv: Feste Schritte waren bei 18 m Abstand kaum zu merken und
+      // nahe am Ziel viel zu grob -- von 5,6 m sprang eine Rastung direkt auf die Untergrenze.
+      // Ein fester Prozentsatz aendert nah am Ziel wenig und weit weg viel, also immer etwa
+      // gleich viel im Bild.
+      const zoomFaktor = Math.pow(1.2, e.deltaY / 100)
+      spherical.radius = Math.max(0.6, Math.min(40, spherical.radius * zoomFaktor))
       updateCamera()
     }
 
     let lastTouch = null
+    // Zwei Finger im Rundumblick: Mittelpunkt verschiebt, Abstand zoomt.
+    let lastZweiFinger = null // { x, y, abstand }
+    const zweiFingerWerte = (touches) => {
+      const a = touches[0], b = touches[1]
+      return {
+        x: (a.clientX + b.clientX) / 2,
+        y: (a.clientY + b.clientY) / 2,
+        abstand: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+      }
+    }
     const onTouchStart = (e) => {
       // Siehe onMouseDown oben: nur echte Canvas-Touches sollen die 3D-Interaktion auslösen, nicht
       // ein Antippen der HTML-Overlays (Maßlinien-Zahlen/-Eingabefelder, Kameramodus-Buttons).
@@ -1951,7 +2050,12 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         rundgangZeiger = { startX: t.clientX, startY: t.clientY, letzteX: t.clientX, letzteY: t.clientY, bewegung: 0, startZeit: performance.now() }
         return
       }
-      lastTouch = e.touches[0]; isDragging = true
+      isDragging = true
+      if (e.touches.length >= 2) {
+        lastZweiFinger = zweiFingerWerte(e.touches); lastTouch = null
+      } else {
+        lastTouch = e.touches[0]; lastZweiFinger = null
+      }
     }
     const onTouchMove  = (e) => {
       if (fokusWandRef.current != null) { wandElementMausMove(e.touches[0].clientX, e.touches[0].clientY); return }
@@ -1969,15 +2073,26 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         updateCamera()
         return
       }
-      if (!isDragging || !lastTouch) return
+      if (!isDragging) return
+      if (e.touches.length >= 2 && lastZweiFinger) {
+        const jetzt = zweiFingerWerte(e.touches)
+        verschiebeKameraZiel(jetzt.x - lastZweiFinger.x, jetzt.y - lastZweiFinger.y)
+        if (lastZweiFinger.abstand > 0 && jetzt.abstand > 0) {
+          // Auseinanderziehen = näher heran; Grenzen wie beim Mausrad.
+          spherical.radius = Math.max(0.6, Math.min(40, spherical.radius * lastZweiFinger.abstand / jetzt.abstand))
+        }
+        lastZweiFinger = jetzt
+        updateCamera()
+        return
+      }
+      if (!lastTouch) return
       const dx = e.touches[0].clientX - lastTouch.clientX
       const dy = e.touches[0].clientY - lastTouch.clientY
-      spherical.theta -= dx * 0.01
-      spherical.phi = Math.max(0.1, Math.min(Math.PI / 2.2, spherical.phi + dy * 0.01))
+      dreheOrbitKamera(dx, dy)
       lastTouch = e.touches[0]
       updateCamera()
     }
-    const onTouchEnd = () => {
+    const onTouchEnd = (e) => {
       if (fokusWandRef.current != null) { wandElementMausUp(); return }
       if (deckenFokusRef.current) { deckenleuchteMausUp(); return }
       if (kameraModusRef.current === 'rundgang') {
@@ -1990,7 +2105,10 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         rundgangZeiger = null
         return
       }
-      isDragging = false; lastTouch = null
+      // Von zwei Fingern auf einen: mit dem verbliebenen weiterdrehen, ohne Sprung.
+      if (e.touches.length >= 2) { lastZweiFinger = zweiFingerWerte(e.touches); return }
+      if (e.touches.length === 1) { lastTouch = e.touches[0]; lastZweiFinger = null; return }
+      isDragging = false; lastTouch = null; lastZweiFinger = null
     }
 
 mount.addEventListener('mousedown', onMouseDown)
@@ -1999,7 +2117,10 @@ mount.addEventListener('touchmove', onTouchMove)
 mount.addEventListener('touchend', onTouchEnd)
 window.addEventListener('mouseup', onMouseUp)
 window.addEventListener('mousemove', onMouseMove)
-mount.addEventListener('wheel', onWheel)
+// passive: false, sonst wirkt das preventDefault in onWheel nicht (Chrome behandelt wheel-Listener
+// sonst je nach Ziel als passiv).
+mount.addEventListener('wheel', onWheel, { passive: false })
+mount.addEventListener('contextmenu', onContextMenu)
 
 // Szenenabhängiger Teil der Größenanpassung (App schneller machen, Schritt 3, Teilpunkt 4.4):
 // Kamera-Seitenverhältnis und Renderer-Größe passt der dauerhafte ResizeObserver im
@@ -2072,6 +2193,7 @@ return () => {
   window.removeEventListener('mouseup', onMouseUp)
   window.removeEventListener('mousemove', onMouseMove)
   mount.removeEventListener('wheel', onWheel)
+  mount.removeEventListener('contextmenu', onContextMenu)
 
   // Die baue*-Helfer (Trennwände, Wandelemente, Möbel) legen ihre eigenen Geometrien/
   // Materialien/Texturen direkt in der übergebenen Wurzel ab, ohne Referenzen nach außen zu geben
