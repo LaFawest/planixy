@@ -105,8 +105,11 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
           {ansicht === '2d'
             ? (wandVorschau ? 'Oben bestätigen oder verwerfen' : zeichneWand ? 'Wand ziehen · Winkel schnappt bei 45° · Esc zum Beenden' : 'Doppelklick auf Raumnamen · Blau = Drehen · Rot = Löschen')
             : schritt === 3 ? 'Leuchte anklicken zum Auswählen'
-            // Schritt 2 ist der Wand-Fokus: keine Drehen/Verschieben-Leiste, eigener Text folgt.
-            : schritt === 2 ? 'Maus ziehen = Kamera drehen · Scrollrad = Zoom'
+            // Schritt 2 ist der Wand-Fokus: Die Kamera steht fest auf der Wand, die Maus bedient
+            // die Wandelemente. Den Zeichen-Modus nennt der Text bewusst nicht — der gilt nur,
+            // solange in der Palette ein Material armiert ist, und ein Hinweis, der meistens nicht
+            // zutrifft, ist wieder derselbe Fehler.
+            : schritt === 2 ? 'Fenster oder Tür ziehen = verschieben · Griffe = Größe ändern'
             : 'Ziehen = Drehen oder Verschieben (Leiste oben) · Umschalt oder rechte Taste = Verschieben · Scrollrad = Zoom'}
         </div>
         {ansicht === '2d' && schritt === 1 && (
