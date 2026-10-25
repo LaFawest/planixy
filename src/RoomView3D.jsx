@@ -809,6 +809,19 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // den Abstand (der gemeldete "Zoom beim Ziehen"), seit der Rücknahme blockierte es das Neigen
     // ganz. Dieselbe fehlende Bedingung, zwei Erscheinungsformen.
     const kameraUnterDecke = () => camera.position.y < wandHoehe
+    // Die Kamera bleibt über dem Boden. Dafür stand bisher eine feste Obergrenze von 1,55 rad in
+    // dreheOrbitKamera, begründet mit "darüber käme die Kamera unter den Fußboden" — die hängt aber
+    // am Abstand: Bei 18 m sind 1,55 rad noch 36 cm Höhe, bei 2 m nur 4 cm, und dann zeigt die
+    // untere Bildhälfte Hintergrund statt Boden. Die Grenze wird deshalb aus Abstand und
+    // Blickpunkthöhe gerechnet. 1,55 bleibt als absolute Obergrenze, damit der Blick nie genau
+    // waagerecht wird (lookAt wird dort entartet).
+    const KAMERA_MIN_HOEHE = 0.3
+    const klemmePhi = () => {
+      const cosGrenze = (KAMERA_MIN_HOEHE - kameraZiel.y) / spherical.radius
+      // Blickpunkt hoch über dem Boden: Dann gibt es keine Grenze aus der Höhe, nur die 1,55.
+      const phiGrenze = cosGrenze <= -1 ? Math.PI : Math.acos(Math.min(1, cosGrenze))
+      spherical.phi = Math.max(0.05, Math.min(1.55, phiGrenze, spherical.phi))
+    }
     let kameraDrinnen = false
     let zoomFrei = false
     // Letzter Stand von Drehung und Blickpunkt, bei dem die Kamera im Raum stand. Würde die
@@ -817,6 +830,10 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     let letzterStand = null
 
     const updateOrbitCamera = () => {
+      // Hier geklemmt und nicht im Dreh-Handler: Die Grenze hängt an Abstand und Blickpunkthöhe,
+      // und die ändern sich auch durch Zoomen und Verschieben. Nur an dieser Stelle laufen alle
+      // drei zusammen.
+      klemmePhi()
       const setzeKamera = () => {
         const abstand = spherical.radius
         camera.position.x = kameraZiel.x + abstand * Math.sin(spherical.phi) * Math.sin(spherical.theta)
@@ -1913,8 +1930,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     const sollSchieben = (e) => mitSchiebeTaste || e.shiftKey || ziehModusRef.current === 'verschieben'
     const dreheOrbitKamera = (dx, dy) => {
       spherical.theta -= dx * 0.01
-      // Neigung bis knapp unter die Waagerechte (1,55 rad sind 88,8°). Darueber hinaus kaeme
-      // die Kamera unter den Fussboden.
+      // Neigung bis knapp unter die Waagerechte (1,55 rad sind 88,8°). Diese Grenze fängt nur das
+      // Aufsummieren beim Ziehen ab — wer an die Grenze stößt, muss keinen angesammelten Überschuss
+      // zurückziehen. Dass die Kamera über dem Boden bleibt, regelt klemmePhi in updateOrbitCamera.
       spherical.phi = Math.max(0.05, Math.min(1.55, spherical.phi + dy * 0.01))
     }
     const verschiebeKameraZiel = (dx, dy) => {
