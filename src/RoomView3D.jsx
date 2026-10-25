@@ -552,8 +552,18 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // optional EINEN Durchgang (während eines laufenden Zieh-Vorgangs in wandElementMausMove) mit
     // den aktuellen, noch nicht committeten Werten — alle anderen Durchgänge auf dem Segment
     // kommen unverändert aus furniture.
+    //
+    // Loch und Nische gibt es nur gemeinsam: Die Nische hinter einem Durchgang ist ein Wandelement
+    // (scene/wandelemente.js), und im Decken-Fokus werden keine Wandelemente gebaut (siehe weiter
+    // unten). Ohne Nische zeigte das Loch scene.background — ein heller Fleck, der in der
+    // Licht-Ansicht den Lichteindruck verfälscht, statt ihn abzubilden. Deshalb bleibt die Wand dort
+    // geschlossen. Auf die Ausleuchtung selbst wirkt sich das nicht aus: Wände empfangen Schatten,
+    // werfen aber keine.
+    const wandElementeBauen = !deckenFokusRef.current
     const wandGeometrieFuerSegment = (segmentIndex, seg, live) => {
-      const durchgaenge = furnitureRef.current.filter(f => f.istWandElement && f.typ === 'durchgang' && f.wandSegment === segmentIndex)
+      const durchgaenge = wandElementeBauen
+        ? furnitureRef.current.filter(f => f.istWandElement && f.typ === 'durchgang' && f.wandSegment === segmentIndex)
+        : []
       if (durchgaenge.length === 0) return new THREE.PlaneGeometry(seg.laenge, wandHoehe)
       const halbBreite = seg.laenge / 2
       const halbHoehe = wandHoehe / 2
@@ -615,8 +625,24 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       return {
         mesh: wand, normale: { x: segment.normale.x, z: segment.normale.y }, laenge: segment.laenge,
         x1, z1, dx: x2 - x1, dz: z2 - z1,
+        // Nischen der Durchgänge auf dieser Wand (scene/wandelemente.js) — gefüllt erst unten beim
+        // Bau der Wandelemente, im Decken-Fokus bleibt die Liste leer.
+        nischen: [],
       }
     })
+
+    // Einzige Stelle, die eine Wand ein- oder ausblendet. Die Nische hinter einem Durchgang steht
+    // außerhalb des Raums: Ist ihre Wand ausgeblendet, sähe man sie von außen als geschlossenen
+    // Kasten vor der Öffnung, ist die Wand wieder da, muss auch die Nische wieder da sein — sonst
+    // sieht man durch die Öffnung den Hintergrund. Beides gehört deshalb in einen Aufruf, nicht in
+    // einzelne Schleifen je Ansicht. visible statt Opazität bei der Nische: fällt so aus der
+    // Sortierung transparenter Flächen heraus, das Material bleibt unberührt. Türen, Fenster und die
+    // Backstein-Einfassung bleiben wie bisher stehen.
+    const setzeWandSichtbar = (wand, sichtbar) => {
+      wand.mesh.material.opacity = sichtbar ? 1 : 0
+      wand.mesh.material.transparent = !sichtbar
+      wand.nischen.forEach(nische => { nische.visible = sichtbar })
+    }
 
     // Decken-Fokus (8. Nachbesserung): die jetzt vor der weit außerhalb stehenden Kamera liegende
     // Wand ausblenden, sonst blockiert sie die komplette Sicht in den Raum — dieselbe Formel wie beim
@@ -625,10 +651,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // Szenenaufbau gesetzt (nicht in updateCamera), weil sich die Decken-Fokus-Kamera danach nicht
     // mehr bewegt. Die anderen 3 Wände samt ihrer Wandmaterial-Deko bleiben unverändert sichtbar.
     if (deckenFokusRef.current) {
-      wandMeshe.forEach(({ mesh, normale }) => {
-        const versteckt = camera.position.x * normale.x + camera.position.z * normale.z > 0
-        mesh.material.opacity = versteckt ? 0 : 1
-        mesh.material.transparent = versteckt
+      wandMeshe.forEach(wand => {
+        const versteckt = camera.position.x * wand.normale.x + camera.position.z * wand.normale.z > 0
+        setzeWandSichtbar(wand, !versteckt)
       })
     }
 
@@ -673,9 +698,14 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       // 8. Nachbesserung nach Hassans Feedback "ich möchte keine Fenster oder Türen sehen": anders
       // als in der 3. Nachbesserung entschieden (dort bewusst als "Teil der Architektur" sichtbar
       // gelassen) werden Fenster-/Tür-Wandelemente in der Decken-Ansicht jetzt genauso wenig gebaut
-      // wie normale Möbel. In jeder anderen Ansicht ändert sich nichts.
-      if (!deckenFokusRef.current) {
+      // wie normale Möbel. In jeder anderen Ansicht ändert sich nichts. Dieselbe Bedingung entscheidet
+      // in wandGeometrieFuerSegment, ob überhaupt ein Loch geschnitten wird.
+      if (wandElementeBauen) {
         const gruppe = baueWandElement(raumWurzel, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur)
+        // Nische einmal hier suchen und an ihre Wand hängen, statt bei jeder Kamerabewegung (siehe
+        // setzeWandSichtbar). Segment-Fallback wie in wandelemente.js.
+        const nische = item.typ === 'durchgang' ? gruppe.getObjectByName('durchgang-nische') : null
+        if (nische) (wandMeshe[item.wandSegment] || wandMeshe[0]).nischen.push(nische)
         wandElementGruppen.push({ gruppe, item })
       }
     })
@@ -782,10 +812,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       // Außenseite). Für ein Rechteck reduziert sich das exakt auf die bisherigen 4 Sonderfälle
       // camX/camZ ></< 0 — siehe Analyse Schritt 7 zu Innenecken (dieselbe Vereinfachung wie
       // heute schon bei einer Diagonalansicht, keine echte Verdeckungsberechnung).
-      wandMeshe.forEach(({ mesh, normale }) => {
-        const versteckt = camera.position.x * normale.x + camera.position.z * normale.z > 0
-        mesh.material.opacity = versteckt ? 0 : 1
-        mesh.material.transparent = versteckt
+      wandMeshe.forEach(wand => {
+        const versteckt = camera.position.x * wand.normale.x + camera.position.z * wand.normale.z > 0
+        setzeWandSichtbar(wand, !versteckt)
       })
     }
 
@@ -800,10 +829,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
 
       decke.material.opacity = 1
       decke.material.transparent = false
-      wandMeshe.forEach(({ mesh }) => {
-        mesh.material.opacity = 1
-        mesh.material.transparent = false
-      })
+      wandMeshe.forEach(wand => setzeWandSichtbar(wand, true))
     }
 
     // Berechnet Kamera-Zielposition + Blickpunkt exakt senkrecht mittig vor einer Wand (klassisches
@@ -901,7 +927,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       // freien Rundumblick, wo die Kamerawinkel-abhängige Transparenz Durchblicke ermöglicht).
       decke.material.opacity = 1
       decke.material.transparent = false
-      wandMeshe.forEach(({ mesh }) => { mesh.material.opacity = 1; mesh.material.transparent = false })
+      wandMeshe.forEach(wand => setzeWandSichtbar(wand, true))
     }
 
     const updateWandFokusCamera = (index) => {

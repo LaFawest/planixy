@@ -5,6 +5,14 @@ import { bogenMasse } from '../constants'
 const FENSTER_HOEHE = 1.2
 const TUER_HOEHE = 2.1
 
+// Tiefe der Nische hinter einem Durchgang. Die Wände der App sind flache Flächen ohne Dicke;
+// ein Durchgang schneidet ein echtes Loch, hinter dem nichts liegt — ohne Nische sieht man dort
+// scene.background (#F5F4F0) und die Öffnung wirkt wie ein Scherenschnitt in Papier.
+// 0,6 m ist bewusst mehr als eine Wanddicke: Es soll nach angrenzendem Raum aussehen, nicht nach
+// zugemauerter Öffnung.
+const NISCHE_TIEFE = 0.6
+const NISCHE_FARBE = '#D8D3CA'
+
 // === WANDELEMENTE (Tür/Fenster) ===
 // holzTextur (erzeugeHolzTextur aus texturen.js, wie schon bei Möbel-Holzbeinen in moebel.js)
 // ersetzt die bisherigen flachen Farben an Tür/Rahmen/Fensterrahmen durch eine Holzmaserung.
@@ -33,6 +41,38 @@ function baueKlinke(gruppe, x, y, z, farbe) {
   const druecker = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.024, 0.024), mat)
   druecker.position.set(x - 0.055, y, z + 0.055)
   gruppe.add(druecker)
+}
+
+// Nische hinter einer Wandöffnung: die Kontur der Öffnung, nach hinten extrudiert und von innen
+// sichtbar gemacht.
+//
+// side: BackSide ist hier der ganze Trick. Gezeichnet werden nur die Flächen, deren Normale vom
+// Betrachter wegzeigt — vom Raum aus also Laibung, Boden und Rückwand, nicht aber der Deckel
+// vorne an der Wandebene. Die Öffnung bleibt dadurch offen und bekommt trotzdem einen Grund.
+// Eine geschlossene Box mit FrontSide würde die Öffnung zumauern, DoubleSide ebenso.
+//
+// polygonOffset: Die Laibung liegt exakt auf der Lochkante. Die Backstein-Einfassung am Bogen
+// ragt halb nach hinten (z −0,07 bis 0) und hat dort deckungsgleiche Innenflächen — ohne den
+// Versatz flimmern beide gegeneinander. So gewinnt die Einfassung.
+//
+// Kein castShadow: Die Nische steht außerhalb des Raums und würde sonst Schatten in den Raum
+// werfen, die es nicht geben kann.
+function baueNische(kontur) {
+  const geo = new THREE.ExtrudeGeometry(kontur, { depth: NISCHE_TIEFE, bevelEnabled: false })
+  geo.translate(0, 0, -NISCHE_TIEFE)   // nach hinten, vom Raum weg (+z zeigt in den Raum)
+  const mat = new THREE.MeshStandardMaterial({
+    color: NISCHE_FARBE, roughness: 0.95, metalness: 0.0, side: THREE.BackSide,
+    polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+  })
+  const nische = new THREE.Mesh(geo, mat)
+  nische.receiveShadow = true
+  nische.name = 'durchgang-nische'
+  // Kein Klickziel: Der Raycaster von three.js prüft nur layers, nicht visible — eine unsichtbar
+  // geschaltete Nische bliebe sonst anklickbar. Auch sichtbar soll sie keines sein: Sie liegt hinter
+  // der Wand und finge schräge Klicks auf die Wand neben der Öffnung ab. Klickziel des Durchgangs
+  // ist allein die Klickfläche, die Nische ist reine Deko dahinter.
+  nische.raycast = () => {}
+  return nische
 }
 
 export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur) {
@@ -170,6 +210,20 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
       klickflaeche.position.set(0, gesamtHoehe / 2, 0)
       gruppe.add(klickflaeche)
 
+      // Dieselbe Kontur, die in RoomView3D.jsx das Loch in die Wand schneidet, hier als Körper
+      // nach hinten extrudiert (siehe Kopf der Datei, NISCHE_TIEFE). Die Höhe wird wie dort auf
+      // die Wandhöhe geklemmt, sonst ragt die Nische über die Wand, wenn der Raum nachträglich
+      // niedriger gestellt wurde.
+      const nischenHoehe = Math.max(0, Math.min(wandHoehe, gesamtHoehe))
+      const nischenMasse = bogenMasse(elBreite, nischenHoehe)
+      const bogenKontur = new THREE.Shape()
+      bogenKontur.moveTo(-elBreite / 2, 0)
+      bogenKontur.lineTo(elBreite / 2, 0)
+      bogenKontur.lineTo(elBreite / 2, nischenMasse.kaempferHoehe)
+      bogenKontur.absellipse(0, nischenMasse.kaempferHoehe, radius, nischenMasse.bogenHoehe, 0, Math.PI, false, 0)
+      bogenKontur.lineTo(-elBreite / 2, 0)
+      gruppe.add(baueNische(bogenKontur))
+
       if (item.backstein) {
         // Optionale Ziegel-Einfassung: flaches Ring-Shape (Öffnungs-Kontur als Loch, um
         // RAHMEN_BREITE nach außen versetzte, gleich aufgebaute Kontur als Außenrand — siehe
@@ -209,6 +263,15 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
       const klickflaeche = new THREE.Mesh(new THREE.PlaneGeometry(elBreite, elHoehe), klickMat)
       klickflaeche.position.set(0, elHoehe / 2, 0)
       gruppe.add(klickflaeche)
+
+      const nischenHoehe = Math.min(wandHoehe, elHoehe)   // wie vOben beim Wandloch
+      const kontur = new THREE.Shape()
+      kontur.moveTo(-elBreite / 2, 0)
+      kontur.lineTo(elBreite / 2, 0)
+      kontur.lineTo(elBreite / 2, nischenHoehe)
+      kontur.lineTo(-elBreite / 2, nischenHoehe)
+      kontur.lineTo(-elBreite / 2, 0)
+      gruppe.add(baueNische(kontur))
     }
 
   } else {
