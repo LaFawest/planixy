@@ -7,7 +7,7 @@ import { baueMoebel } from './scene/moebel'
 import { ladeModelle, getModell } from './scene/modelle'
 import { baueBeleuchtung, aktualisiereBeleuchtung } from './scene/beleuchtung'
 import { stelleLichtPoolBereit, verteileLichter, raeumeLichtPoolAb } from './scene/lichtPool'
-import { rechteckPolygon, boundingBox, wandSegmente, punktInPolygon, versetztesPolygon, punktSicherImPolygon } from './raumPolygon'
+import { rechteckPolygon, boundingBox, wandSegmente, punktInPolygon, versetztesPolygon } from './raumPolygon'
 import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
@@ -82,17 +82,15 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   // die beiden Effekte unabhängig voneinander laufen sollen.
   const moebelTickRef = useRef(null)
 
-  // Kameramodus + Rundgang-Position leben unabhängig vom schweren Szenen-Effekt unten (der bei
-  // jeder room/furniture/... Änderung die komplette Szene neu aufbaut) — ein Moduswechsel per
-  // Button soll keinen Neuaufbau auslösen. kameraModusRef ist die von den Event-Handlern im
-  // Effekt gelesene "Quelle der Wahrheit", kameraModus (State) dient nur der Button-Optik.
-  const kameraModusRef = useRef('rundumblick')
-  const [kameraModus, setKameraModus] = useState('rundumblick')
-  const rundgangRef = useRef(null)
+  // Was die linke Maustaste beim Ziehen tut. Dieselbe Ref+State-Aufteilung wie zuvor beim
+  // Kameramodus: Die Ref lesen die Maus-Handler im schweren Szenen-Effekt, der State dient nur
+  // der Knopf-Optik. Ein Moduswechsel darf die Szene nicht neu aufbauen.
+  const ziehModusRef = useRef('drehen')
+  const [ziehModus, setZiehModus] = useState('drehen')
   const updateCameraRef = useRef(() => {})
 
   // Ausgewähltes Fenster/Tür-Element im Wand-Fokus-Modus + Live-Anzeige seiner Position beim
-  // Ziehen. Lebt außerhalb des schweren Szenen-Effekts (wie kameraModus oben) — Auswählen/Ziehen
+  // Ziehen. Lebt außerhalb des schweren Szenen-Effekts (wie ziehModus oben) — Auswählen/Ziehen
   // darf keinen kompletten Neuaufbau der Szene auslösen. ausgewaehltesElementRef ist die von den
   // Maus-Handlern im Effekt gelesene Quelle der Wahrheit; sie fließt aktuell nirgends ins Rendern
   // ein, deshalb reicht dafür ein reiner Ref ohne begleitenden State.
@@ -141,8 +139,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   // zu wandElementRechnerRef/wandBereichHandleStartRef: vom schweren Effekt befüllt.
   const wandZeichnenAbbrechenRef = useRef(() => {})
 
-  // Analog zu kameraModusRef: ein reiner Wand-Wechsel soll NUR die Kamera neu positionieren,
-  // nicht die komplette Szene neu aufbauen (siehe waehleKameraModus-Pattern weiter unten). Setzt
+  // Analog zu ziehModusRef: ein reiner Wand-Wechsel soll NUR die Kamera neu positionieren,
+  // nicht die komplette Szene neu aufbauen (siehe waehleZiehModus-Pattern weiter unten). Setzt
   // hier zugleich die Fenster/Tür-Auswahl zurück (reine Ref-Mutation, kein setState — deshalb als
   // Teil dieses Effects unproblematisch).
   const fokusWandRef = useRef(fokusWand)
@@ -240,11 +238,10 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [zeichenModusMaterial])
 
-  const waehleKameraModus = (modus) => {
-    if (modus === kameraModusRef.current) return
-    kameraModusRef.current = modus
-    setKameraModus(modus)
-    updateCameraRef.current()
+  const waehleZiehModus = (modus) => {
+    if (modus === ziehModusRef.current) return
+    ziehModusRef.current = modus
+    setZiehModus(modus)
   }
 
   // Armiert/deaktiviert das Zeichnen-Werkzeug für ein Material — Klick auf denselben Swatch
@@ -752,49 +749,10 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     })
 
     // === KAMERA STEUERUNG ===
-    // Zwei Modi: "rundumblick" (bestehende Orbit-Kamera, Standard) und "rundgang" (freie Kamera
-    // auf Augenhöhe). Der aktuelle Modus wird bei jedem Handler-Aufruf frisch aus kameraModusRef
-    // gelesen (siehe Komponentenkopf) statt hier als Dependency zu landen — ein Moduswechsel per
-    // Button darf keinen Neuaufbau dieses (teuren) Effekts auslösen.
-    const AUGENHOEHE = 1.65
-    const RUNDGANG_SICHERHEITSABSTAND = 0.3
-    const PITCH_LIMIT = 1.4
-
-    // Nach innen versetztes Polygon als Lauf-Grenze (Sicherheitsabstand zu den Wänden). Kann bei
-    // einem zu schmalen L-/U-Form-Schenkel werfen (siehe versetztesPolygon) — dann ohne
-    // Sicherheitsabstand gegen die reine Raumkontur prüfen, statt das Laufen ganz zu blockieren.
-    let sicherheitsPolygon = eckpunkte
-    try {
-      sicherheitsPolygon = versetztesPolygon(eckpunkte, RUNDGANG_SICHERHEITSABSTAND)
-    } catch {
-      sicherheitsPolygon = eckpunkte
-    }
-
-    // Startpunkt für den Rundgang-Modus: derselbe "garantiert im Raum liegende Punkt" wie bei der
-    // Default-Möbelplatzierung (punktSicherImPolygon), Blickrichtung von dort zum 3D-Ursprung
-    // (Raummitte der Bounding-Box).
-    const berechneRundgangStart = () => {
-      const punkt = punktSicherImPolygon(eckpunkte)
-      const startX = punkt.x - mitteX
-      const startZ = mitteZ - punkt.y
-      const laenge = Math.hypot(startX, startZ) || 1
-      const yaw = Math.atan2(-startX / laenge, -startZ / laenge)
-      return { x: startX, z: startZ, yaw, pitch: 0 }
-    }
-
-    // rundgangRef lebt außerhalb dieses Effekts (siehe Komponentenkopf) und überlebt damit einen
-    // Szenen-Neuaufbau (room/furniture-Änderung während eines laufenden Rundgangs). Nur wenn die
-    // gespeicherte Position in der (evtl. neuen) Raumform nicht mehr gültig ist, neu berechnen.
-    if (!rundgangRef.current) {
-      rundgangRef.current = berechneRundgangStart()
-    } else {
-      const raumPunktAktuell = { x: rundgangRef.current.x + mitteX, y: mitteZ - rundgangRef.current.z }
-      if (!punktInPolygon(raumPunktAktuell, sicherheitsPolygon)) {
-        Object.assign(rundgangRef.current, berechneRundgangStart())
-      }
-    }
-    const rundgang = rundgangRef.current
-
+    // Eine Kamera, die um einen verschiebbaren Blickpunkt kreist. Was die linke Maustaste beim
+    // Ziehen tut, wird bei jedem Handler-Aufruf frisch aus ziehModusRef gelesen (siehe
+    // Komponentenkopf) statt hier als Dependency zu landen — ein Moduswechsel per Button darf
+    // keinen Neuaufbau dieses (teuren) Effekts auslösen.
     let isDragging = false
     let previousMouse = { x: 0, y: 0 }
     let spherical = { theta: Math.PI / 4, phi: Math.PI / 3, radius: 18 }
@@ -813,10 +771,52 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       kameraZiel.y = Math.max(0, Math.min(wandHoehe + 1, kameraZiel.y))
     }
 
+    // Wer von innen schaut, bleibt beim Drehen und Verschieben drinnen. Ohne das geriet die Kamera
+    // beim Drehen dicht an einer Wand hinter diese, die Wand blendete sich (korrekt) aus, und man
+    // stand plötzlich draußen.
+    //
+    // "Von innen" heißt: Die Kamera stand nach der letzten Aktualisierung im Raum UND der
+    // Blickpunkt liegt im Raum. Allein am Blickpunkt lässt es sich nicht festmachen — der startet
+    // in der Raummitte, während die Kamera für die Übersicht weit draußen steht. Hinein und hinaus
+    // geht es über den Zoom: Hineinzoomen von draußen ist ohnehin unbegrenzt (Kamera war nicht
+    // drinnen), und die Aktualisierung direkt nach einem Herauszoomen ist frei (zoomFrei), sonst
+    // käme man von innen nie wieder heraus.
+    //
+    // Verkürzt wird nur der für diese Darstellung wirksame Abstand, nie spherical.radius — so
+    // gleitet die Kamera an der Wand entlang und geht beim Weiterdrehen auf den eingestellten
+    // Abstand zurück. Unter KAMERA_MIN_ABSTAND lieber etwas Wand durchdringen, als die Kamera im
+    // Blickpunkt stecken zu lassen.
+    //
+    // Szene → Raumpolygon: x + mitteX, z + mitteZ (Boden und Wände liegen bei z = p.y − mitteZ).
+    const KAMERA_WANDABSTAND = 0.25
+    const KAMERA_MIN_ABSTAND = 0.3
+    let kameraPolygon = eckpunkte
+    try {
+      kameraPolygon = versetztesPolygon(eckpunkte, KAMERA_WANDABSTAND)
+    } catch {
+      // Zu schmaler L-/U-Schenkel für den Versatz (siehe versetztesPolygon): dann eben ohne Abstand.
+      kameraPolygon = eckpunkte
+    }
+    const imRaum = (x, z, polygon) => punktInPolygon({ x: x + mitteX, y: z + mitteZ }, polygon)
+    let kameraDrinnen = false
+    let zoomFrei = false
+
     const updateOrbitCamera = () => {
-      camera.position.x = kameraZiel.x + spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta)
-      camera.position.y = kameraZiel.y + spherical.radius * Math.cos(spherical.phi)
-      camera.position.z = kameraZiel.z + spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta)
+      const setzeKamera = (abstand) => {
+        camera.position.x = kameraZiel.x + abstand * Math.sin(spherical.phi) * Math.sin(spherical.theta)
+        camera.position.y = kameraZiel.y + abstand * Math.cos(spherical.phi)
+        camera.position.z = kameraZiel.z + abstand * Math.sin(spherical.phi) * Math.cos(spherical.theta)
+      }
+      let abstand = spherical.radius
+      setzeKamera(abstand)
+      if (kameraDrinnen && !zoomFrei && imRaum(kameraZiel.x, kameraZiel.z, eckpunkte)) {
+        while (abstand > KAMERA_MIN_ABSTAND && !imRaum(camera.position.x, camera.position.z, kameraPolygon)) {
+          abstand = Math.max(KAMERA_MIN_ABSTAND, abstand * 0.9)
+          setzeKamera(abstand)
+        }
+      }
+      zoomFrei = false
+      kameraDrinnen = imRaum(camera.position.x, camera.position.z, eckpunkte)
       camera.lookAt(kameraZiel)
 
       // Decke ausblenden wenn Kamera von oben schaut (phi < 30°)
@@ -834,8 +834,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       // ausserhalb ergibt das dasselbe Ergebnis, fuer eine Kamera INNERHALB des Raums aber nicht:
       // Wer nahe an der Nordwand steht und sie ansieht, liegt noerdlich der Raummitte, und die
       // Wand waere nach dem alten Test ausgeblendet — also genau die, die man gerade betrachtet.
-      // Mit dem Abstand zur Wandebene verschwindet von innen keine Wand mehr. Das ersetzt
-      // nebenbei die Sonderbehandlung, die der Rundgang dafuer brauchte.
+      // Mit dem Abstand zur Wandebene verschwindet von innen keine Wand mehr — damit geht auch
+      // der Blick von innen, für den es frueher einen eigenen Rundgang-Modus gab.
       wandMeshe.forEach(wand => {
         const zurKamera = camera.position.clone().sub(wand.mesh.position)
         const versteckt = zurKamera.x * wand.normale.x + zurKamera.z * wand.normale.z > 0
@@ -843,19 +843,6 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       })
     }
 
-    // Kamera steht innerhalb des Raums — die Ausblend-Logik der Orbit-Kamera (für eine Kamera
-    // außerhalb des Raums gedacht) passt hier nicht: Wände und Decke bleiben immer voll sichtbar.
-    const updateRundgangCamera = () => {
-      camera.position.set(rundgang.x, AUGENHOEHE, rundgang.z)
-      const zielX = rundgang.x + Math.sin(rundgang.yaw) * Math.cos(rundgang.pitch)
-      const zielY = AUGENHOEHE + Math.sin(rundgang.pitch)
-      const zielZ = rundgang.z + Math.cos(rundgang.yaw) * Math.cos(rundgang.pitch)
-      camera.lookAt(zielX, zielY, zielZ)
-
-      decke.material.opacity = 1
-      decke.material.transparent = false
-      wandMeshe.forEach(wand => setzeWandSichtbar(wand, true))
-    }
 
     // Berechnet Kamera-Zielposition + Blickpunkt exakt senkrecht mittig vor einer Wand (klassisches
     // "Objekt in Frustum einpassen", primär an der Wandhöhe ausgerichtet — siehe MAX_BREITEN_AUFSCHLAG
@@ -921,9 +908,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       }
     }
 
-    // Zustand für den weichen Wandwechsel — lebt als normale Variable im Effekt-Scope (wie
-    // laufAnimation weiter unten für den Rundgang-Modus), nicht als React-State: soll bei jedem
-    // Frame ohne Re-Render aktualisiert werden.
+    // Zustand für den weichen Wandwechsel — lebt als normale Variable im Effekt-Scope, nicht als
+    // React-State: soll bei jedem Frame ohne Re-Render aktualisiert werden.
     const WAND_WECHSEL_DAUER = 550
     let wandFokusAnimation = null // { startPos:{x,z}, startZiel:{x,z}, endPos:{x,z}, endZiel:{x,z}, startZeit }
     let letzterFokusWand = fokusWandRef.current
@@ -976,22 +962,17 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
 
     const updateCamera = () => {
       // Decken-Fokus (Phase 6, Teilschritt 1): Kamera bleibt exakt an der beim Szenenaufbau oben
-      // gesetzten Position/Rotation stehen — kein Orbit, kein Rundgang. Ohne diesen Wächter würde
+      // gesetzten Position/Rotation stehen — kein Orbit. Ohne diesen Wächter würde
       // der initiale updateCamera()-Aufruf gleich darunter (und jeder spätere über
       // updateCameraRef.current, z.B. bei Resize) die sorgfältig gesetzte Draufsicht sofort wieder
       // mit der Orbit-Kamera überschreiben.
       if (deckenFokusRef.current) return
       if (fokusWandRef.current != null) { updateWandFokusCamera(fokusWandRef.current); return }
-      if (kameraModusRef.current === 'rundgang') updateRundgangCamera()
-      else updateOrbitCamera()
+      updateOrbitCamera()
     }
     updateCamera()
     updateCameraRef.current = updateCamera
 
-    // Boden + Wände als gemeinsame Raycast-Ziele fürs Laufen: trifft der Klick-Strahl zuerst eine
-    // Wand statt den Boden, wurde auf/durch eine Wand geklickt — kein Laufbefehl, sonst könnte die
-    // Kamera durch eine Wand "hindurchlaufen" (siehe versucheLaufenZu).
-    const laufZiele = [boden, ...wandMeshe.map(w => w.mesh)]
     const raycaster = new THREE.Raycaster()
     const zeigerNDC = new THREE.Vector2()
 
@@ -1202,28 +1183,6 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       }
       deckenleuchteDrag = null
     }
-
-    let laufAnimation = null // { startX, startZ, zielX, zielZ, startZeit, dauer }
-    const easeOut = (t) => 1 - Math.pow(1 - t, 3)
-
-    const versucheLaufenZu = (clientX, clientY) => {
-      const rect = mount.getBoundingClientRect()
-      zeigerNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1
-      zeigerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1
-      raycaster.setFromCamera(zeigerNDC, camera)
-      const treffer = raycaster.intersectObjects(laufZiele, false)
-      if (treffer.length === 0 || treffer[0].object !== boden) return
-      const punkt = treffer[0].point
-      const raumPunkt = { x: punkt.x + mitteX, y: mitteZ - punkt.z }
-      if (!punktInPolygon(raumPunkt, sicherheitsPolygon)) return
-      laufAnimation = { startX: rundgang.x, startZ: rundgang.z, zielX: punkt.x, zielZ: punkt.z, startZeit: performance.now(), dauer: 700 }
-    }
-
-    // Klick/Tap-vs-Drag-Unterscheidung im Rundgang-Modus (analog zum Muster aus Kartenanwendungen):
-    // kaum Bewegung + kurze Zeit zwischen Down- und Up-Event = Laufbefehl, sonst nur Umsehen.
-    const KLICK_MAX_BEWEGUNG_PX = 6
-    const KLICK_MAX_DAUER_MS = 400
-    let rundgangZeiger = null // { startX, startY, letzteX, letzteY, bewegung, startZeit }
 
     // === FENSTER/TÜR ANKLICKEN + ZIEHEN (nur im Wand-Fokus-Modus) ===
     // Reine Positions-Mutation direkt am Three.js-Objekt während des Ziehens — KEIN
@@ -1902,8 +1861,12 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       }
     }
 
-    // Rundumblick: Drehen und Verschieben, gemeinsam für Maus und Touch.
-    let istSchieben = false // rechte oder mittlere Maustaste: verschieben statt drehen (Touch: zwei Finger, siehe unten)
+    // Drehen und Verschieben, gemeinsam für Maus und Touch. Geschoben wird mit rechter oder
+    // mittlerer Maustaste, mit Umschalt oder wenn die Leiste auf "Verschieben" steht — siehe
+    // sollSchieben. Umschalt kehrt nicht um: Steht die Leiste auf "Verschieben", schiebt es
+    // ebenfalls. Eine Taste, eine Bedeutung.
+    let mitSchiebeTaste = false // beim Drücken festgehalten: rechte oder mittlere Maustaste
+    const sollSchieben = (e) => mitSchiebeTaste || e.shiftKey || ziehModusRef.current === 'verschieben'
     const dreheOrbitKamera = (dx, dy) => {
       spherical.theta -= dx * 0.01
       // Neigung bis knapp unter die Waagerechte (1,55 rad sind 88,8°). Darueber hinaus kaeme
@@ -1948,7 +1911,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
 
     const onMouseDown = (e) => {
-      // mount enthält neben dem Canvas auch die React-gerenderten HTML-Overlays (Kameramodus-
+      // mount enthält neben dem Canvas auch die React-gerenderten HTML-Overlays (Zieh-Modus-
       // Buttons, Maßlinien-Zahlen/-Eingabefelder) — deren mousedown bubbelt sonst hierher hoch und
       // würde z.B. beim Antippen einer Maßlinien-Zahl fälschlich als Klick "daneben" gewertet
       // (Raycast trifft nichts -> Auswahl wird sofort wieder aufgehoben, bevor der Klick das
@@ -1956,12 +1919,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       if (e.target !== renderer.domElement) return
       if (fokusWandRef.current != null) { wandElementMausDown(e.clientX, e.clientY); return }
       if (deckenFokusRef.current) { deckenleuchteMausDown(e.clientX, e.clientY); return }
-      if (kameraModusRef.current === 'rundgang') {
-        rundgangZeiger = { startX: e.clientX, startY: e.clientY, letzteX: e.clientX, letzteY: e.clientY, bewegung: 0, startZeit: performance.now() }
-        return
-      }
       isDragging = true
-      istSchieben = e.button === 1 || e.button === 2
+      mitSchiebeTaste = e.button === 1 || e.button === 2
       // Mittlere Taste: sonst startet der Browser sein eigenes Auto-Scrollen.
       if (e.button === 1) e.preventDefault()
       previousMouse = { x: e.clientX, y: e.clientY }
@@ -1969,38 +1928,18 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     const onMouseUp = () => {
       if (fokusWandRef.current != null) { wandElementMausUp(); return }
       if (deckenFokusRef.current) { deckenleuchteMausUp(); return }
-      if (kameraModusRef.current === 'rundgang') {
-        if (rundgangZeiger) {
-          const dauer = performance.now() - rundgangZeiger.startZeit
-          if (rundgangZeiger.bewegung < KLICK_MAX_BEWEGUNG_PX && dauer < KLICK_MAX_DAUER_MS) {
-            versucheLaufenZu(rundgangZeiger.startX, rundgangZeiger.startY)
-          }
-        }
-        rundgangZeiger = null
-        return
-      }
       isDragging = false
-      istSchieben = false
+      mitSchiebeTaste = false
     }
     const onMouseMove = (e) => {
       if (fokusWandRef.current != null) { wandElementMausMove(e.clientX, e.clientY); return }
       if (deckenFokusRef.current) { deckenleuchteMausMove(e.clientX, e.clientY); return }
-      if (kameraModusRef.current === 'rundgang') {
-        if (!rundgangZeiger) return
-        const dx = e.clientX - rundgangZeiger.letzteX
-        const dy = e.clientY - rundgangZeiger.letzteY
-        rundgangZeiger.bewegung += Math.abs(dx) + Math.abs(dy)
-        rundgang.yaw -= dx * 0.01
-        rundgang.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, rundgang.pitch - dy * 0.01))
-        rundgangZeiger.letzteX = e.clientX
-        rundgangZeiger.letzteY = e.clientY
-        updateCamera()
-        return
-      }
       if (!isDragging) return
       const dx = e.clientX - previousMouse.x
       const dy = e.clientY - previousMouse.y
-      if (istSchieben) {
+      // Bei jeder Bewegung frisch entschieden, nicht beim Drücken: Wer mitten im Ziehen Umschalt
+      // drückt oder loslässt, wechselt damit.
+      if (sollSchieben(e)) {
         verschiebeKameraZiel(dx, dy)
       } else {
         dreheOrbitKamera(dx, dy)
@@ -2015,7 +1954,6 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       if (e.ctrlKey) e.preventDefault()
       if (fokusWandRef.current != null) return
       if (deckenFokusRef.current) return
-      if (kameraModusRef.current === 'rundgang') return
       // Untergrenze von 4 m auf 0,6 m: In einem kleinen Raum kam man bisher an nichts heran,
       // weil 4 m Abstand zur Raummitte schon ausserhalb der Waende liegen konnten.
       //
@@ -2025,11 +1963,16 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       // gleich viel im Bild.
       const zoomFaktor = Math.pow(1.2, e.deltaY / 100)
       spherical.radius = Math.max(0.6, Math.min(40, spherical.radius * zoomFaktor))
+      // Herauszoomen darf durch die Wand hinaus (siehe updateOrbitCamera). Hineinzoomen nicht frei:
+      // Gleitet die Kamera gerade an einer Wand, spränge sie sonst auf den eingestellten Abstand
+      // hinter die Wand.
+      if (zoomFaktor > 1) zoomFrei = true
       updateCamera()
     }
 
     let lastTouch = null
-    // Zwei Finger im Rundumblick: Mittelpunkt verschiebt, Abstand zoomt.
+    // Ein Finger tut, was die Leiste sagt. Zwei Finger: Mittelpunkt verschiebt, Abstand zoomt —
+    // unabhängig von der Leiste.
     let lastZweiFinger = null // { x, y, abstand }
     const zweiFingerWerte = (touches) => {
       const a = touches[0], b = touches[1]
@@ -2041,15 +1984,10 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
     const onTouchStart = (e) => {
       // Siehe onMouseDown oben: nur echte Canvas-Touches sollen die 3D-Interaktion auslösen, nicht
-      // ein Antippen der HTML-Overlays (Maßlinien-Zahlen/-Eingabefelder, Kameramodus-Buttons).
+      // ein Antippen der HTML-Overlays (Maßlinien-Zahlen/-Eingabefelder, Zieh-Modus-Buttons).
       if (e.target !== renderer.domElement) return
       if (fokusWandRef.current != null) { wandElementMausDown(e.touches[0].clientX, e.touches[0].clientY); return }
       if (deckenFokusRef.current) { deckenleuchteMausDown(e.touches[0].clientX, e.touches[0].clientY); return }
-      if (kameraModusRef.current === 'rundgang') {
-        const t = e.touches[0]
-        rundgangZeiger = { startX: t.clientX, startY: t.clientY, letzteX: t.clientX, letzteY: t.clientY, bewegung: 0, startZeit: performance.now() }
-        return
-      }
       isDragging = true
       if (e.touches.length >= 2) {
         lastZweiFinger = zweiFingerWerte(e.touches); lastTouch = null
@@ -2060,19 +1998,6 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     const onTouchMove  = (e) => {
       if (fokusWandRef.current != null) { wandElementMausMove(e.touches[0].clientX, e.touches[0].clientY); return }
       if (deckenFokusRef.current) { deckenleuchteMausMove(e.touches[0].clientX, e.touches[0].clientY); return }
-      if (kameraModusRef.current === 'rundgang') {
-        if (!rundgangZeiger) return
-        const t = e.touches[0]
-        const dx = t.clientX - rundgangZeiger.letzteX
-        const dy = t.clientY - rundgangZeiger.letzteY
-        rundgangZeiger.bewegung += Math.abs(dx) + Math.abs(dy)
-        rundgang.yaw -= dx * 0.01
-        rundgang.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, rundgang.pitch - dy * 0.01))
-        rundgangZeiger.letzteX = t.clientX
-        rundgangZeiger.letzteY = t.clientY
-        updateCamera()
-        return
-      }
       if (!isDragging) return
       if (e.touches.length >= 2 && lastZweiFinger) {
         const jetzt = zweiFingerWerte(e.touches)
@@ -2080,6 +2005,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         if (lastZweiFinger.abstand > 0 && jetzt.abstand > 0) {
           // Auseinanderziehen = näher heran; Grenzen wie beim Mausrad.
           spherical.radius = Math.max(0.6, Math.min(40, spherical.radius * lastZweiFinger.abstand / jetzt.abstand))
+          // Wie beim Mausrad: nur Herauszoomen (Finger zusammen) ist frei, Schieben und
+          // Hineinzoomen halten die Kamera drinnen.
+          if (jetzt.abstand < lastZweiFinger.abstand - 1) zoomFrei = true
         }
         lastZweiFinger = jetzt
         updateCamera()
@@ -2088,24 +2016,15 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       if (!lastTouch) return
       const dx = e.touches[0].clientX - lastTouch.clientX
       const dy = e.touches[0].clientY - lastTouch.clientY
-      dreheOrbitKamera(dx, dy)
+      if (ziehModusRef.current === 'verschieben') verschiebeKameraZiel(dx, dy)
+      else dreheOrbitKamera(dx, dy)
       lastTouch = e.touches[0]
       updateCamera()
     }
     const onTouchEnd = (e) => {
       if (fokusWandRef.current != null) { wandElementMausUp(); return }
       if (deckenFokusRef.current) { deckenleuchteMausUp(); return }
-      if (kameraModusRef.current === 'rundgang') {
-        if (rundgangZeiger) {
-          const dauer = performance.now() - rundgangZeiger.startZeit
-          if (rundgangZeiger.bewegung < KLICK_MAX_BEWEGUNG_PX && dauer < KLICK_MAX_DAUER_MS) {
-            versucheLaufenZu(rundgangZeiger.startX, rundgangZeiger.startY)
-          }
-        }
-        rundgangZeiger = null
-        return
-      }
-      // Von zwei Fingern auf einen: mit dem verbliebenen weiterdrehen, ohne Sprung.
+      // Von zwei Fingern auf einen: mit dem verbliebenen weitermachen, ohne Sprung.
       if (e.touches.length >= 2) { lastZweiFinger = zweiFingerWerte(e.touches); return }
       if (e.touches.length === 1) { lastTouch = e.touches[0]; lastZweiFinger = null; return }
       isDragging = false; lastTouch = null; lastZweiFinger = null
@@ -2159,17 +2078,9 @@ onResizeExtraRef.current = () => {
 }
 // Pro-Bild-Arbeit (App schneller machen, Schritt 3, Teilpunkt 4.4): Die Render-Schleife selbst
 // läuft dauerhaft im Lebenszyklus-Effekt und ruft bei jedem Bild frameTickRef auf; das eigentliche
-// renderer.render(...) passiert dort direkt danach. Hier steht nur noch, was pro Bild an den
-// beiden Kamera-Animationen zu tun ist — bei jedem Lauf dieses Effekts frisch hinterlegt.
+// renderer.render(...) passiert dort direkt danach. Hier steht nur noch, was pro Bild an der
+// Kamera-Animation des Wandwechsels zu tun ist — bei jedem Lauf dieses Effekts frisch hinterlegt.
 frameTickRef.current = () => {
-  if (laufAnimation) {
-    const t = Math.min(1, (performance.now() - laufAnimation.startZeit) / laufAnimation.dauer)
-    const fortschritt = easeOut(t)
-    rundgang.x = laufAnimation.startX + (laufAnimation.zielX - laufAnimation.startX) * fortschritt
-    rundgang.z = laufAnimation.startZ + (laufAnimation.zielZ - laufAnimation.startZ) * fortschritt
-    updateCamera()
-    if (t >= 1) laufAnimation = null
-  }
   if (wandFokusAnimation) {
     const t = Math.min(1, (performance.now() - wandFokusAnimation.startZeit) / WAND_WECHSEL_DAUER)
     const fortschritt = easeInOut(t)
@@ -2524,16 +2435,23 @@ return () => {
           }}>{bereichAuswahl.breiteCm} × {bereichAuswahl.hoeheCm} cm</div>
         </>
       )}
-      {fokusWand == null && (
+      {/* Nicht im Decken-Fokus: Dort steht die Kamera fest und die Maus bedient die Leuchten —
+          ein "Verschieben"-Knopf, der nichts tut, wäre genau die Art Bedienrätsel, die diese Leiste
+          beheben soll. */}
+      {fokusWand == null && !deckenFokus && (
         <div style={{ position: 'absolute', top: '12px', left: '12px', zIndex: 10, display: 'flex', border: '1px solid #E8E6E0', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
           {[
-            { key: 'rundumblick', label: 'Rundumblick' },
-            { key: 'rundgang', label: 'Rundgang' },
+            { key: 'drehen', label: 'Drehen' },
+            { key: 'verschieben', label: 'Verschieben' },
           ].map(({ key, label }) => (
-            <button key={key} onClick={() => waehleKameraModus(key)} style={{
+            <button key={key} onClick={() => waehleZiehModus(key)} title={
+              key === 'drehen'
+                ? 'Linke Maustaste ziehen: Ansicht drehen'
+                : 'Linke Maustaste ziehen: Ansicht verschieben (auch mit Umschalt oder rechter Maustaste)'
+            } style={{
               padding: '6px 14px', fontSize: '12px', fontFamily: "'DM Sans', sans-serif",
-              background: kameraModus === key ? '#2F4B39' : 'white', color: kameraModus === key ? 'white' : '#888780',
-              border: 'none', cursor: 'pointer', fontWeight: kameraModus === key ? '500' : '400',
+              background: ziehModus === key ? '#2F4B39' : 'white', color: ziehModus === key ? 'white' : '#888780',
+              border: 'none', cursor: 'pointer', fontWeight: ziehModus === key ? '500' : '400',
             }}>{label}</button>
           ))}
         </div>

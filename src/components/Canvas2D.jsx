@@ -99,10 +99,15 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
   return (
     <>
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#F5F4F0', position: 'relative' }}>
-        <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', fontSize: '11px', color: '#B4B2A9', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid #E8E6E0', zIndex: 10, whiteSpace: 'nowrap' }}>
+        {/* width max-content + maxWidth: auf breiten Bildschirmen eine Zeile wie bisher, auf schmalen
+            (der 3D-Hinweis ist rund 575 px lang) Umbruch statt seitlich aus dem Bild zu ragen. */}
+        <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', fontSize: '11px', color: '#B4B2A9', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid #E8E6E0', zIndex: 10, width: 'max-content', maxWidth: 'calc(100% - 32px)', textAlign: 'center' }}>
           {ansicht === '2d'
             ? (wandVorschau ? 'Oben bestätigen oder verwerfen' : zeichneWand ? 'Wand ziehen · Winkel schnappt bei 45° · Esc zum Beenden' : 'Doppelklick auf Raumnamen · Blau = Drehen · Rot = Löschen')
-            : schritt === 3 ? 'Leuchte anklicken zum Auswählen' : 'Maus ziehen = Kamera drehen · Scrollrad = Zoom'}
+            : schritt === 3 ? 'Leuchte anklicken zum Auswählen'
+            // Schritt 2 ist der Wand-Fokus: keine Drehen/Verschieben-Leiste, eigener Text folgt.
+            : schritt === 2 ? 'Maus ziehen = Kamera drehen · Scrollrad = Zoom'
+            : 'Ziehen = Drehen oder Verschieben (Leiste oben) · Umschalt oder rechte Taste = Verschieben · Scrollrad = Zoom'}
         </div>
         {ansicht === '2d' && schritt === 1 && (
           <div onClick={() => { setZeichneWand(z => !z); setSelectedWandId(null); setSelectedId(null); setWandVorschau(null) }}
