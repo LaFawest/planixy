@@ -88,6 +88,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   const ziehModusRef = useRef('drehen')
   const [ziehModus, setZiehModus] = useState('drehen')
   const updateCameraRef = useRef(() => {})
+  // Vom Knopf "Ansicht zurücksetzen" aufgerufen, vom Szenen-Effekt befüllt (Muster wie updateCameraRef).
+  const kameraZuruecksetzenRef = useRef(() => {})
 
   // Ausgewähltes Fenster/Tür-Element im Wand-Fokus-Modus + Live-Anzeige seiner Position beim
   // Ziehen. Lebt außerhalb des schweren Szenen-Effekts (wie ziehModus oben) — Auswählen/Ziehen
@@ -755,7 +757,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // keinen Neuaufbau dieses (teuren) Effekts auslösen.
     let isDragging = false
     let previousMouse = { x: 0, y: 0 }
-    let spherical = { theta: Math.PI / 4, phi: Math.PI / 3, radius: 18 }
+    // Startwerte an einer Stelle, damit Start und "Ansicht zurücksetzen" nicht auseinanderlaufen.
+    const KAMERA_START = { theta: Math.PI / 4, phi: Math.PI / 3, radius: 18 }
+    let spherical = { ...KAMERA_START } // Kopie — Drehen darf die Konstante nicht verändern
     // Blickpunkt, um den die Kamera kreist. Bisher war das fest die Raummitte auf Fussbodenhoehe
     // — man konnte drehen und zoomen, aber nie woanders hinsehen, und beim Zoomen fuhr man immer
     // auf die Raummitte zu statt auf das, was man ansehen wollte. Startwert (0,0,0), damit die
@@ -782,14 +786,14 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // drinnen), und die Aktualisierung direkt nach einem Herauszoomen ist frei (zoomFrei), sonst
     // käme man von innen nie wieder heraus.
     //
-    // Verkürzt wird nur der für diese Darstellung wirksame Abstand, nie spherical.radius — so
-    // gleitet die Kamera an der Wand entlang und geht beim Weiterdrehen auf den eingestellten
-    // Abstand zurück. Unter KAMERA_MIN_ABSTAND lieber etwas Wand durchdringen, als die Kamera im
-    // Blickpunkt stecken zu lassen.
+    // Begrenzt wird durch Zurücknehmen, nicht durch Verkürzen: Eine Drehung oder Verschiebung, die
+    // die Kamera hinter eine Wand tragen würde, findet nicht statt. Vorher wurde stattdessen der
+    // wirksame Abstand verkürzt — die Kamera glitt an der Wand entlang und wuchs beim Weiterdrehen
+    // zurück. Das war von außen nicht von einem Zoom zu unterscheiden, und Hassan hat es
+    // entsprechend als einen gemeldet: Der Abstand gehört dem Mausrad, Ziehen fasst ihn nicht an.
     //
     // Szene → Raumpolygon: x + mitteX, z + mitteZ (Boden und Wände liegen bei z = p.y − mitteZ).
     const KAMERA_WANDABSTAND = 0.25
-    const KAMERA_MIN_ABSTAND = 0.3
     let kameraPolygon = eckpunkte
     try {
       kameraPolygon = versetztesPolygon(eckpunkte, KAMERA_WANDABSTAND)
@@ -798,25 +802,52 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       kameraPolygon = eckpunkte
     }
     const imRaum = (x, z, polygon) => punktInPolygon({ x: x + mitteX, y: z + mitteZ }, polygon)
+    // Die Höhe gehört zur Frage "steht die Kamera im Raum" dazu. Ohne sie war der Blick von oben
+    // betroffen: Dort schwebt die Kamera 15 m über dem Raum, ihr Grundriss-Punkt liegt aber mitten
+    // im Polygon — sie galt als drinnen, und jedes Neigen, das sie seitlich über den Grundriss
+    // hinausführt, wurde wie ein Hinausrutschen durch eine Wand behandelt. Vorher verkürzte das
+    // den Abstand (der gemeldete "Zoom beim Ziehen"), seit der Rücknahme blockierte es das Neigen
+    // ganz. Dieselbe fehlende Bedingung, zwei Erscheinungsformen.
+    const kameraUnterDecke = () => camera.position.y < wandHoehe
     let kameraDrinnen = false
     let zoomFrei = false
+    // Letzter Stand von Drehung und Blickpunkt, bei dem die Kamera im Raum stand. Würde die
+    // nächste Drehung oder Verschiebung sie durch eine Wand tragen, wird dieser Stand wieder
+    // hergestellt. null heißt: Die Kamera steht ohnehin draußen, es gibt nichts zu begrenzen.
+    let letzterStand = null
 
     const updateOrbitCamera = () => {
-      const setzeKamera = (abstand) => {
+      const setzeKamera = () => {
+        const abstand = spherical.radius
         camera.position.x = kameraZiel.x + abstand * Math.sin(spherical.phi) * Math.sin(spherical.theta)
         camera.position.y = kameraZiel.y + abstand * Math.cos(spherical.phi)
         camera.position.z = kameraZiel.z + abstand * Math.sin(spherical.phi) * Math.cos(spherical.theta)
       }
-      let abstand = spherical.radius
-      setzeKamera(abstand)
-      if (kameraDrinnen && !zoomFrei && imRaum(kameraZiel.x, kameraZiel.z, eckpunkte)) {
-        while (abstand > KAMERA_MIN_ABSTAND && !imRaum(camera.position.x, camera.position.z, kameraPolygon)) {
-          abstand = Math.max(KAMERA_MIN_ABSTAND, abstand * 0.9)
-          setzeKamera(abstand)
-        }
+      setzeKamera()
+      // Die Kamera stand drinnen und soll nach dieser Änderung draußen stehen: Änderung zurück.
+      // Nicht beim Zoomen (zoomFrei) und nicht, wenn der Blickpunkt selbst aus dem Raum geschoben
+      // wurde — dann will man hinaus.
+      //
+      // "Draußen" heißt hier ausdrücklich "seitlich durch eine Wand": noch unter der Decke, aber
+      // nicht mehr im Grundriss. Nach oben durch die Decke hinaus ist frei — wer von innen aufwärts
+      // kippt, soll in die Übersicht kommen, und die Decke blendet sich dabei ohnehin aus.
+      const durchWandHinaus =
+        kameraUnterDecke() && !imRaum(camera.position.x, camera.position.z, kameraPolygon)
+      if (
+        kameraDrinnen && !zoomFrei && letzterStand &&
+        imRaum(kameraZiel.x, kameraZiel.z, eckpunkte) &&
+        durchWandHinaus
+      ) {
+        spherical.theta = letzterStand.theta
+        spherical.phi = letzterStand.phi
+        kameraZiel.copy(letzterStand.ziel)
+        setzeKamera()
       }
       zoomFrei = false
-      kameraDrinnen = imRaum(camera.position.x, camera.position.z, eckpunkte)
+      kameraDrinnen = kameraUnterDecke() && imRaum(camera.position.x, camera.position.z, eckpunkte)
+      letzterStand = kameraDrinnen
+        ? { theta: spherical.theta, phi: spherical.phi, ziel: kameraZiel.clone() }
+        : null
       camera.lookAt(kameraZiel)
 
       // Decke ausblenden wenn Kamera von oben schaut (phi < 30°)
@@ -972,6 +1003,19 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
     updateCamera()
     updateCameraRef.current = updateCamera
+
+    // Zurück zur Ansicht beim Öffnen — ohne Übergang, die Ansicht springt. Der Zieh-Modus bleibt,
+    // zurückgesetzt wird die Ansicht, nicht das Werkzeug. kameraDrinnen und letzterStand müssen
+    // mit: Wer von innen zurücksetzt, hätte sie sonst noch gesetzt, und die Wandbegrenzung in
+    // updateOrbitCamera nähme den Sprung auf 18 m Abstand sofort wieder zurück (der Blickpunkt
+    // (0,0,0) liegt ja im Raum) — das Zurücksetzen täte dann nichts.
+    kameraZuruecksetzenRef.current = () => {
+      kameraZiel.set(0, 0, 0)
+      Object.assign(spherical, KAMERA_START)
+      kameraDrinnen = false
+      letzterStand = null
+      updateCamera()
+    }
 
     const raycaster = new THREE.Raycaster()
     const zeigerNDC = new THREE.Vector2()
@@ -2441,19 +2485,51 @@ return () => {
       {fokusWand == null && !deckenFokus && (
         <div style={{ position: 'absolute', top: '12px', left: '12px', zIndex: 10, display: 'flex', border: '1px solid #E8E6E0', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
           {[
-            { key: 'drehen', label: 'Drehen' },
-            { key: 'verschieben', label: 'Verschieben' },
-          ].map(({ key, label }) => (
-            <button key={key} onClick={() => waehleZiehModus(key)} title={
-              key === 'drehen'
-                ? 'Linke Maustaste ziehen: Ansicht drehen'
-                : 'Linke Maustaste ziehen: Ansicht verschieben (auch mit Umschalt oder rechter Maustaste)'
-            } style={{
-              padding: '6px 14px', fontSize: '12px', fontFamily: "'DM Sans', sans-serif",
+            {
+              key: 'drehen',
+              titel: 'Drehen — linke Maustaste ziehen',
+              pfade: ['M12.8 8a4.8 4.8 0 1 1-1.5-3.5', 'M11.6 1.8v3h-3'],
+            },
+            {
+              key: 'verschieben',
+              titel: 'Verschieben — linke Maustaste ziehen, oder Umschalt bzw. rechte Maustaste',
+              pfade: [
+                'M8 2.5v11', 'M2.5 8h11',
+                'M8 2.5l-1.8 1.8', 'M8 2.5l1.8 1.8',
+                'M8 13.5l-1.8-1.8', 'M8 13.5l1.8-1.8',
+                'M2.5 8l1.8-1.8', 'M2.5 8l1.8 1.8',
+                'M13.5 8l-1.8-1.8', 'M13.5 8l-1.8 1.8',
+              ],
+            },
+          ].map(({ key, titel, pfade }) => (
+            <button key={key} onClick={() => waehleZiehModus(key)} title={titel} aria-label={titel} style={{
+              width: '34px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: ziehModus === key ? '#2F4B39' : 'white', color: ziehModus === key ? 'white' : '#888780',
-              border: 'none', cursor: 'pointer', fontWeight: ziehModus === key ? '500' : '400',
-            }}>{label}</button>
+              border: 'none', cursor: 'pointer', padding: 0,
+            }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                {pfade.map((d, i) => <path key={i} d={d} />)}
+              </svg>
+            </button>
           ))}
+          {/* Trennstrich: Der dritte Knopf schaltet nichts um, er loest aus. Ohne die Trennung
+              laese er sich wie eine dritte Werkzeugwahl. */}
+          <div style={{ width: '1px', background: '#E8E6E0' }} />
+          <button
+            onClick={() => kameraZuruecksetzenRef.current()}
+            title="Ansicht zurücksetzen"
+            aria-label="Ansicht zurücksetzen"
+            style={{
+              width: '34px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'white', color: '#888780', border: 'none', cursor: 'pointer', padding: 0,
+            }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+              strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M2.8 7.6L8 3.2l5.2 4.4" />
+              <path d="M4.4 6.9v5.9h7.2V6.9" />
+            </svg>
+          </button>
         </div>
       )}
       {fokusWand != null && liveWerte && (
