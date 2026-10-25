@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandTexturFuerFlaeche, erzeugeBacksteinTextur } from './texturen'
 import { baueTrennwaende } from './scene/trennwaende'
-import { baueWandElement } from './scene/wandelemente'
+import { baueWandElement, wandElementUnterkante } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
 import { ladeModelle, getModell } from './scene/modelle'
 import { baueBeleuchtung, aktualisiereBeleuchtung } from './scene/beleuchtung'
@@ -659,10 +659,22 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       })
     }
 
-    // Sockelleisten — eine Leiste je Wandsegment, volle Segmentlänge, nach innen versetzt um die
-    // halbe Dicke entlang der Segment-Normale (ersetzt die 4 festen ±0.02-Offsets). An Außenecken
-    // überlappen sich zwei Leisten geringfügig, wie schon bei den bisherigen 4 Leisten — siehe
-    // Notiz zu einspringenden Ecken für Schritt 9.
+    // Sockelleisten — je Wandsegment ein oder mehrere Stücke, nach innen versetzt um die halbe
+    // Dicke entlang der Segment-Normale. An Außenecken überlappen sich zwei Leisten geringfügig,
+    // wie schon bei den bisherigen 4 Leisten — siehe Notiz zu einspringenden Ecken für Schritt 9.
+    //
+    // Bis hierher war es eine Box über die volle Segmentlänge, die damit als Schwelle quer durch
+    // jede Türöffnung lief. Unterbrochen wird jetzt von jedem Wandelement, dessen Unterkante unter
+    // der Oberkante der Leiste liegt: Türen und Durchgänge stehen auf dem Boden, ein Fenster mit
+    // Brüstung nicht — darunter läuft die Leiste durch, wie in echt. Bewusst über die Kante statt
+    // über eine Liste von Typen, sonst wird der nächste neue Elementtyp hier vergessen.
+    const SOCKEL_HOEHE = 0.08
+    const SOCKEL_TIEFE = 0.04
+    // Die Leiste stößt an das Türfutter bzw. die Laibung, nicht an die nackte Öffnungskante.
+    const SOCKEL_LUFT = 0.01
+    // Kürzer als das lohnt kein Stück — ein Rest von wenigen Millimetern an einer Öffnung dicht am
+    // Wandende ist kein Sockel, sondern ein Flimmern.
+    const SOCKEL_MIN_STUECK = 0.02
     if (fussleiste) {
       const sockelMat = new THREE.MeshLambertMaterial({ color: fussleisteFarbe || '#E0DDD8' })
       segmente.forEach(segment => {
@@ -674,14 +686,49 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         }
         const x1 = segment.start.x - mitteX, z1 = segment.start.y - mitteZ
         const x2 = segment.ende.x - mitteX, z2 = segment.ende.y - mitteZ
-        const sockel = new THREE.Mesh(new THREE.BoxGeometry(segment.laenge, 0.08, 0.04), sockelMat)
-        sockel.position.set(
-          (x1 + x2) / 2 - segment.normale.x * 0.02,
-          0.04,
-          (z1 + z2) / 2 - segment.normale.y * 0.02,
-        )
-        sockel.rotation.y = -Math.atan2(z2 - z1, x2 - x1)
-        raumWurzel.add(sockel)
+
+        // Lücken in Metern ab Segmentanfang. Im Decken-Fokus gibt es keine Wandelemente (siehe
+        // wandElementeBauen), dort bleibt die Leiste durchgehend wie bisher.
+        const luecken = (wandElementeBauen ? furnitureRef.current : [])
+          .filter(f => f.istWandElement && f.wandSegment === segment.index)
+          .map(f => {
+            if (wandElementUnterkante(f, wandHoehe) >= SOCKEL_HOEHE) return null
+            const breite = f.width / 60
+            // Dieselbe Klemmung wie in wandelemente.js: Ein Element, das über das Wandende
+            // hinausragen würde, sitzt in Wirklichkeit am Ende.
+            const u = Math.max(0, Math.min(f.wandPosition || 0, segment.laenge - breite))
+            return {
+              von: Math.max(0, u - SOCKEL_LUFT),
+              bis: Math.min(segment.laenge, u + breite + SOCKEL_LUFT),
+            }
+          })
+          .filter(Boolean)
+          .sort((a, b) => a.von - b.von)
+
+        // Aus den Lücken die verbleibenden Stücke bilden. Zwei dicht benachbarte Öffnungen können
+        // sich nach dem Luftzuschlag überlappen — deshalb der Cursor mit Math.max, sonst entstünde
+        // ein Stück mit negativer Länge.
+        const stuecke = []
+        let cursor = 0
+        luecken.forEach(({ von, bis }) => {
+          if (von - cursor >= SOCKEL_MIN_STUECK) stuecke.push({ von: cursor, bis: von })
+          cursor = Math.max(cursor, bis)
+        })
+        if (segment.laenge - cursor >= SOCKEL_MIN_STUECK) stuecke.push({ von: cursor, bis: segment.laenge })
+
+        const winkel = -Math.atan2(z2 - z1, x2 - x1)
+        stuecke.forEach(({ von, bis }) => {
+          const laenge = bis - von
+          const t = (von + bis) / 2 / (segment.laenge || 1)
+          const sockel = new THREE.Mesh(new THREE.BoxGeometry(laenge, SOCKEL_HOEHE, SOCKEL_TIEFE), sockelMat)
+          sockel.position.set(
+            x1 + (x2 - x1) * t - segment.normale.x * SOCKEL_TIEFE / 2,
+            SOCKEL_HOEHE / 2,
+            z1 + (z2 - z1) * t - segment.normale.y * SOCKEL_TIEFE / 2,
+          )
+          sockel.rotation.y = winkel
+          raumWurzel.add(sockel)
+        })
       })
     }
 

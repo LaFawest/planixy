@@ -5,6 +5,17 @@ import { bogenMasse } from '../constants'
 const FENSTER_HOEHE = 1.2
 const TUER_HOEHE = 2.1
 
+// Unterkante eines Wandelements über dem Boden, in Metern. Türen und Durchgänge stehen auf dem
+// Boden; ein Fenster sitzt auf seiner Brüstung, und ohne gesetzte Brüstung auf dem Rückfallwert,
+// der es mittig in die Wand setzt. Exportiert, weil die Sockelleiste in RoomView3D.jsx dieselbe
+// Kante braucht, um sich an der richtigen Stelle zu unterbrechen — zwei Kopien dieser Formel
+// würden beim nächsten Nachjustieren auseinanderlaufen.
+export function wandElementUnterkante(item, wandHoehe) {
+  if (item.typ !== 'fenster') return 0
+  const elHoehe = item.hoeheReal ?? FENSTER_HOEHE
+  return item.bruestungshoehe ?? (wandHoehe * 0.55 - elHoehe / 2)
+}
+
 // Tiefe der Nische hinter einem Durchgang. Die Wände der App sind flache Flächen ohne Dicke;
 // ein Durchgang schneidet ein echtes Loch, hinter dem nichts liegt — ohne Nische sieht man dort
 // scene.background (#F5F4F0) und die Öffnung wirkt wie ein Scherenschnitt in Papier.
@@ -110,8 +121,7 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
   // Tür-Ast unten) — gesetzt, sobald Hassan ein Fenster im 3D-Editor per Eck-Anfasser
   // größenverändert hat (siehe RoomView3D.jsx).
   const fensterElHoehe = item.hoeheReal ?? FENSTER_HOEHE
-  const bruestungshoeheFallback = wandHoehe * 0.55 - fensterElHoehe / 2
-  const gruppenY = item.typ === 'fenster' ? (item.bruestungshoehe ?? bruestungshoeheFallback) : 0
+  const gruppenY = wandElementUnterkante(item, wandHoehe)
   gruppe.position.set(px, gruppenY, pz)
   gruppe.rotation.y = ry
 
