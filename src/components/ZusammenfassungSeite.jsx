@@ -23,13 +23,18 @@ function gruppiere(furniture) {
   const gruppen = new Map()
   for (const item of furniture) {
     if (item.istWandElement) continue
-    // Das im Editor gewählte Produkt; ältere Möbel ohne produktId (oder mit einer, die es nicht
-    // mehr gibt) fallen auf das erste Produkt des Möbeltyps zurück.
-    const produkt = produktEmpfehlungen.find(p => p.id === item.produktId)
-      ?? produktEmpfehlungen.find(p => p.moebelName === item.name)
-    const key = item.name + '::' + (produkt?.id ?? 'kein-vorschlag')
+    // Das im Editor gewählte Produkt. Ohne produktId (ältere Möbel, angelegt bevor es eine
+    // Produktwahl gab) ist das erste Produkt des Möbeltyps die richtige Antwort. Mit einer
+    // produktId, die es nicht mehr gibt, ist es das nicht: Dann stand hier stillschweigend ein
+    // anderes Produkt samt dessen Preis — ein 30,5 cm breiter Mini-Kamin erschien mit 239,99 €
+    // statt 75,90 €. Eine falsche Zahl, die richtig aussieht, ist schlimmer als keine.
+    const produkt = item.produktId
+      ? produktEmpfehlungen.find(p => p.id === item.produktId)
+      : produktEmpfehlungen.find(p => p.moebelName === item.name)
+    const verwaist = Boolean(item.produktId) && produkt == null
+    const key = item.name + '::' + (produkt?.id ?? (verwaist ? 'verwaist' : 'kein-vorschlag'))
     if (!gruppen.has(key)) {
-      gruppen.set(key, { name: item.name, produkt, anzahl: 0 })
+      gruppen.set(key, { name: item.name, produkt, verwaist, anzahl: 0 })
     }
     gruppen.get(key).anzahl += 1
   }
@@ -100,7 +105,9 @@ export default function ZusammenfassungSeite() {
                           <span style={{ fontSize: '10px', color: '#B4B2A9' }}>Anzeige</span>
                         </div>
                       ) : (
-                        <div style={{ fontSize: '11px', color: '#B4B2A9' }}>Noch kein Produktvorschlag</div>
+                        <div style={{ fontSize: '11px', color: '#B4B2A9' }}>
+                          {g.verwaist ? 'Gewähltes Produkt nicht mehr verfügbar' : 'Noch kein Produktvorschlag'}
+                        </div>
                       )}
                     </div>
                     <div style={{ fontSize: '13px', fontWeight: '600', color: '#2C2C2A', flexShrink: 0 }}>
