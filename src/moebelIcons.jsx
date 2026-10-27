@@ -12,8 +12,16 @@ export function moebelIconTyp(name) {
   if (n.includes('insel'))                              return 'tisch'
   if (n.includes('schrank'))                            return 'schrank'
   if (n.includes('regal'))                               return 'regal'
+  // Die vier LED- und Spot-Zeilen stehen bewusst VOR den allgemeinen Leuchten-Zeilen: "Spot-Reihe"
+  // muss vor "Spot" geprüft werden, sonst gewinnt die kürzere Zeichenfolge, und "Pendelleuchte"
+  // würde sonst von der allgemeinen leuchte-Zeile abgefangen.
+  if (n.includes('led-panel'))                          return 'ledPanel'
+  if (n.includes('led-streifen'))                       return 'ledStreifen'
+  if (n.includes('spot-reihe'))                         return 'spotReihe'
+  if (n.includes('spot'))                               return 'spot'
   if (n.includes('kronleuchter'))                       return 'kronleuchter'
-  if (n.includes('deckenlampe') || n.includes('pendelleuchte')) return 'deckenlampe'
+  if (n.includes('pendelleuchte'))                      return 'pendelleuchte'
+  if (n.includes('deckenlampe'))                        return 'deckenlampe'
   if (n.includes('tischlampe') || n.includes('wandleuchte') || n.includes('leuchte')) return 'lampe'
   if (n.includes('dunstabzug'))                         return 'dunstabzug'
   if (n.includes('ofen'))                               return 'herd'
@@ -267,22 +275,63 @@ export function moebelShapes(f, s) {
       <circle cx="14" cy="16" r="1.6" fill={f} stroke={s} strokeWidth="0.8" />
       <circle cx="21" cy="11" r="1.6" fill={f} stroke={s} strokeWidth="0.8" />
     </>,
+    // Beide waren Draufsichten, während die fünf neuen Leuchten Vorderansichten mit Deckenlinie
+    // sind — in einer Spalte nebeneinander sah das aus wie zwei verschiedene Sprachen.
     deckenlampe: <>
-      <circle cx="14" cy="14" r="9" fill={f} stroke={s} strokeWidth="1.3" />
-      <circle cx="14" cy="14" r="3.5" fill="none" stroke={s} strokeWidth="1" opacity="0.6" />
+      <path d="M4,5 L24,5" stroke={s} strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M7.5,5 A6.5,8.5 0 0 0 20.5,5 Z" fill={f} stroke={s} strokeWidth="1.3" strokeLinejoin="round" />
+      <path d="M9,17 L9,20.5 M14,18 L14,22 M19,17 L19,20.5"
+        stroke={s} strokeWidth="1" opacity="0.4" strokeLinecap="round" fill="none" />
     </>,
+    // Deckenleuchten bekommen alle eine Deckenlinie oben — das unterscheidet sie auf einen Blick
+    // von Tisch- und Stehlampen, und es ist das, was sie gemeinsam haben.
+    pendelleuchte: <>
+      <path d="M4,4 L24,4" stroke={s} strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M14,4 L14,13" stroke={s} strokeWidth="1.1" />
+      <path d="M8.5,22 L11,13 L17,13 L19.5,22 Z" fill={f} stroke={s} strokeWidth="1.3" strokeLinejoin="round" />
+    </>,
+
+    // Spot: in die Decke eingelassen, deshalb sitzt der Kreis AUF der Linie und nicht darunter.
+    // Der Lichtkegel macht aus einem Kreis eine Leuchte.
+    spot: <>
+      <path d="M3,8 L25,8" stroke={s} strokeWidth="1.3" strokeLinecap="round" />
+      <circle cx="14" cy="8" r="3.4" fill={f} stroke={s} strokeWidth="1.3" />
+      <path d="M10,12 L14,22 L18,12 Z" fill={f} stroke="none" opacity="0.35" />
+    </>,
+
+    spotReihe: <>
+      <path d="M2,8 L26,8" stroke={s} strokeWidth="1.3" strokeLinecap="round" />
+      {[6.5, 14, 21.5].map(x => (
+        <circle key={`s${x}`} cx={x} cy="8" r="2.6" fill={f} stroke={s} strokeWidth="1.2" />
+      ))}
+      {[6.5, 14, 21.5].map(x => (
+        <path key={`k${x}`} d={`M${x - 2.8},11.5 L${x},18.5 L${x + 2.8},11.5 Z`} fill={f} opacity="0.3" />
+      ))}
+    </>,
+
+    ledStreifen: <>
+      <rect x="2.5" y="8.5" width="23" height="3.6" rx="1.8" fill={f} stroke={s} strokeWidth="1.2" />
+      <path d="M4.5,15 L4.5,19 M9,15 L9,20.5 M14,15 L14,19 M19,15 L19,20.5 M23.5,15 L23.5,19"
+        stroke={s} strokeWidth="1" opacity="0.4" strokeLinecap="round" fill="none" />
+    </>,
+
+    ledPanel: <>
+      <rect x="4" y="4.5" width="20" height="13" rx="1.5" fill={f} stroke={s} strokeWidth="1.3" />
+      <path d="M7,8 L21,8 M7,11 L21,11 M7,14 L21,14" stroke={s} strokeWidth="0.9" opacity="0.3" fill="none" />
+      <path d="M7,20 L9,24 M14,20 L14,24.5 M21,20 L19,24"
+        stroke={s} strokeWidth="1" opacity="0.4" strokeLinecap="round" fill="none" />
+    </>,
+    // Kronleuchter: Aufhängung, geschwungener Arm, drei Kerzen. Die Draufsicht mit fünf Punkten
+    // auf Speichen war als Grundriss richtig, aber nicht als Bild einer Leuchte.
     kronleuchter: <>
-      <circle cx="14" cy="14" r="4" fill={f} stroke={s} strokeWidth="1.3" />
-      <circle cx="14" cy="5" r="1.6" fill={f} stroke={s} strokeWidth="1" />
-      <circle cx="6" cy="10" r="1.6" fill={f} stroke={s} strokeWidth="1" />
-      <circle cx="22" cy="10" r="1.6" fill={f} stroke={s} strokeWidth="1" />
-      <circle cx="8" cy="21" r="1.6" fill={f} stroke={s} strokeWidth="1" />
-      <circle cx="20" cy="21" r="1.6" fill={f} stroke={s} strokeWidth="1" />
-      <line x1="14" y1="14" x2="14" y2="5" stroke={s} strokeWidth="0.8" />
-      <line x1="14" y1="14" x2="6" y2="10" stroke={s} strokeWidth="0.8" />
-      <line x1="14" y1="14" x2="22" y2="10" stroke={s} strokeWidth="0.8" />
-      <line x1="14" y1="14" x2="8" y2="21" stroke={s} strokeWidth="0.8" />
-      <line x1="14" y1="14" x2="20" y2="21" stroke={s} strokeWidth="0.8" />
+      <path d="M4,3.5 L24,3.5" stroke={s} strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M14,3.5 L14,10" stroke={s} strokeWidth="1.1" />
+      <path d="M5.5,15 Q14,8.5 22.5,15" fill="none" stroke={s} strokeWidth="1.3" strokeLinecap="round" />
+      <circle cx="14" cy="11.5" r="1.7" fill={f} stroke={s} strokeWidth="1.1" />
+      {[[5.5, 15], [14, 11.6], [22.5, 15]].map(([x, y]) => (
+        <path key={x} d={`M${x - 2},${y + 2} L${x + 2},${y + 2} L${x + 1.3},${y + 7} L${x - 1.3},${y + 7} Z`}
+          fill={f} stroke={s} strokeWidth="1.1" strokeLinejoin="round" />
+      ))}
     </>,
     standard: <rect x="4" y="4" width="20" height="20" rx="4" fill={f} stroke={s} strokeWidth="1.5" />,
   }

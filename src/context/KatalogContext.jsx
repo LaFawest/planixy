@@ -63,6 +63,20 @@ export function KatalogProvider({ children }) {
   // (Fenster & Türen) haben keine Produktdaten und bleiben unverändert 1 Karte pro Typ.
   const gefilterteMoebel = useMemo(() => gefilterteTypen.flatMap(item => {
     if (item.typ) return [item]
+    // Leuchten werden nicht nach Produkten aufgefächert: eine Karte je Leuchtentyp. Seit der
+    // Katalog keine Fotos, Marken und Preise mehr zeigt, wären mehrere Produkte desselben Typs
+    // mehrere Karten mit demselben Namen und demselben Symbol — eine Auswahl, die keine ist.
+    // Bei Möbeln bleibt die Auffächerung bewusst bestehen.
+    //
+    // Maße, echte Höhe und Farbe kommen trotzdem weiter aus dem ersten Produkt des Typs, nur die
+    // produktId nicht. Die Katalogwerte der Leuchten sind grobe Platzhalter (Deckenlampe 58 cm
+    // breit in Orange statt 40 cm in Weiß, Kronleuchter ohne seine 1,10 m Höhe) — ohne diese
+    // Zeile sähe jede neu eingefügte Leuchte anders aus als bisher. Verlinkt wird damit nichts.
+    if (item.kategorie === LICHT_KATEGORIE) {
+      const erstes = produkteFuerTyp(item.name)[0]
+      if (!erstes) return [item]
+      return [{ ...item, ...produktAufKatalogItemAnwenden(item, erstes), produktId: undefined }]
+    }
     const produkte = produkteFuerTyp(item.name)
     if (produkte.length === 0) return [item]
     return produkte.map(produkt => ({
