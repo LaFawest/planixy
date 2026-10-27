@@ -1342,6 +1342,199 @@ export function erzeugeUmgebungsTextur() {
   return texture
 }
 
+let aussichtTexturCache = null
+
+// Dorfansicht hinter Fenstern, Balkon- und Haustüren. Blickhöhe erster bis zweiter Stock: Der
+// Horizont sitzt auf halber Höhe, man sieht über Hecken hinweg auf Häuser gegenüber und Dächer
+// dahinter.
+//
+// Bewusst eine ruhige Silhouette und keine erkennbaren Häuser: Dieselbe Ansicht steht hinter
+// JEDER Öffnung. Bei Umrissen merkt niemand, dass zwei Fenster auf verschiedenen Wänden dasselbe
+// zeigen; bei Fenstern und Zäunen sieht man es sofort. Und Details draußen konkurrieren mit dem
+// Raum, den man einrichtet.
+//
+// Eigener Zufallsgenerator statt Math.random(): Sonst stünde nach jedem Neuladen ein anderes Dorf
+// vor dem Fenster.
+//
+// Waagerecht nahtlos: Jedes Fenster zeigt nur einen Ausschnitt (siehe aussichtUV in
+// scene/wandelemente.js), und ein sehr breites Fenster läuft über den Rand hinaus. Deshalb
+// wiederholt sich die Zeichnung links-rechts ohne Stoß — Hügel sind periodisch, Häuser, Bäume und
+// Hecke werden über die Kante hinweg ein zweites Mal gezeichnet.
+export function erzeugeAussichtTextur() {
+  if (aussichtTexturCache) return aussichtTexturCache
+  // Gezeichnet wird in 2048 × 512, auf der Leinwand liegt die 1,5-fache Auflösung: Ein Fenster
+  // zeigt nur einen Ausschnitt, und der wäre sonst unscharf. Das Bild ist so breit, damit sich der
+  // Kirchturm erst nach 5,6 m wiederholt (siehe AUSSICHT_BREITE in scene/wandelemente.js) — bei
+  // halber Breite stand er in einem 3 m breiten Fenster zweimal.
+  const B = 2048, H = 512, AUFLOESUNG = 1.5
+  const canvas = document.createElement('canvas')
+  canvas.width = B * AUFLOESUNG
+  canvas.height = H * AUFLOESUNG
+  const ctx = canvas.getContext('2d')
+  ctx.scale(AUFLOESUNG, AUFLOESUNG)
+
+  // Kleiner linearer Kongruenzgenerator, feste Saat. Math.imul statt *: Das Produkt zweier
+  // 31-Bit-Zahlen ist größer als 2^53 und verliert als Gleitkommazahl seine unteren Bits — genau
+  // die, die die Maske danach behält. Die Folge fiele dadurch nach wenigen Schritten in einen
+  // kurzen Zyklus.
+  let saat = 20261027
+  const zufall = () => {
+    saat = (Math.imul(saat, 1103515245) + 12345) & 0x7fffffff
+    return saat / 0x7fffffff
+  }
+
+  // Zeichnet eine Form, die von links bis rechts reicht, und ein zweites Mal um eine Bildbreite
+  // versetzt, wenn sie über einen Rand ragt — die Leinwand schneidet den Rest ab.
+  const nahtlos = (zeichne, links, rechts) => {
+    zeichne(0)
+    if (rechts > B) zeichne(-B)
+    if (links < 0) zeichne(B)
+  }
+
+  const HORIZONT = H * 0.52
+
+  // Himmel, zum Horizont hin heller — so wie echter Himmel, der unten dunstig wird.
+  const himmel = ctx.createLinearGradient(0, 0, 0, HORIZONT)
+  himmel.addColorStop(0, '#9DC2E6')
+  himmel.addColorStop(0.6, '#C6DCF0')
+  himmel.addColorStop(1, '#E7EFF4')
+  ctx.fillStyle = himmel
+  ctx.fillRect(0, 0, B, HORIZONT)
+
+  // Zwei Hügelzüge mit wenig Kontrast. Sie geben Tiefe und sollen nicht auffallen.
+  const huegel = (basis, hoehe, farbe, phase) => {
+    ctx.fillStyle = farbe
+    ctx.beginPath()
+    ctx.moveTo(0, basis)
+    for (let x = 0; x <= B; x += 8) {
+      const w = x / B * Math.PI * 2
+      const k = 0.55 + 0.45 * Math.sin(w + phase)
+      const f = 0.65 + 0.35 * Math.sin(w * 3 + phase * 2)
+      ctx.lineTo(x, basis - hoehe * k * f)
+    }
+    ctx.lineTo(B, basis)
+    ctx.closePath()
+    ctx.fill()
+  }
+  huegel(HORIZONT + 4, H * 0.11, '#B9C9D4', 0.4)
+  huegel(HORIZONT + 10, H * 0.07, '#AAC0C6', 2.2)
+
+  // Wiese zwischen Hügeln und Dorf.
+  const wiese = ctx.createLinearGradient(0, HORIZONT, 0, H)
+  wiese.addColorStop(0, '#C3CDAE')
+  wiese.addColorStop(1, '#9FB08A')
+  ctx.fillStyle = wiese
+  ctx.fillRect(0, HORIZONT, B, H - HORIZONT)
+
+  // Das Dorf: Giebel- und Pultdächer in einer Reihe, dazu ein Kirchturm mit spitzem Helm. Zwei
+  // Töne — Wand und Dach — und keine Fenster.
+  const grund = H * 0.66
+  const wandFarbe = '#B2AFA6'
+  const dachFarbe = '#8D7A72'
+  const haus = (x, breite, hoehe, art) => {
+    ctx.fillStyle = wandFarbe
+    ctx.fillRect(x, grund - hoehe, breite, hoehe)
+    ctx.fillStyle = dachFarbe
+    ctx.beginPath()
+    if (art === 'pult') {
+      ctx.moveTo(x - 3, grund - hoehe)
+      ctx.lineTo(x + breite + 3, grund - hoehe - breite * 0.18)
+      ctx.lineTo(x + breite + 3, grund - hoehe + 6)
+      ctx.lineTo(x - 3, grund - hoehe + 6)
+    } else {
+      ctx.moveTo(x - 4, grund - hoehe)
+      ctx.lineTo(x + breite / 2, grund - hoehe - breite * 0.42)
+      ctx.lineTo(x + breite + 4, grund - hoehe)
+    }
+    ctx.closePath()
+    ctx.fill()
+  }
+
+  let x = 0
+  while (x < B) {
+    const breite = 50 + zufall() * 70
+    const hoehe = 55 + zufall() * 45
+    const art = zufall() < 0.25 ? 'pult' : 'giebel'
+    nahtlos(v => haus(x + v, breite, hoehe, art), x - 4, x + breite + 4)
+    x += breite + 10 + zufall() * 45
+  }
+
+  // Kirchturm, etwas links der Mitte — die Mitte wäre genau die Stelle, auf die man bei einem
+  // schmalen Fenster zwangsläufig schaut, und ein Turm mittig in jedem Fenster fällt auf.
+  const turmX = B * 0.37, turmB = 34, turmH = 190
+  ctx.fillStyle = wandFarbe
+  ctx.fillRect(turmX, grund - turmH, turmB, turmH)
+  ctx.fillStyle = dachFarbe
+  ctx.beginPath()
+  ctx.moveTo(turmX - 7, grund - turmH)
+  ctx.lineTo(turmX + turmB / 2, grund - turmH - 72)
+  ctx.lineTo(turmX + turmB + 7, grund - turmH)
+  ctx.closePath()
+  ctx.fill()
+
+  // Baumreihe vor dem Dorf: Laubbäume als Ballen, dazwischen ein paar Nadelbäume.
+  const baum = (bx, by, r, nadel) => {
+    ctx.fillStyle = '#6F8465'
+    if (nadel) {
+      ctx.beginPath()
+      ctx.moveTo(bx - r * 0.8, by)
+      ctx.lineTo(bx, by - r * 2.6)
+      ctx.lineTo(bx + r * 0.8, by)
+      ctx.closePath()
+      ctx.fill()
+    } else {
+      ctx.beginPath()
+      ctx.arc(bx, by - r, r, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillRect(bx - 2, by - r, 4, r)
+    }
+  }
+  let bx = 10
+  while (bx < B) {
+    const r = 16 + zufall() * 14
+    const nadel = zufall() < 0.3
+    nahtlos(v => baum(bx + v, grund + 14, r, nadel), bx - r, bx + r)
+    bx += 55 + zufall() * 70
+  }
+
+  // Hecke im Vordergrund, über die man gerade hinwegsieht. Sie schließt das Bild unten ab, damit
+  // dort keine Fläche ohne Inhalt steht. Der letzte Punkt nimmt die Höhe des ersten auf, sonst
+  // stünde am Stoß eine Stufe.
+  const heckenPunkte = []
+  for (let hx = 0; hx <= B; hx += 16) heckenPunkte.push(H * 0.86 - 6 - zufall() * 10)
+  heckenPunkte[heckenPunkte.length - 1] = heckenPunkte[0]
+  ctx.fillStyle = '#5E7357'
+  ctx.beginPath()
+  ctx.moveTo(0, H)
+  heckenPunkte.forEach((y, i) => ctx.lineTo(i * 16, y))
+  ctx.lineTo(B, H)
+  ctx.closePath()
+  ctx.fill()
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.colorSpace = THREE.SRGBColorSpace
+  // Waagerecht wiederholt (siehe oben), senkrecht an den Rand geklemmt: Ist eine Öffnung höher
+  // als der Bildausschnitt, setzen sich oben der Himmel und unten die Hecke einfach fort.
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.ClampToEdgeWrapping
+  texture.userData.persistenteTextur = true
+  aussichtTexturCache = texture
+  return texture
+}
+
+// Farbton für die Aussicht nach Tageszeit (Stunden 0-24, wie tageszeit im Raum-Design). Dieselbe
+// Sonnenhöhen-Rechnung wie tageslichtWerte() in scene/beleuchtung.js: zum Horizont hin warm,
+// nachts blau und dunkel. Die Ansicht selbst ist unbeleuchtet, der Ton macht die Tageszeit.
+export function aussichtTageszeitFarbe(tageszeit) {
+  const roh = Math.sin((tageszeit - 6) / 12 * Math.PI)
+  const sonnenhoehe = Math.max(0, roh)
+  const nacht = Math.max(0, -roh)
+  const warm = Math.max(0, 1 - sonnenhoehe * 2.2)
+  return new THREE.Color(0xffffff)
+    .lerp(new THREE.Color(0xffc49a), warm * 0.5 * (1 - nacht))
+    .lerp(new THREE.Color(0x2c3a5c), nacht * 0.8)
+}
+
 // Nur noch für erzeugeStandardBodenTextur relevant (die anderen Bodenbeläge sind echte
 // Foto-Texturen, siehe BODEN_TEXTUR_URLS) — bleibt trotzdem generisch nach Typ statt fest
 // verdrahtet, für jeden unbekannten/zukünftigen Belag ohne eigenes Foto.

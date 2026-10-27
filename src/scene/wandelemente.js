@@ -106,7 +106,43 @@ function baueNische(kontur, tiefe = NISCHE_TIEFE, farbe = NISCHE_FARBE) {
   return nische
 }
 
-export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur) {
+// Welchen Ausschnitt der Dorfansicht (erzeugeAussichtTextur in texturen.js) eine Öffnung zeigt.
+//
+// Ohne das bekäme jede Fläche die UV-Koordinaten 0 bis 1, also das GANZE Bild — gestaucht in ein
+// schmales Fenster, gestreckt in ein breites, und der Kirchturm stünde in jedem Fenster an
+// derselben Stelle. Stattdessen hat die Ansicht einen festen Maßstab: Das Bild ist draußen
+// AUSSICHT_BREITE × AUSSICHT_HOEHE Meter groß, und jede Öffnung schneidet so viel davon aus, wie
+// sie groß ist. Ein schmales Fenster zeigt wenig, ein breites mehr, nichts wird verzerrt.
+//
+// Senkrecht sitzt der Horizont auf halber Öffnungshöhe. Ist eine Öffnung höher als das Bild (die
+// Balkontür), läuft sie oben in den Himmel und unten in die Hecke — die Textur ist senkrecht an
+// den Rand geklemmt.
+//
+// Waagerecht entscheidet die Lage in der Wand: Nebeneinanderliegende Fenster derselben Wand zeigen
+// ein zusammenhängendes Panorama, wie echte Fenster nebeneinander. Jede Wand bekommt dazu einen
+// eigenen Versatz, damit Fenster auf verschiedenen Wänden nicht dieselbe Stelle zeigen.
+// 1,4 m Höhe: Ein Standardfenster von 1,2 m zeigt damit fast das ganze Bild, von der Hecke unten
+// bis in den blauen Himmel oben. Die Breite folgt aus dem Seitenverhältnis der Textur (4 : 1),
+// sonst wäre das Dorf verzerrt.
+const AUSSICHT_BREITE = 5.6
+const AUSSICHT_HOEHE = 1.4
+const AUSSICHT_HORIZONT_V = 0.48   // 1 − 0,52: Horizont in texturen.js, von unten gezählt
+function setzeAussichtUV(geo, oeffnung, hoehe, segmentIndex) {
+  const uLinks = 0.23 + (segmentIndex || 0) * 0.381 + oeffnung.u / AUSSICHT_BREITE
+  const uRechts = uLinks + oeffnung.breite / AUSSICHT_BREITE
+  const vUnten = AUSSICHT_HORIZONT_V - hoehe / 2 / AUSSICHT_HOEHE
+  const vOben = AUSSICHT_HORIZONT_V + hoehe / 2 / AUSSICHT_HOEHE
+  // PlaneGeometry legt ihre vier Ecken in der Reihenfolge oben links, oben rechts, unten links,
+  // unten rechts an.
+  const uv = geo.attributes.uv
+  uv.setXY(0, uLinks, vOben)
+  uv.setXY(1, uRechts, vOben)
+  uv.setXY(2, uLinks, vUnten)
+  uv.setXY(3, uRechts, vUnten)
+  uv.needsUpdate = true
+}
+
+export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur, aussichtMaterial) {
   const elBreite = item.width / 60
   const gruppe = new THREE.Group()
 
@@ -151,16 +187,19 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
   // ist deshalb tief (das macht sein eigener Zweig weiter unten). Alles andere bekommt nur eine
   // Laibung in Wanddicke.
   //
-  // Die Rückwand sagt, wohin die Öffnung führt: Wandfarbe für alles, was in einen anderen Raum
-  // führt, Himmelsfarbe für das, was nach draußen geht. In Schritt 3 tritt dort die Dorfansicht
-  // an die Stelle der Himmelsfarbe — deshalb hier schon getrennt und nicht alles gleich.
-  const LAIBUNG_TIEFE = 0.15
-  const HIMMEL_FARBE = '#DCE9F2'
+  // Der Grund der Laibung sagt, wohin die Öffnung führt: Wandfarbe für alles, was in einen
+  // anderen Raum führt, die Dorfansicht für das, was nach draußen geht.
+  //
+  // Laibung: nach draußen tiefer, weil eine echte Außenwand 20 bis 40 cm dick ist und das Fenster
+  // in dieser Tiefe sitzt. Nach innen genügt Wanddicke.
+  const LAIBUNG_TIEFE_INNEN = 0.15
+  const LAIBUNG_TIEFE_AUSSEN = 0.22
   const NACH_DRAUSSEN = new Set(['fenster'])
   const STIL_NACH_DRAUSSEN = new Set(['balkon-einzel', 'balkon-doppel', 'haustuer'])
   if (item.typ !== 'durchgang') {
     const o = wandElementOeffnung(item, wandHoehe, segment.laenge)
     const draussen = NACH_DRAUSSEN.has(item.typ) || STIL_NACH_DRAUSSEN.has(item.stil)
+    const LAIBUNG_TIEFE = draussen ? LAIBUNG_TIEFE_AUSSEN : LAIBUNG_TIEFE_INNEN
     // Kontur in Gruppen-Koordinaten: Die Gruppe sitzt bereits auf der Unterkante (bei Fenstern
     // die Brüstungshöhe), die Kontur läuft deshalb von 0 bis zur Elementhöhe.
     const hoehe = Math.max(0, Math.min(wandHoehe - o.unten, o.hoehe))
@@ -170,7 +209,21 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
     kontur.lineTo(o.breite / 2, hoehe)
     kontur.lineTo(-o.breite / 2, hoehe)
     kontur.lineTo(-o.breite / 2, 0)
-    gruppe.add(baueNische(kontur, LAIBUNG_TIEFE, draussen ? HIMMEL_FARBE : NISCHE_FARBE))
+    // Die Laibung ist immer Wandfarbe — auch nach draußen. Sie ist verputzte Wand, nicht Himmel;
+    // in Schritt 1 war sie hellblau, und genau das ließ sie im Schatten grau wirken.
+    gruppe.add(baueNische(kontur, LAIBUNG_TIEFE, NISCHE_FARBE))
+
+    // Und am Grund der Laibung die Aussicht, so groß wie die Öffnung. Unbeleuchtet (siehe
+    // Material in RoomView3D.jsx): Draußen liegt nicht im Schatten der Laibung.
+    if (draussen && aussichtMaterial) {
+      const geo = new THREE.PlaneGeometry(o.breite, hoehe)
+      setzeAussichtUV(geo, o, hoehe, item.wandSegment)
+      const aussicht = new THREE.Mesh(geo, aussichtMaterial)
+      aussicht.position.set(0, hoehe / 2, -LAIBUNG_TIEFE + 0.006)
+      // Kein Klickziel und kein Schattenwerfer — dieselbe Begründung wie bei der Nische.
+      aussicht.raycast = () => {}
+      gruppe.add(aussicht)
+    }
   }
 
   if (item.typ === 'fenster') {

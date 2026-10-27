@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandTexturFuerFlaeche, erzeugeBacksteinTextur } from './texturen'
+import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandTexturFuerFlaeche, erzeugeBacksteinTextur, erzeugeAussichtTextur, aussichtTageszeitFarbe } from './texturen'
 import { baueTrennwaende } from './scene/trennwaende'
 import { baueWandElement, wandElementUnterkante, wandElementOeffnung } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
@@ -52,6 +52,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   // auslösen, den dieser Teilpunkt ja gerade vermeiden soll.
   const beleuchtungRef = useRef(null)
   const tageszeitRef = useRef(tageszeit)
+  // Ein Material für alle Aussichts-Flächen. Als Ref, damit der Tageszeit-Effekt weiter unten
+  // seinen Farbton ändern kann, ohne die Szene neu zu bauen — dasselbe Muster wie beleuchtungRef.
+  const aussichtMaterialRef = useRef(null)
 
   // App schneller machen, Schritt 3, Teilpunkt 4.4: Szene, Kamera und Renderer werden nur noch
   // einmal beim Mount erzeugt (siehe Lebenszyklus-Effekt weiter unten) statt bei jedem Neuaufbau —
@@ -450,6 +453,19 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // === TEXTUREN (einmal pro Szene erzeugt, mehrfach verwendet) ===
     const holzTextur = erzeugeHolzTextur()
     const backsteinTextur = erzeugeBacksteinTextur()
+    // Ein Material für alle Fenster und Außentüren des Raums. MeshBasicMaterial, also
+    // unbeleuchtet: Die Fläche sitzt am Grund einer Laibung und bekäme als beleuchtetes Material
+    // kaum Licht — draußen wirkte dadurch grau. Die Tageszeit macht stattdessen der Farbton.
+    //
+    // toneMapped: false, weil die Ansicht schon die fertigen Farben trägt. Mit der Filmkurve des
+    // Renderers (ACES, Belichtung 1,2) wurde der Himmel fast weiß und alles darunter blass — im
+    // Bild sah das aus wie Nebel vor dem Fenster.
+    const aussichtMaterial = new THREE.MeshBasicMaterial({
+      map: erzeugeAussichtTextur(),
+      color: aussichtTageszeitFarbe(tageszeitRef.current),
+      toneMapped: false,
+    })
+    aussichtMaterialRef.current = aussichtMaterial
     // wandTextur wird jetzt pro Wand einzeln über wandTexturFuer() erzeugt (siehe unten), da
     // jede Wand ihr eigenes Material haben kann. scene.environment wird seit Teilpunkt 4.4
     // einmalig im Lebenszyklus-Effekt gesetzt und nicht mehr hier.
@@ -766,7 +782,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       // wie normale Möbel. In jeder anderen Ansicht ändert sich nichts. Dieselbe Bedingung entscheidet
       // in wandGeometrieFuerSegment, ob überhaupt ein Loch geschnitten wird.
       if (wandElementeBauen) {
-        const gruppe = baueWandElement(raumWurzel, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur)
+        const gruppe = baueWandElement(raumWurzel, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur, aussichtMaterial)
         // Nische einmal hier suchen und an ihre Wand hängen, statt bei jeder Kamerabewegung (siehe
         // setzeWandSichtbar). Segment-Fallback wie in wandelemente.js.
         const nische = gruppe.getObjectByName('wand-nische')
@@ -2444,6 +2460,12 @@ return () => {
   // Mount schon befüllt ist, bevor hier darauf zugegriffen wird.
   useEffect(() => {
     tageszeitRef.current = tageszeit
+    // Die Aussicht ist unbeleuchtet und bekommt die Tageszeit deshalb nicht über die Lichter,
+    // sondern als Farbton. Ohne diese zwei Zeilen stünde am Schieber "Nacht" ein heller
+    // Mittagshimmel vor dem Fenster.
+    if (aussichtMaterialRef.current) {
+      aussichtMaterialRef.current.color.copy(aussichtTageszeitFarbe(tageszeit))
+    }
     if (!beleuchtungRef.current) return
     aktualisiereBeleuchtung(beleuchtungRef.current, tageszeit)
   }, [tageszeit])
