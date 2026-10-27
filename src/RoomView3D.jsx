@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandTexturFuerFlaeche, erzeugeBacksteinTextur, erzeugeAussichtTextur, aussichtTageszeitFarbe } from './texturen'
 import { baueTrennwaende } from './scene/trennwaende'
-import { baueWandElement, wandElementUnterkante, wandElementOeffnung } from './scene/wandelemente'
+import { baueWandElement, wandElementUnterkante, wandElementOeffnung, SOCKEL_HOEHE } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
 import { ladeModelle, getModell } from './scene/modelle'
 import { baueBeleuchtung, aktualisiereBeleuchtung } from './scene/beleuchtung'
@@ -700,7 +700,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // der Oberkante der Leiste liegt: Türen und Durchgänge stehen auf dem Boden, ein Fenster mit
     // Brüstung nicht — darunter läuft die Leiste durch, wie in echt. Bewusst über die Kante statt
     // über eine Liste von Typen, sonst wird der nächste neue Elementtyp hier vergessen.
-    const SOCKEL_HOEHE = 0.08
+    // SOCKEL_HOEHE kommt aus scene/wandelemente.js — die Fensterbank rechnet mit derselben Höhe.
     const SOCKEL_TIEFE = 0.04
     // Die Leiste stößt an das Türfutter bzw. die Laibung, nicht an die nackte Öffnungskante.
     const SOCKEL_LUFT = 0.01

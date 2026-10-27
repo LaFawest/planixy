@@ -5,6 +5,11 @@ import { bogenMasse } from '../constants'
 const FENSTER_HOEHE = 1.2
 const TUER_HOEHE = 2.1
 
+// Höhe der Sockelleiste. Sie wohnt hier, weil die Fensterbank danach entscheidet, ob sie gebaut
+// wird, und wird von RoomView3D.jsx importiert, das die Leiste selbst baut. Zwei Zahlen für
+// dieselbe Leiste würden beim nächsten Nachjustieren auseinanderlaufen.
+export const SOCKEL_HOEHE = 0.08
+
 // Unterkante eines Wandelements über dem Boden, in Metern. Türen und Durchgänge stehen auf dem
 // Boden; ein Fenster sitzt auf seiner Brüstung, und ohne gesetzte Brüstung auf dem Rückfallwert,
 // der es mittig in die Wand setzt. Exportiert, weil die Sockelleiste in RoomView3D.jsx dieselbe
@@ -416,11 +421,25 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
       gruppe.add(fluegel)
     }
 
-    // Fensterbank innen, wie bisher unter dem Fenster.
-    const bankMat = new THREE.MeshStandardMaterial({ color: istWeiss ? '#F0EEE9' : '#E8E4DC', roughness: 0.4 })
-    const bank = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.1, 0.05, 0.15), bankMat)
-    bank.position.set(0, yPos - elHoehe / 2 - 0.025, 0.08)
-    gruppe.add(bank)
+    // Fensterbank innen — aber nur, wenn darunter Platz ist. Sie ist 5 cm dick und sitzt unter der
+    // Unterkante des Fensters; bei Brüstungshöhe 0 ist diese Unterkante der Fußboden, und die Bank
+    // lag zur Hälfte darin.
+    //
+    // Weggelassen statt angehoben: Ein bodentiefes Fenster hat auch in echt keine innere
+    // Fensterbank, dort schließt der Fußboden direkt an den Rahmen an. Eine angehobene Bank stünde
+    // als Stufe davor und wäre der nächste Fehler.
+    //
+    // Die Grenze ist Sockelleiste plus Bankdicke, nicht Bankdicke plus Luft: Ab Leistenhöhe läuft
+    // die Sockelleiste (SOCKEL_HOEHE oben in dieser Datei) unter dem Fenster durch. Eine Bank,
+    // deren Unterkante tiefer liegt, steckte in der Leiste — bei 10 cm Brüstung 3 cm tief.
+    // Zwischen 8 und 13 cm steht das Fenster deshalb ohne Bank direkt über der Leiste.
+    const BANK_DICKE = 0.05
+    if (gruppenY >= SOCKEL_HOEHE + BANK_DICKE) {
+      const bankMat = new THREE.MeshStandardMaterial({ color: istWeiss ? '#F0EEE9' : '#E8E4DC', roughness: 0.4 })
+      const bank = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.1, BANK_DICKE, 0.15), bankMat)
+      bank.position.set(0, yPos - elHoehe / 2 - BANK_DICKE / 2, 0.08)
+      gruppe.add(bank)
+    }
 
   } else if (item.typ === 'durchgang') {
     // Offener Durchgang (Phase 4, Teil 3a/3b): kein Türblatt/Rahmen — das eigentliche "Loch"
@@ -459,34 +478,43 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
       gruppe.add(baueNische(bogenKontur))
 
       if (item.backstein) {
-        // Optionale Ziegel-Einfassung: flaches Ring-Shape (Öffnungs-Kontur als Loch, um
-        // RAHMEN_BREITE nach außen versetzte, gleich aufgebaute Kontur als Außenrand — siehe
-        // Kommentar bei wandGeometrieFuerSegment in RoomView3D.jsx, warum ein größerer Radius um
-        // denselben Kreismittelpunkt nahtlos an die versetzten geraden Seiten anschließt),
-        // extrudiert auf Rahmentiefe und wie die Tür-Rahmenboxen oben auf der Wandebene
-        // zentriert.
+        // Optionale Ziegel-Einfassung als EIN geschlossener Umriss: außen am linken Fuß hoch, über
+        // den äußeren Bogen, außen herunter, dann innen zurück über den inneren Bogen zum linken
+        // Fuß. Ein Band mit offenem Fuß — die Einfassung steht auf dem Boden, sie läuft nicht
+        // darüber hinweg.
+        //
+        // Vorher war es ein Shape mit einem hole, und beide hatten eine Unterkante auf y = 0, die
+        // quer durch die ganze Öffnung lief. ExtrudeGeometry zieht an JEDER Kante eines Umrisses
+        // eine Seitenwand in Extrusionstiefe hoch — an diesen beiden Unterkanten lag die Wand flach
+        // in der Bodenebene: ein 14 cm tiefer Backsteinstreifen quer über dem Boden der Öffnung,
+        // eine Schwelle aus Ziegel, wo keine sein kann. Die Dreieckszerlegung der Deckflächen war
+        // dabei korrekt (nachgerechnet: kein Deckel-Dreieck lag im Loch).
+        //
+        // Dass ein größerer Radius um denselben Kreismittelpunkt nahtlos an die nach außen
+        // versetzten geraden Seiten anschließt, gilt unverändert (siehe Kommentar bei
+        // wandGeometrieFuerSegment in RoomView3D.jsx).
         const RAHMEN_BREITE = 0.12
         const RAHMEN_TIEFE = 0.14
         const radiusAussen = radius + RAHMEN_BREITE
         const bogenHoeheAussen = bogenHoehe + RAHMEN_BREITE
         const halbBreiteAussen = elBreite / 2 + RAHMEN_BREITE
 
-        const innerPfad = new THREE.Path()
-        innerPfad.moveTo(-elBreite / 2, 0)
-        innerPfad.lineTo(elBreite / 2, 0)
-        innerPfad.lineTo(elBreite / 2, kaempferHoehe)
-        innerPfad.absellipse(0, kaempferHoehe, radius, bogenHoehe, 0, Math.PI, false, 0)
-        innerPfad.lineTo(-elBreite / 2, 0)
+        const einfassung = new THREE.Shape()
+        // Außenrand: linker Fuß hoch zum Kämpfer, über den Bogen (von Winkel PI nach 0, also im
+        // Uhrzeigersinn über den Scheitel), rechts herunter zum Fuß.
+        einfassung.moveTo(-halbBreiteAussen, 0)
+        einfassung.lineTo(-halbBreiteAussen, kaempferHoehe)
+        einfassung.absellipse(0, kaempferHoehe, radiusAussen, bogenHoeheAussen, Math.PI, 0, true, 0)
+        einfassung.lineTo(halbBreiteAussen, 0)
+        // Rechter Fuß nach innen, innen hoch, über den inneren Bogen zurück, innen herunter, und
+        // am linken Fuß nach außen — damit ist der Umriss geschlossen.
+        einfassung.lineTo(elBreite / 2, 0)
+        einfassung.lineTo(elBreite / 2, kaempferHoehe)
+        einfassung.absellipse(0, kaempferHoehe, radius, bogenHoehe, 0, Math.PI, false, 0)
+        einfassung.lineTo(-elBreite / 2, 0)
+        einfassung.lineTo(-halbBreiteAussen, 0)
 
-        const aussenShape = new THREE.Shape()
-        aussenShape.moveTo(-halbBreiteAussen, 0)
-        aussenShape.lineTo(halbBreiteAussen, 0)
-        aussenShape.lineTo(halbBreiteAussen, kaempferHoehe)
-        aussenShape.absellipse(0, kaempferHoehe, radiusAussen, bogenHoeheAussen, 0, Math.PI, false, 0)
-        aussenShape.lineTo(-halbBreiteAussen, 0)
-        aussenShape.holes.push(innerPfad)
-
-        const rahmenGeo = new THREE.ExtrudeGeometry(aussenShape, { depth: RAHMEN_TIEFE, bevelEnabled: false })
+        const rahmenGeo = new THREE.ExtrudeGeometry(einfassung, { depth: RAHMEN_TIEFE, bevelEnabled: false })
         rahmenGeo.translate(0, 0, -RAHMEN_TIEFE / 2)
         const rahmenMat = new THREE.MeshStandardMaterial({ map: backsteinTextur, roughness: 0.95, metalness: 0.0 })
         const rahmen = new THREE.Mesh(rahmenGeo, rahmenMat)
