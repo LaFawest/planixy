@@ -106,7 +106,15 @@ export const wandElemente = [
   // sind keine Auswahl, sondern eine Falle. Gespeicherte Räume behalten ihre vorhandenen
   // Drehtüren: Sie tragen ihre Kopie des Eintrags selbst und werden weiter als normale Tür
   // gezeichnet, sie lassen sich nur nicht mehr neu einfügen.
-  { name: 'Tür',           typ: 'tuer',    width: 40, height: 12, color: '#FFF8E6', border: '#BA7517' },
+  //
+  // Die glatte Tür steht vorn, weil sie in deutschen Wohnungen der Normalfall ist: ein
+  // Röhrenspan-Blatt mit Weißlack oder aufgedrucktem Holzdekor. Sie fehlte hier bisher
+  // vollständig, während Kassette, Landhaus, Glas und Schiebetür da waren.
+  { name: 'Zimmertür (weiß)',                 typ: 'tuer', stil: 'glatt-weiss',  width: 42, height: 12, color: '#FFFEFB', border: '#B4B2A9' },
+  { name: 'Zimmertür (Eiche hell)',           typ: 'tuer', stil: 'glatt-eiche',  width: 42, height: 12, color: '#F6E8CE', border: '#B08B4F' },
+  { name: 'Zimmertür (dunkel)',               typ: 'tuer', stil: 'glatt-dunkel', width: 42, height: 12, color: '#E4D2C2', border: '#6B4B34' },
+  { name: 'Zimmertür (weiß, Lichtausschnitt)', typ: 'tuer', stil: 'glatt-licht', width: 42, height: 12, color: '#F4F8FA', border: '#8FA8B4' },
+  { name: 'Tür (Holz, Füllungen)', typ: 'tuer', width: 40, height: 12, color: '#FFF8E6', border: '#BA7517' },
   { name: 'Schiebetür',    typ: 'tuer',    stil: 'schiebe', width: 50, height: 10, color: '#FFF8E6', border: '#BA7517' },
   // stil trägt beim Fenster jetzt Farbe UND Flügelzahl: weiss | weiss-doppel | holz | holz-doppel.
   // Weiß steht vorn, weil das in deutschen Wohnungen der Normalfall ist; Holzdekor ist die

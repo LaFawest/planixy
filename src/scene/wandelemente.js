@@ -190,6 +190,24 @@ function baueTuerScheibe(breite, hoehe, deckkraft = 0.18, farbe = '#EAF2F7') {
   )
 }
 
+// Die glatte Innentür: ein Röhrenspan-Blatt mit Weißlack oder aufgedrucktem Holzdekor, wie es im
+// Baumarkt steht. Sie hat nichts außer Blatt, Zarge und Drücker — keine Füllungen, keine Stege.
+// Genau deshalb ist dieser Zweig der kürzeste in dieser Datei, und genau deshalb hat er bisher
+// gefehlt: Es gab nichts zu bauen, was interessant aussah.
+//
+// dekor = aufgedruckte Maserung (holzTextur) statt Lack. Massives Holz wäre hier falsch, das ist
+// im Baumarkt die Ausnahme — die Schreinerei-Ausführung ist die Kassettentür weiter unten.
+//
+// Eiche hell ist heller angesetzt, als der Ton allein vermuten ließe: Die Holztextur dunkelt jede
+// Farbe ab, mit der sie multipliziert wird. Mit #D9BE95 stand die Tür im Bild bernsteinfarben
+// da und kaum heller als die alte „Tür (Holz, Füllungen)“.
+const GLATTE_TUEREN = {
+  'glatt-weiss':  { blatt: '#F7F6F3', dekor: false, zarge: '#FFFEFB', klinke: '#9A9A97', licht: false },
+  'glatt-eiche':  { blatt: '#EAD5B0', dekor: true,  zarge: '#F0E2C8', klinke: '#9A9A97', licht: false },
+  'glatt-dunkel': { blatt: '#7A5A41', dekor: true,  zarge: '#8C6B50', klinke: '#B9B9B6', licht: false },
+  'glatt-licht':  { blatt: '#F7F6F3', dekor: false, zarge: '#FFFEFB', klinke: '#9A9A97', licht: true },
+}
+
 export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur, aussichtMaterial) {
   const elBreite = item.width / 60
   const gruppe = new THREE.Group()
@@ -684,6 +702,69 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
       // breiten Tür mitten im Streifen (0,26 bis 0,38 m), also jetzt über dem Loch.
       griff.position.set(streifenX - streifenBreite / 2 - 0.07, elHoehe * 0.5, 0.1)
       gruppe.add(griff)
+    } else if (GLATTE_TUEREN[item.stil]) {
+      const ausfuehrung = GLATTE_TUEREN[item.stil]
+      // 4 cm Blatt: Ein Innentürblatt ist dünner als eine Balkontür (6 cm) und deutlich dünner
+      // als eine Haustür (7 cm).
+      const BLATT_TIEFE = 0.04
+
+      const blattMat = new THREE.MeshStandardMaterial({ color: ausfuehrung.blatt, roughness: 0.5, metalness: 0.0 })
+      if (ausfuehrung.dekor) blattMat.map = holzTextur
+
+      if (ausfuehrung.licht) {
+        // Lichtausschnitt: ein hohes, schmales Glasfeld etwas über der Blattmitte, oben und unten
+        // bleibt reichlich Blatt. Das ist die gängige Baumarkt-Ausführung — nicht die
+        // vollflächige Glastür, die es als eigenen Eintrag schon gibt.
+        //
+        // Die Breite ist nach oben begrenzt, damit zwischen Glaskante und Drücker Blatt bleibt:
+        // Der Drücker sitzt 6,5 cm vom Rand, seine Rosette hat 3,5 cm Radius. Ohne die Grenze
+        // steckte die Rosette bei einer schmalen Tür im Glas.
+        const ausBreite = Math.max(0.05, Math.min(elBreite * 0.42, elBreite - 0.3))
+        const ausHoehe = Math.max(0.1, elHoehe * 0.5)
+        const ausY = elHoehe * 0.09
+        const blatt = baueBlattMitAusschnitt(elBreite, elHoehe, BLATT_TIEFE, blattMat, {
+          x: 0, y: ausY, breite: ausBreite, hoehe: ausHoehe,
+        })
+        blatt.position.set(0, elHoehe / 2, BLATT_TIEFE / 2)
+        gruppe.add(blatt)
+
+        // Mattiert wie bei der Zimmer-Glastür: Sichtschutz, aber man sieht, ob drüben Licht
+        // brennt.
+        const scheibe = baueTuerScheibe(ausBreite, ausHoehe, 0.55, '#DCE8F0')
+        scheibe.position.set(0, ausY, 0)
+        blatt.add(scheibe)
+      } else {
+        const blatt = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, BLATT_TIEFE), blattMat)
+        blatt.position.set(0, elHoehe / 2, BLATT_TIEFE / 2)
+        blatt.castShadow = true
+        gruppe.add(blatt)
+      }
+
+      // Zarge in denselben Maßen wie an den übrigen Türen, aber im Ton der Ausführung: Zu einer
+      // weißen Tür gehört eine weiße Zarge, zu einer Eichentür eine in Eiche.
+      const zargeMat = new THREE.MeshStandardMaterial({ color: ausfuehrung.zarge, roughness: 0.6 })
+      if (ausfuehrung.dekor) zargeMat.map = holzTextur
+      const zargeL = new THREE.Mesh(new THREE.BoxGeometry(0.08, elHoehe + 0.1, 0.15), zargeMat)
+      zargeL.position.set(-elBreite / 2 - 0.04, elHoehe / 2, 0)
+      gruppe.add(zargeL)
+      const zargeR = zargeL.clone()
+      zargeR.position.x = elBreite / 2 + 0.04
+      gruppe.add(zargeR)
+      const zargeO = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.16, 0.08, 0.15), zargeMat)
+      zargeO.position.set(0, elHoehe + 0.04, 0)
+      gruppe.add(zargeO)
+
+      // 6,5 cm vom Rand ist das übliche Maß an einer Zimmertür (55 mm Dornmaß plus Falz) — dieselbe
+      // Begründung wie am Standard-Türzweig weiter unten. z ist hier die Blattvorderseite, denn ein
+      // glattes Blatt hat nichts, was darauf aufliegt.
+      const klinkeX = elBreite / 2 - 0.065, klinkeY = elHoehe * 0.47
+      baueKlinke(gruppe, klinkeX, klinkeY, BLATT_TIEFE, ausfuehrung.klinke)
+
+      const schluesselMat = new THREE.MeshStandardMaterial({ color: '#888780', metalness: 0.8, roughness: 0.2 })
+      const schluessel = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.02, 8), schluesselMat)
+      schluessel.position.set(klinkeX, klinkeY - 0.085, BLATT_TIEFE + 0.02)
+      gruppe.add(schluessel)
+
     } else if (item.stil === 'kassette') {
       // Kassettentür: wie die Standard-Tür aufgebaut (Rahmen, Knauf), aber mit drei gerahmten
       // Kassetten-Feldern statt zwei einfachen Füllungen — jedes Feld bekommt einen schmalen Steg
