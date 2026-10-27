@@ -108,12 +108,18 @@ export const wandElemente = [
   // gezeichnet, sie lassen sich nur nicht mehr neu einfügen.
   { name: 'Tür',           typ: 'tuer',    width: 40, height: 12, color: '#FFF8E6', border: '#BA7517' },
   { name: 'Schiebetür',    typ: 'tuer',    stil: 'schiebe', width: 50, height: 10, color: '#FFF8E6', border: '#BA7517' },
-  { name: 'Fenster klein', typ: 'fenster', width: 40, height: 10, color: '#E6F4FB', border: '#185FA5' },
-  { name: 'Fenster groß',  typ: 'fenster', width: 70, height: 10, color: '#E6F4FB', border: '#185FA5' },
-  // Phase 4, Teil 1a: stil unterscheidet die 3D-Optik innerhalb desselben typ (siehe
-  // baueWandElement in scene/wandelemente.js) — bestehende Einträge ohne stil sind davon
-  // unberührt und laufen weiterhin durch den unveränderten Standard-Zweig.
-  { name: 'Doppelfenster',            typ: 'fenster', stil: 'doppel',        width: 120, height: 10, color: '#E6F4FB', border: '#185FA5' },
+  // stil trägt beim Fenster jetzt Farbe UND Flügelzahl: weiss | weiss-doppel | holz | holz-doppel.
+  // Weiß steht vorn, weil das in deutschen Wohnungen der Normalfall ist; Holzdekor ist die
+  // Alternative, nicht massives Holz (siehe Materialwahl in wandelemente.js).
+  //
+  // Gespeicherte Fenster ohne stil sind davon unberührt und werden weiter mit Holzdekor
+  // gezeichnet — ein gespeicherter Raum soll nicht umgestrichen werden, weil wir den Katalog
+  // umgestellt haben.
+  { name: 'Fenster klein', typ: 'fenster', stil: 'weiss', width: 40, height: 10, color: '#E6F4FB', border: '#185FA5' },
+  { name: 'Fenster groß',  typ: 'fenster', stil: 'weiss', width: 70, height: 10, color: '#E6F4FB', border: '#185FA5' },
+  { name: 'Doppelfenster', typ: 'fenster', stil: 'weiss-doppel', width: 120, height: 10, color: '#E6F4FB', border: '#185FA5' },
+  { name: 'Fenster (Holzdekor)',      typ: 'fenster', stil: 'holz',       width: 70,  height: 10, color: '#F6EEDF', border: '#8B5E2B' },
+  { name: 'Doppelfenster (Holzdekor)', typ: 'fenster', stil: 'holz-doppel', width: 120, height: 10, color: '#F6EEDF', border: '#8B5E2B' },
   { name: 'Balkontür (Einzelflügel)', typ: 'tuer',    stil: 'balkon-einzel', width: 50,  height: 12, color: '#EAF6FB', border: '#0E7C9E' },
   { name: 'Balkontür (Doppelflügel)', typ: 'tuer',    stil: 'balkon-doppel', width: 90,  height: 12, color: '#EAF6FB', border: '#0E7C9E' },
   // Phase 4, Teil 1b — hoeheReal (Meter) überschreibt optional die feste TUER_HOEHE aus
@@ -122,9 +128,9 @@ export const wandElemente = [
   { name: 'Kassettentür',                    typ: 'tuer', stil: 'kassette',    width: 42, height: 12, color: '#FFF3DC', border: '#8B5E2B' },
   { name: 'Glastür (Zimmertür)',              typ: 'tuer', stil: 'glas-zimmer', width: 42, height: 12, color: '#EFF7FA', border: '#4A90A4' },
   { name: 'Landhaustür',                      typ: 'tuer', stil: 'landhaus',   width: 44, height: 12, color: '#FFFDF7', border: '#C8A97A' },
-  // Phase 4, Teil 2: kein eigener stil nötig — jedes Fenster (auch die vier oben) ist jetzt per
-  // Eck-Anfasser im 3D-Editor frei größenänderbar, dieser Eintrag ist nur ein neutraler Startpunkt.
-  { name: 'Individuelles Fenster', typ: 'fenster', width: 50, height: 10, color: '#E6F4FB', border: '#185FA5' },
+  // Jedes Fenster ist per Eck-Anfasser im 3D-Editor frei größenänderbar; dieser Eintrag ist nur
+  // ein neutraler Startpunkt in der häufigsten Ausführung.
+  { name: 'Individuelles Fenster', typ: 'fenster', stil: 'weiss', width: 50, height: 10, color: '#E6F4FB', border: '#185FA5' },
   // Phase 4, Teil 3a: offener Durchgang — kein Türblatt, echtes Loch in der Wand (siehe
   // RoomView3D.jsx/wandelemente.js). Breite UND Höhe frei per Eck-Anfasser/Seitenleiste änderbar,
   // genau wie beim individuellen Fenster, nur bodenbündig (kein Brüstungshöhe-Feld).

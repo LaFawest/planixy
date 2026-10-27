@@ -175,76 +175,133 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
 
   if (item.typ === 'fenster') {
     const elHoehe = fensterElHoehe
-    // Relativ zur Gruppe konstant (halbe Fensterhöhe) — die absolute Höhe kommt jetzt allein aus
-    // gruppe.position.y oben, nicht mehr aus einer hier berechneten Weltkoordinate.
     const yPos = elHoehe / 2
 
-    if (item.stil === 'doppel') {
-      // Doppelfenster: zwei Fenstereinheiten nebeneinander mit gemeinsamem Mittelpfosten — jede
-      // Hälfte baugleich zum bestehenden Einzelfenster unten (Rahmen+Glas+Sprosse), nur schmaler
-      // und um ±versatz von der Gruppen-Mitte verschoben.
-      const MITTELPFOSTEN_BREITE = 0.08
-      const halbBreite = (elBreite - MITTELPFOSTEN_BREITE) / 2
-      const versatz = (halbBreite + MITTELPFOSTEN_BREITE) / 2
-      ;[-versatz, versatz].forEach(x => {
-        const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, metalness: 0.1, map: holzTextur })
-        const rahmen = new THREE.Mesh(new THREE.BoxGeometry(halbBreite, elHoehe, 0.1), rahmenMat)
-        rahmen.position.set(x, yPos, 0)
-        rahmen.castShadow = true
-        gruppe.add(rahmen)
+    // Deutsches Dreh-Kipp-Fenster, Baumarkt-Optik: Blendrahmen in der Öffnung, darin ein
+    // Flügelrahmen, darin EINE Scheibe, Griff seitlich in halber Höhe.
+    //
+    // Was hier bewusst fehlt, ist der waagerechte Riegel über die Mitte, den die alte Fassung
+    // hatte: Das ist das Merkmal eines amerikanischen Schiebefensters, bei dem die untere Hälfte
+    // nach oben geschoben wird. Und was hier neu ist, ist überhaupt ein Rahmen — die alte Fassung
+    // war eine massive Platte über die ganze Fensterfläche, in der die Scheibe mittig steckte und
+    // deshalb unsichtbar war.
+    const BLEND_BREITE = 0.06   // Ansichtsbreite des Blendrahmens
+    const BLEND_TIEFE = 0.12
+    const FLUEGEL_BREITE = 0.07
+    const FLUEGEL_TIEFE = 0.05
+    const FLUEGEL_Z = 0.05      // Flügelmitte: steht gut einen Zentimeter vor dem Blendrahmen
+    const PFOSTEN_BREITE = 0.08
+    const UEBERSCHLAG = 0.02    // Flügel greift über die Rahmeninnenkante, wie in echt
 
-        const glasMat = new THREE.MeshStandardMaterial({
-          color: '#A8D8F0', transparent: true, opacity: 0.35,
-          roughness: 0.0, metalness: 0.1,
-        })
-        const glas = new THREE.Mesh(new THREE.BoxGeometry(halbBreite - 0.08, elHoehe - 0.08, 0.02), glasMat)
-        glas.position.set(x, yPos, 0)
-        gruppe.add(glas)
+    // stil trägt Farbe UND Flügelzahl. Alte Fenster ohne stil bekommen Holzdekor, nicht Weiß: Sie
+    // sahen bisher holzfarben aus, und ein gespeicherter Raum soll nicht umgestrichen werden,
+    // weil der Katalog umgestellt wurde. Dieselbe Nachsicht wie bei der Schiebetür weiter unten.
+    const fensterStil = item.stil === 'doppel' ? 'holz-doppel' : (item.stil || 'holz')
+    const istDoppel = fensterStil.endsWith('doppel')
+    const istWeiss = fensterStil.startsWith('weiss')
 
-        const strebeMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
-        const strebeH = new THREE.Mesh(new THREE.BoxGeometry(halbBreite - 0.06, 0.04, 0.06), strebeMat)
-        strebeH.position.set(x, yPos, 0.02)
-        gruppe.add(strebeH)
+    // Ein Material für alle Rahmenteile. Weiß ist Kunststoff, Holzdekor ist eine aufgedruckte
+    // Maserung — kein massives Holz, denn das ist im Baumarkt die Ausnahme.
+    const rahmenMat = istWeiss
+      ? new THREE.MeshStandardMaterial({ color: '#FAFAF8', roughness: 0.45, metalness: 0.0 })
+      : new THREE.MeshStandardMaterial({ color: '#E9D9BE', roughness: 0.6, metalness: 0.0, map: holzTextur })
+
+    // Ein Rahmen als Ring aus vier Boxen, um den Nullpunkt zentriert. Senkrechte über die volle
+    // Höhe, waagerechte dazwischen: An den Ecken entsteht dadurch eine Stoßfuge wie an einem
+    // echten Rahmen, statt einer durchlaufenden Fläche.
+    const baueRing = (breite, hoehe, ansicht, tiefe) => {
+      const ring = new THREE.Group()
+      const innen = Math.max(0.02, breite - 2 * ansicht)
+      ;[-1, 1].forEach(s => {
+        const senkrecht = new THREE.Mesh(new THREE.BoxGeometry(ansicht, hoehe, tiefe), rahmenMat)
+        senkrecht.position.set(s * (breite - ansicht) / 2, 0, 0)
+        senkrecht.castShadow = true
+        ring.add(senkrecht)
       })
+      ;[-1, 1].forEach(s => {
+        const waagerecht = new THREE.Mesh(new THREE.BoxGeometry(innen, ansicht, tiefe), rahmenMat)
+        waagerecht.position.set(0, s * (hoehe - ansicht) / 2, 0)
+        waagerecht.castShadow = true
+        ring.add(waagerecht)
+      })
+      return ring
+    }
 
-      const pfostenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
-      const pfosten = new THREE.Mesh(new THREE.BoxGeometry(MITTELPFOSTEN_BREITE, elHoehe, 0.1), pfostenMat)
+    // Ein Flügel: Rahmen, Scheibe, Griff. Einzel- und Doppelfenster bauen denselben.
+    // griffSeite: +1 = Griff rechts (Bänder links), -1 = umgekehrt.
+    const baueFluegel = (breite, hoehe, griffSeite) => {
+      const fluegel = new THREE.Group()
+      fluegel.add(baueRing(breite, hoehe, FLUEGEL_BREITE, FLUEGEL_TIEFE))
+
+      const glas = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          Math.max(0.02, breite - 2 * FLUEGEL_BREITE),
+          Math.max(0.02, hoehe - 2 * FLUEGEL_BREITE),
+          0.012,
+        ),
+        new THREE.MeshStandardMaterial({
+          color: '#EAF2F7', transparent: true, opacity: 0.18,
+          roughness: 0.05, metalness: 0.0,
+          // Eine einzelne Scheibe schreibt bewusst keine Tiefe: Sonst entscheidet die
+          // Zeichenreihenfolge, ob man das dahinter Liegende sieht.
+          depthWrite: false,
+        }),
+      )
+      fluegel.add(glas)
+
+      // Fenstergriff. Geschlossen zeigt der Hebel nach UNTEN — das ist die Stellung, in der ein
+      // Dreh-Kipp-Fenster zu ist. Waagerecht hieße offen, nach oben gekippt, und ein Fenster im
+      // Grundriss soll nicht offen stehen.
+      const griffMat = istWeiss
+        ? new THREE.MeshStandardMaterial({ color: '#F2F2F0', roughness: 0.4, metalness: 0.1 })
+        : new THREE.MeshStandardMaterial({ color: '#B9B9B6', roughness: 0.3, metalness: 0.7 })
+      const griffX = griffSeite * (breite / 2 - FLUEGEL_BREITE / 2)
+      const vorn = FLUEGEL_TIEFE / 2
+      const rosette = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.1, 0.014), griffMat)
+      rosette.position.set(griffX, 0, vorn + 0.007)
+      fluegel.add(rosette)
+      const hals = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.024, 0.03), griffMat)
+      hals.position.set(griffX, 0, vorn + 0.029)
+      fluegel.add(hals)
+      const hebel = new THREE.Mesh(new THREE.BoxGeometry(0.024, 0.1, 0.024), griffMat)
+      hebel.position.set(griffX, -0.055, vorn + 0.032)
+      fluegel.add(hebel)
+
+      return fluegel
+    }
+
+    const blend = baueRing(elBreite, elHoehe, BLEND_BREITE, BLEND_TIEFE)
+    blend.position.set(0, yPos, 0)
+    gruppe.add(blend)
+
+    const innenBreite = Math.max(0.1, elBreite - 2 * BLEND_BREITE)
+    const innenHoehe = Math.max(0.1, elHoehe - 2 * BLEND_BREITE)
+
+    if (istDoppel) {
+      const pfosten = new THREE.Mesh(new THREE.BoxGeometry(PFOSTEN_BREITE, innenHoehe, BLEND_TIEFE), rahmenMat)
       pfosten.position.set(0, yPos, 0)
+      pfosten.castShadow = true
       gruppe.add(pfosten)
 
-      const bankMat = new THREE.MeshStandardMaterial({ color: '#E8E4DC', roughness: 0.4 })
-      const bank = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.1, 0.05, 0.15), bankMat)
-      bank.position.set(0, yPos - elHoehe/2 - 0.025, 0.08)
-      gruppe.add(bank)
-    } else {
-      const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, metalness: 0.1, map: holzTextur })
-      const rahmen = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.1), rahmenMat)
-      rahmen.position.set(0, yPos, 0)
-      rahmen.castShadow = true
-      gruppe.add(rahmen)
-
-      const glasMat = new THREE.MeshStandardMaterial({
-        color: '#A8D8F0', transparent: true, opacity: 0.35,
-        roughness: 0.0, metalness: 0.1,
+      // Beide Griffe zeigen zum Mittelpfosten, wie an einem echten zweiflügligen Fenster.
+      const halb = Math.max(0.1, (innenBreite - PFOSTEN_BREITE) / 2)
+      const versatz = PFOSTEN_BREITE / 2 + halb / 2
+      ;[{ x: -versatz, seite: 1 }, { x: versatz, seite: -1 }].forEach(({ x, seite }) => {
+        const fluegel = baueFluegel(halb + UEBERSCHLAG, innenHoehe + UEBERSCHLAG, seite)
+        fluegel.position.set(x, yPos, FLUEGEL_Z)
+        gruppe.add(fluegel)
       })
-      const glas = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.08, elHoehe - 0.08, 0.02), glasMat)
-      glas.position.set(0, yPos, 0)
-      gruppe.add(glas)
-
-      const strebeMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
-      const strebeH = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.06, 0.04, 0.06), strebeMat)
-      strebeH.position.set(0, yPos, 0.02)
-      gruppe.add(strebeH)
-
-      const strebeV = new THREE.Mesh(new THREE.BoxGeometry(0.04, elHoehe - 0.06, 0.06), strebeMat)
-      strebeV.position.set(0, yPos, 0.02)
-      gruppe.add(strebeV)
-
-      const bankMat = new THREE.MeshStandardMaterial({ color: '#E8E4DC', roughness: 0.4 })
-      const bank = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.1, 0.05, 0.15), bankMat)
-      bank.position.set(0, yPos - elHoehe/2 - 0.025, 0.08)
-      gruppe.add(bank)
+    } else {
+      const fluegel = baueFluegel(innenBreite + UEBERSCHLAG, innenHoehe + UEBERSCHLAG, 1)
+      fluegel.position.set(0, yPos, FLUEGEL_Z)
+      gruppe.add(fluegel)
     }
+
+    // Fensterbank innen, wie bisher unter dem Fenster.
+    const bankMat = new THREE.MeshStandardMaterial({ color: istWeiss ? '#F0EEE9' : '#E8E4DC', roughness: 0.4 })
+    const bank = new THREE.Mesh(new THREE.BoxGeometry(elBreite + 0.1, 0.05, 0.15), bankMat)
+    bank.position.set(0, yPos - elHoehe / 2 - 0.025, 0.08)
+    gruppe.add(bank)
 
   } else if (item.typ === 'durchgang') {
     // Offener Durchgang (Phase 4, Teil 3a/3b): kein Türblatt/Rahmen — das eigentliche "Loch"
