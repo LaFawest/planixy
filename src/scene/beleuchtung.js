@@ -56,6 +56,14 @@ export function baueBeleuchtung(scene, raumBreite, raumTiefe, tageszeit) {
 
   // Schatten-Frustum an die tatsächliche Raumgröße anpassen (statt fixer ±10 Einheiten) –
   // so bleibt die Schattenkarte bei kleinen Räumen scharf und bei großen Räumen vollständig
+  //
+  // Die 2 wurden versuchsweise auf 8 erhöht, als die Wände Schatten werfen lernten — in der
+  // Annahme, der Gebäudeschatten werde am Rand des Ausschnitts abgeschnitten. Gemessen stimmt das
+  // nicht: Bei 7, 9 und 12 Uhr sind die Bilder mit 2 und mit 8 identisch, weil die Sonne hier nur
+  // in der Höhe wandert und nicht in der Richtung (siehe sunLight.position gleich darunter), der
+  // Schatten also nicht beliebig lang wird. Ein größerer Ausschnitt verteilt dieselben 4096 Pixel
+  // über mehr Fläche und kostet damit Schärfe — bei den Lichtflecken am Boden sichtbar. Für sehr
+  // große oder sehr hohe Räume ist es nicht geprüft.
   const schattenReichweite = Math.max(raumBreite, raumTiefe) / 2 + 2
 
   // Sonnenhöhe (0 = Horizont, 1 = Zenit) hebt die Lichtquelle zusätzlich an — bei niedrigem

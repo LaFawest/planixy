@@ -531,6 +531,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     const decke = new THREE.Mesh(flaechenGeo, deckeMat)
     decke.rotation.x = -Math.PI / 2
     decke.position.y = wandHoehe
+    // Kein castShadow, mit Absicht: Sonst waere der Raum nur noch so hell, wie seine Fenster es
+    // zulassen, und beim Blick von oben (wo die Decke ausgeblendet wird, aber weiter Schatten
+    // wuerfe) sähe man in einen abgedunkelten Raum hinein. Eigener Versuch, falls gewuenscht.
     raumWurzel.add(decke)
 
     // === WÄNDE (eine je Wandsegment, Transparenz wird dynamisch gesetzt, jede Wand einzeln
@@ -574,6 +577,13 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         color: istGestrichen(material) ? wandFarbeFuer(index) : '#FFFFFF',
         map: wandTexturFuer(material, laenge, wandHoehe),
         roughness: 0.9, metalness: 0.0, transparent: true, opacity: 1,
+        // Beide Seiten in die Schattenkarte. Bei VSMShadowMap zeichnet three.js nur die Seite, die
+        // material.side angibt (hier die Vorderseite, zum Raum hin) — die Sonne sieht eine ihr
+        // zugewandte Wand aber von hinten. Ohne das warfen gerade die sonnenzugewandten Wände
+        // keinen Schatten, die abgewandten dagegen schon: Sie standen über receiveShadow ohnehin
+        // in der Schattenkarte (VSM zeichnet auch Empfänger hinein) und warfen ihren Schatten
+        // nach außen auf den Rasen — das "ungeklärte dunkle Feld" neben dem Gebäude.
+        shadowSide: THREE.DoubleSide,
       })
     }
 
@@ -684,6 +694,13 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       wand.position.set((x1 + x2) / 2, wandHoehe / 2, (z1 + z2) / 2)
       wand.rotation.y = -Math.atan2(z2 - z1, x2 - x1)
       wand.receiveShadow = true
+      // Wände werfen Schatten, die Decke bewusst nicht (siehe dort). Dadurch kommt Sonnenlicht
+      // weiterhin von oben in den Raum — drinnen wird nichts dunkler —, und trotzdem wirft die
+      // sonnenzugewandte Wand ihren Schatten nach draußen auf den Rasen und nach innen als Band
+      // entlang ihres Fußes. In diesem Band liegen die Öffnungen als helle Flecken: Licht, das
+      // durch Fenster und Türen fällt. Seit die Wände echte Löcher haben, kann das überhaupt
+      // auftreten.
+      wand.castShadow = true
       raumWurzel.add(wand)
       return {
         mesh: wand, normale: { x: segment.normale.x, z: segment.normale.y }, laenge: segment.laenge,
@@ -717,6 +734,17 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       wandMeshe.forEach(wand => {
         const versteckt = camera.position.x * wand.normale.x + camera.position.z * wand.normale.z > 0
         setzeWandSichtbar(wand, !versteckt)
+        // Im Decken-Fokus werfen die Wände keinen Schatten. In der 3D-Ansicht ist das Schattenband
+        // der sonnenzugewandten Wände erwünscht — die Fenster liegen darin als helle Flecken. Hier
+        // werden gar keine Wandelemente gebaut, es gibt also keine Öffnungen und keine Flecken:
+        // Übrig bliebe ein durchgehender dunkler Streifen über dem Boden, während man Leuchten
+        // setzt.
+        //
+        // Beide Schalter müssen fallen, nicht nur castShadow: Das Schattenverfahren der Szene
+        // (VSM) zeichnet auch reine Schattenempfänger in die Schattenkarte, eine Wand steht dort
+        // also schon über receiveShadow.
+        wand.mesh.castShadow = false
+        wand.mesh.receiveShadow = false
       })
     }
 
