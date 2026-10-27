@@ -110,7 +110,7 @@ export const wandElemente = [
   // Die glatte Tür steht vorn, weil sie in deutschen Wohnungen der Normalfall ist: ein
   // Röhrenspan-Blatt mit Weißlack oder aufgedrucktem Holzdekor. Sie fehlte hier bisher
   // vollständig, während Kassette, Landhaus, Glas und Schiebetür da waren.
-  { name: 'Zimmertür (weiß)',                 typ: 'tuer', stil: 'glatt-weiss',  width: 42, height: 12, color: '#FFFEFB', border: '#B4B2A9' },
+  { name: 'Zimmertür (weiß)',                 typ: 'tuer', stil: 'glatt-weiss',  width: 42, height: 12, color: '#FFFEFB', border: '#8A8884' },
   { name: 'Zimmertür (Eiche hell)',           typ: 'tuer', stil: 'glatt-eiche',  width: 42, height: 12, color: '#F6E8CE', border: '#B08B4F' },
   { name: 'Zimmertür (dunkel)',               typ: 'tuer', stil: 'glatt-dunkel', width: 42, height: 12, color: '#E4D2C2', border: '#6B4B34' },
   { name: 'Zimmertür (weiß, Lichtausschnitt)', typ: 'tuer', stil: 'glatt-licht', width: 42, height: 12, color: '#F4F8FA', border: '#8FA8B4' },
@@ -142,7 +142,7 @@ export const wandElemente = [
   // Phase 4, Teil 3a: offener Durchgang — kein Türblatt, echtes Loch in der Wand (siehe
   // RoomView3D.jsx/wandelemente.js). Breite UND Höhe frei per Eck-Anfasser/Seitenleiste änderbar,
   // genau wie beim individuellen Fenster, nur bodenbündig (kein Brüstungshöhe-Feld).
-  { name: 'Offener Durchgang', typ: 'durchgang', width: 72, height: 10, color: '#FAFAF8', border: '#B4B2A9' },
+  { name: 'Offener Durchgang', typ: 'durchgang', width: 72, height: 10, color: '#FAFAF8', border: '#8A8884' },
   // Phase 4, Teil 3b: Rundbogen-Durchgang — gerade Seiten bis zur (festen) Kämpferhöhe, darüber
   // ein Halbkreisbogen (Radius = halbe Breite), optional mit Backstein-Einfassung (siehe
   // scene/wandelemente.js). Nur die Breite ist einstellbar, die Gesamthöhe ergibt sich

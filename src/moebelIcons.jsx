@@ -287,3 +287,140 @@ export function moebelShapes(f, s) {
     standard: <rect x="4" y="4" width="20" height="20" rx="4" fill={f} stroke={s} strokeWidth="1.5" />,
   }
 }
+
+// Symbole für Wandelemente im Katalog, als Vorderansicht. Geschlüsselt über typ und stil —
+// dieselben Felder, die in scene/wandelemente.js entscheiden, wie das Element im 3D-Bild
+// aussieht. Über den Namen zu gehen wäre die zweite Quelle für dieselbe Information.
+export function wandElementIconTyp(item) {
+  if (item.typ === 'fenster') return item.stil && item.stil.endsWith('doppel') ? 'fensterDoppel' : 'fenster'
+  if (item.typ === 'durchgang') return item.stil === 'bogen' ? 'durchgangBogen' : 'durchgang'
+  switch (item.stil) {
+    case 'glatt-weiss':
+    case 'glatt-eiche':
+    case 'glatt-dunkel':   return 'tuerGlatt'
+    case 'glatt-licht':    return 'tuerLicht'
+    case 'kassette':       return 'tuerKassette'
+    case 'landhaus':       return 'tuerLandhaus'
+    case 'glas-zimmer':    return 'tuerGlas'
+    case 'balkon-einzel':  return 'tuerBalkon'
+    case 'balkon-doppel':  return 'tuerBalkonDoppel'
+    case 'haustuer':       return 'tuerHaus'
+    case 'schiebe':        return 'tuerSchiebe'
+    // "Tür (Holz, Füllungen)" trägt kein stil, und gespeicherte alte Türen auch nicht.
+    default:               return 'tuerFuellung'
+  }
+}
+
+// f = item.color, s = item.border. Glas bekommt bewusst einen festen Ton und nicht die
+// Elementfarbe: Sonst wäre eine Glastür in Eiche eine Tür mit eichenfarbenem Glas.
+const GLAS = '#DCE8F0'
+
+export function wandElementShapes(f, s) {
+  const blatt = <rect x="7" y="2.5" width="14" height="23" rx="1" fill={f} stroke={s} strokeWidth="1.3" />
+  const klinke = <circle cx="18.7" cy="14.5" r="1.1" fill={s} />
+  return {
+    tuerGlatt: <>{blatt}{klinke}</>,
+
+    tuerLicht: <>
+      {blatt}
+      <rect x="10" y="5.5" width="8" height="11" rx="0.5" fill={GLAS} stroke={s} strokeWidth="0.9" />
+      {klinke}
+    </>,
+
+    tuerFuellung: <>
+      {blatt}
+      <rect x="9.5" y="5" width="9" height="7.5" rx="0.5" fill="none" stroke={s} strokeWidth="0.9" opacity="0.8" />
+      <rect x="9.5" y="15" width="9" height="7.5" rx="0.5" fill="none" stroke={s} strokeWidth="0.9" opacity="0.8" />
+      {klinke}
+    </>,
+
+    tuerKassette: <>
+      {blatt}
+      <rect x="9.5" y="4.5" width="9" height="5.5" rx="0.5" fill="none" stroke={s} strokeWidth="0.9" opacity="0.8" />
+      <rect x="9.5" y="11.2" width="9" height="5.5" rx="0.5" fill="none" stroke={s} strokeWidth="0.9" opacity="0.8" />
+      <rect x="9.5" y="17.9" width="9" height="5.5" rx="0.5" fill="none" stroke={s} strokeWidth="0.9" opacity="0.8" />
+      {klinke}
+    </>,
+
+    tuerLandhaus: <>
+      {blatt}
+      <path d="M14,4 L14,24 M9.5,10.5 L18.5,10.5 M9.5,17.5 L18.5,17.5"
+        stroke={s} strokeWidth="0.9" opacity="0.8" fill="none" />
+      {klinke}
+    </>,
+
+    // Glastür und Balkontür sahen bei 28 Pixeln gleich aus: beide ein Blatt mit grosser Scheibe,
+    // runder Klinke und ähnlichem Blau. Unterschieden werden sie deshalb doppelt — die Glastür hat
+    // eine fast blattgrosse Scheibe und eine runde Klinke, die Balkontür einen hohen Sockel und
+    // einen senkrechten Fenstergriff, wie im 3D-Bild.
+    tuerGlas: <>
+      {blatt}
+      <rect x="9.3" y="4.5" width="9.4" height="18.5" rx="0.5" fill={GLAS} stroke={s} strokeWidth="0.9" />
+      {klinke}
+    </>,
+
+    // Balkontür: grosse Scheibe, deutlich breiterer unterer Schenkel — daran erkennt man sie und
+    // unterscheidet sie von einem Fenster, das bis zum Boden geht.
+    tuerBalkon: <>
+      {blatt}
+      <rect x="9.3" y="4.5" width="9.4" height="12.5" rx="0.5" fill={GLAS} stroke={s} strokeWidth="0.9" />
+      <path d="M19.9,11.5 L19.9,15.5" stroke={s} strokeWidth="1.2" strokeLinecap="round" />
+    </>,
+
+    tuerBalkonDoppel: <>
+      <rect x="4" y="2.5" width="20" height="23" rx="1" fill={f} stroke={s} strokeWidth="1.3" />
+      <rect x="5.8" y="4.5" width="7" height="14.5" rx="0.5" fill={GLAS} stroke={s} strokeWidth="0.9" />
+      <rect x="15.2" y="4.5" width="7" height="14.5" rx="0.5" fill={GLAS} stroke={s} strokeWidth="0.9" />
+      <path d="M14,3.5 L14,24.5" stroke={s} strokeWidth="1.1" />
+      <circle cx="12.4" cy="14.5" r="0.9" fill={s} />
+      <circle cx="15.6" cy="14.5" r="0.9" fill={s} />
+    </>,
+
+    // Haustür: schmaler Lichtstreifen nahe der Schlossseite, langer Stossgriff.
+    tuerHaus: <>
+      {blatt}
+      <rect x="15.4" y="6" width="2.4" height="15" rx="0.4" fill={GLAS} stroke={s} strokeWidth="0.8" />
+      <path d="M11.5,9 L11.5,20" stroke={s} strokeWidth="1.4" strokeLinecap="round" />
+    </>,
+
+    // Schiebetür: Laufschiene über der Öffnung, Blatt nach rechts versetzt, Muschelgriff.
+    tuerSchiebe: <>
+      <path d="M3,4 L25,4" stroke={s} strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M5.5,5.5 L5.5,25.5 M11.5,5.5 L11.5,25.5" stroke={s} strokeWidth="0.9"
+        strokeDasharray="2 2" opacity="0.6" fill="none" />
+      <rect x="11.5" y="5.5" width="12" height="20" rx="0.8" fill={f} stroke={s} strokeWidth="1.3" />
+      <path d="M13.8,14 L13.8,17" stroke={s} strokeWidth="1.3" strokeLinecap="round" />
+    </>,
+
+    // Durchgang: kein Blatt. Zwei Laibungen und ein Sturz, dazwischen nichts — genau das ist er.
+    durchgang: <>
+      <path d="M7,25.5 L7,3.5 L21,3.5 L21,25.5" fill="none" stroke={s} strokeWidth="1.6"
+        strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8.6,25.5 L8.6,5.1 L19.4,5.1 L19.4,25.5" fill="none" stroke={s} strokeWidth="0.8"
+        opacity="0.5" />
+    </>,
+
+    durchgangBogen: <>
+      <path d="M7,25.5 L7,12 A7,8.5 0 0 1 21,12 L21,25.5" fill="none" stroke={s} strokeWidth="1.6"
+        strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8.6,25.5 L8.6,12 A5.4,6.9 0 0 1 19.4,12 L19.4,25.5" fill="none" stroke={s}
+        strokeWidth="0.8" opacity="0.5" />
+    </>,
+
+    // Fenster: Blendrahmen aussen, Fluegel innen, Griff seitlich. Kein Mittelriegel — der war das
+    // Merkmal des amerikanischen Schiebefensters, das wir aus dem 3D-Bild entfernt haben.
+    fenster: <>
+      <rect x="3" y="6" width="22" height="16" rx="1" fill={f} stroke={s} strokeWidth="1.3" />
+      <rect x="5.5" y="8.5" width="17" height="11" rx="0.5" fill={GLAS} stroke={s} strokeWidth="1" />
+      <path d="M21,13 L21,16" stroke={s} strokeWidth="1.3" strokeLinecap="round" />
+    </>,
+
+    fensterDoppel: <>
+      <rect x="2" y="6" width="24" height="16" rx="1" fill={f} stroke={s} strokeWidth="1.3" />
+      <rect x="4.2" y="8.5" width="8.3" height="11" rx="0.5" fill={GLAS} stroke={s} strokeWidth="1" />
+      <rect x="15.5" y="8.5" width="8.3" height="11" rx="0.5" fill={GLAS} stroke={s} strokeWidth="1" />
+      <path d="M14,7 L14,21" stroke={s} strokeWidth="1.1" />
+      <path d="M12.9,13 L12.9,16 M15.1,13 L15.1,16" stroke={s} strokeWidth="1.1" strokeLinecap="round" />
+    </>,
+  }
+}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { kategorieFarben } from '../constants'
-import { moebelIconTyp, moebelShapes } from '../moebelIcons'
+import { moebelIconTyp, moebelShapes, wandElementIconTyp, wandElementShapes } from '../moebelIcons'
 import { formatPreis } from '../data/produktAuswahl'
 
 function MoebelIcon({ item }) {
@@ -38,12 +38,17 @@ export function KatalogKarte({ item, onClick }) {
         style={{ padding: '10px 6px', border: '1px solid #E8E6E0', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', background: '#FAFAF8', fontSize: '11px', color: '#444441', transition: 'all 0.15s' }}
         onMouseEnter={e => { e.currentTarget.style.borderColor = item.typ === 'fenster' ? '#185FA5' : '#BA7517'; e.currentTarget.style.background = item.typ === 'fenster' ? '#EEF4FC' : '#FFF8E6' }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E6E0'; e.currentTarget.style.background = '#FAFAF8' }}>
-        <div style={{ width: '36px', height: '14px', background: item.color, border: `2px solid ${item.border}`, borderRadius: '3px', margin: '0 auto 6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          {item.typ === 'fenster' ? <div style={{ width: '60%', height: '2px', background: item.border, opacity: 0.5 }}></div> : <div style={{ width: '40%', height: '40%', border: `1px solid ${item.border}`, borderRadius: '0 50% 0 0', opacity: 0.6 }}></div>}
-        </div>
+        {/* 28 x 28 wie bei allen anderen Kategorien. Der bisherige 36 x 14 flache Streifen war
+            der Grund, warum alle siebzehn Einträge gleich aussahen: Darin ist kein Platz für
+            mehr als einen Balken. */}
+        <svg viewBox="0 0 28 28" width="28" height="28" style={{ display: 'block', margin: '0 auto 6px' }}>
+          {wandElementShapes(item.color, item.border)[wandElementIconTyp(item)]}
+        </svg>
         <div style={{ fontWeight: '500' }}>{item.name}</div>
+        {/* Ein Durchgang ist keine Tür — er hat kein Blatt. Vorher stand unter beiden "Tür",
+            weil die Beschriftung nur fenster von allem anderen unterschied. */}
         <div style={{ marginTop: '4px', fontSize: '10px', padding: '2px 6px', borderRadius: '10px', background: item.typ === 'fenster' ? '#E6F1FB' : '#FFF8E6', color: item.typ === 'fenster' ? '#185FA5' : '#BA7517', display: 'inline-block' }}>
-          {item.typ === 'fenster' ? 'Fenster' : 'Tür'}
+          {item.typ === 'fenster' ? 'Fenster' : item.typ === 'durchgang' ? 'Durchgang' : 'Tür'}
         </div>
       </div>
     )
