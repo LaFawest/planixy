@@ -10,10 +10,29 @@ const TUER_HOEHE = 2.1
 // der es mittig in die Wand setzt. Exportiert, weil die Sockelleiste in RoomView3D.jsx dieselbe
 // Kante braucht, um sich an der richtigen Stelle zu unterbrechen — zwei Kopien dieser Formel
 // würden beim nächsten Nachjustieren auseinanderlaufen.
+// Die Öffnung, die ein Wandelement in der Wand braucht — in Metern, relativ zum Wandsegment:
+// u = linke Kante ab Segmentanfang, unten = Unterkante über dem Boden.
+//
+// Eine Stelle für alle vier Interessenten: Die Wandgeometrie schneidet danach ihr Loch, die
+// Laibung wird danach gebaut, die Sockelleiste entscheidet danach, wo sie aufhört, und das
+// Element selbst richtet sich danach aus. Vorher rechnete RoomView3D.jsx mit einer eigenen
+// Konstante TUER_HOEHE_3D, während hier TUER_HOEHE galt — zwei Zahlen für dieselbe Türhöhe in
+// zwei Dateien.
+export function wandElementOeffnung(item, wandHoehe, segmentLaenge) {
+  const breite = item.width / 60
+  const maxU = segmentLaenge == null ? Infinity : Math.max(0, segmentLaenge - breite)
+  const u = Math.max(0, Math.min(item.wandPosition || 0, maxU))
+  if (item.typ === 'fenster') {
+    const hoehe = item.hoeheReal ?? FENSTER_HOEHE
+    return { u, breite, unten: item.bruestungshoehe ?? (wandHoehe * 0.55 - hoehe / 2), hoehe }
+  }
+  return { u, breite, unten: 0, hoehe: item.hoeheReal ?? TUER_HOEHE }
+}
+
+// Unterkante über dem Boden. Die Sockelleiste fragt danach, ob sie unter dem Element
+// durchlaufen darf.
 export function wandElementUnterkante(item, wandHoehe) {
-  if (item.typ !== 'fenster') return 0
-  const elHoehe = item.hoeheReal ?? FENSTER_HOEHE
-  return item.bruestungshoehe ?? (wandHoehe * 0.55 - elHoehe / 2)
+  return wandElementOeffnung(item, wandHoehe).unten
 }
 
 // Tiefe der Nische hinter einem Durchgang. Die Wände der App sind flache Flächen ohne Dicke;
@@ -68,16 +87,17 @@ function baueKlinke(gruppe, x, y, z, farbe) {
 //
 // Kein castShadow: Die Nische steht außerhalb des Raums und würde sonst Schatten in den Raum
 // werfen, die es nicht geben kann.
-function baueNische(kontur) {
-  const geo = new THREE.ExtrudeGeometry(kontur, { depth: NISCHE_TIEFE, bevelEnabled: false })
-  geo.translate(0, 0, -NISCHE_TIEFE)   // nach hinten, vom Raum weg (+z zeigt in den Raum)
+function baueNische(kontur, tiefe = NISCHE_TIEFE, farbe = NISCHE_FARBE) {
+  const geo = new THREE.ExtrudeGeometry(kontur, { depth: tiefe, bevelEnabled: false })
+  geo.translate(0, 0, -tiefe)   // nach hinten, vom Raum weg (+z zeigt in den Raum)
   const mat = new THREE.MeshStandardMaterial({
-    color: NISCHE_FARBE, roughness: 0.95, metalness: 0.0, side: THREE.BackSide,
+    color: farbe, roughness: 0.95, metalness: 0.0, side: THREE.BackSide,
     polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
   })
   const nische = new THREE.Mesh(geo, mat)
   nische.receiveShadow = true
-  nische.name = 'durchgang-nische'
+  // Hieß "durchgang-nische", solange es sie nur am Durchgang gab. Jetzt hat jede Öffnung eine.
+  nische.name = 'wand-nische'
   // Kein Klickziel: Der Raycaster von three.js prüft nur layers, nicht visible — eine unsichtbar
   // geschaltete Nische bliebe sonst anklickbar. Auch sichtbar soll sie keines sein: Sie liegt hinter
   // der Wand und finge schräge Klicks auf die Wand neben der Öffnung ab. Klickziel des Durchgangs
@@ -124,6 +144,34 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
   const gruppenY = wandElementUnterkante(item, wandHoehe)
   gruppe.position.set(px, gruppenY, pz)
   gruppe.rotation.y = ry
+
+  // Jede Öffnung braucht eine Laibung, sonst sieht man durch das Loch in der Wand den
+  // Szenenhintergrund — dasselbe Problem, das der Durchgang mit seiner Nische schon gelöst hat.
+  // Zwei Tiefen, weil es zwei Bedeutungen sind: Ein Durchgang führt in einen anderen Raum und
+  // ist deshalb tief (das macht sein eigener Zweig weiter unten). Alles andere bekommt nur eine
+  // Laibung in Wanddicke.
+  //
+  // Die Rückwand sagt, wohin die Öffnung führt: Wandfarbe für alles, was in einen anderen Raum
+  // führt, Himmelsfarbe für das, was nach draußen geht. In Schritt 3 tritt dort die Dorfansicht
+  // an die Stelle der Himmelsfarbe — deshalb hier schon getrennt und nicht alles gleich.
+  const LAIBUNG_TIEFE = 0.15
+  const HIMMEL_FARBE = '#DCE9F2'
+  const NACH_DRAUSSEN = new Set(['fenster'])
+  const STIL_NACH_DRAUSSEN = new Set(['balkon-einzel', 'balkon-doppel', 'haustuer'])
+  if (item.typ !== 'durchgang') {
+    const o = wandElementOeffnung(item, wandHoehe, segment.laenge)
+    const draussen = NACH_DRAUSSEN.has(item.typ) || STIL_NACH_DRAUSSEN.has(item.stil)
+    // Kontur in Gruppen-Koordinaten: Die Gruppe sitzt bereits auf der Unterkante (bei Fenstern
+    // die Brüstungshöhe), die Kontur läuft deshalb von 0 bis zur Elementhöhe.
+    const hoehe = Math.max(0, Math.min(wandHoehe - o.unten, o.hoehe))
+    const kontur = new THREE.Shape()
+    kontur.moveTo(-o.breite / 2, 0)
+    kontur.lineTo(o.breite / 2, 0)
+    kontur.lineTo(o.breite / 2, hoehe)
+    kontur.lineTo(-o.breite / 2, hoehe)
+    kontur.lineTo(-o.breite / 2, 0)
+    gruppe.add(baueNische(kontur, LAIBUNG_TIEFE, draussen ? HIMMEL_FARBE : NISCHE_FARBE))
+  }
 
   if (item.typ === 'fenster') {
     const elHoehe = fensterElHoehe

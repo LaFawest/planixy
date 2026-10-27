@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandTexturFuerFlaeche, erzeugeBacksteinTextur } from './texturen'
 import { baueTrennwaende } from './scene/trennwaende'
-import { baueWandElement, wandElementUnterkante } from './scene/wandelemente'
+import { baueWandElement, wandElementUnterkante, wandElementOeffnung } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
 import { ladeModelle, getModell } from './scene/modelle'
 import { baueBeleuchtung, aktualisiereBeleuchtung } from './scene/beleuchtung'
@@ -563,10 +563,13 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // werfen aber keine.
     const wandElementeBauen = !deckenFokusRef.current
     const wandGeometrieFuerSegment = (segmentIndex, seg, live) => {
-      const durchgaenge = wandElementeBauen
-        ? furnitureRef.current.filter(f => f.istWandElement && f.typ === 'durchgang' && f.wandSegment === segmentIndex)
+      // Nicht mehr nur Durchgänge: Jedes Wandelement bekommt seine Öffnung. Vorher lag ein
+      // Fenster vor einer geschlossenen Wand, und hinter seiner Scheibe stand Mauerwerk — das
+      // ist der Grund, warum Glas in dieser App nie wie Glas aussah.
+      const oeffnungen = wandElementeBauen
+        ? furnitureRef.current.filter(f => f.istWandElement && f.wandSegment === segmentIndex)
         : []
-      if (durchgaenge.length === 0) return new THREE.PlaneGeometry(seg.laenge, wandHoehe)
+      if (oeffnungen.length === 0) return new THREE.PlaneGeometry(seg.laenge, wandHoehe)
       const halbBreite = seg.laenge / 2
       const halbHoehe = wandHoehe / 2
       const shape = new THREE.Shape([
@@ -575,12 +578,18 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         new THREE.Vector2(halbBreite, halbHoehe),
         new THREE.Vector2(-halbBreite, halbHoehe),
       ])
-      durchgaenge.forEach(item => {
+      oeffnungen.forEach(item => {
         const werte = (live && live.id === item.id)
           ? live
-          : { u: item.wandPosition || 0, breite: item.width / 60, hoehe: item.hoeheReal ?? TUER_HOEHE_3D }
+          : wandElementOeffnung(item, wandHoehe, seg.laenge)
         const uLinks = Math.max(0, Math.min(werte.u, seg.laenge - werte.breite))
         const uRechts = uLinks + werte.breite
+        // Türblätter sind genau so breit wie ihre Öffnung und liegen mit der Rückseite in der
+        // Wandebene. Ein Loch in exakt derselben Größe ergäbe eine haarfeine Fuge ringsum, durch
+        // die Licht und Hintergrund blitzen. Das Loch wird deshalb bei allem, was ein Blatt
+        // davor hat, rundum etwas kleiner als das Element. Fenster und Durchgänge nicht: Dort
+        // SOLL die Öffnung die volle Größe haben.
+        const deckung = (item.typ === 'fenster' || item.typ === 'durchgang') ? 0 : 0.02
         if (item.stil === 'bogen') {
           // Rundbogen-Durchgang (Phase 4, Teil 3b; seit Optimierung 2 eine halbe Ellipse innerhalb
           // einer festen Gesamthöhe): werte.hoehe ist die Gesamthöhe der Öffnung, bogenMasse()
@@ -601,13 +610,20 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
           pfad.lineTo(uLinks - halbBreite, -halbHoehe)
           shape.holes.push(pfad)
         } else {
-          const vOben = Math.min(wandHoehe, werte.hoehe)
-          shape.holes.push(new THREE.Path([
-            new THREE.Vector2(uLinks - halbBreite, -halbHoehe),
-            new THREE.Vector2(uRechts - halbBreite, -halbHoehe),
-            new THREE.Vector2(uRechts - halbBreite, vOben - halbHoehe),
-            new THREE.Vector2(uLinks - halbBreite, vOben - halbHoehe),
-          ]))
+          // werte.unten ist 0 bei allem, was auf dem Boden steht, und die Brüstungshöhe beim
+          // Fenster. Der alte Code kannte nur den Bodenfall.
+          const vUnten = Math.max(0, Math.min(wandHoehe, (werte.unten ?? 0) + deckung))
+          const vOben = Math.max(vUnten, Math.min(wandHoehe, (werte.unten ?? 0) + werte.hoehe - deckung))
+          const links = uLinks - halbBreite + deckung
+          const rechts = uRechts - halbBreite - deckung
+          if (rechts > links && vOben > vUnten) {
+            shape.holes.push(new THREE.Path([
+              new THREE.Vector2(links, vUnten - halbHoehe),
+              new THREE.Vector2(rechts, vUnten - halbHoehe),
+              new THREE.Vector2(rechts, vOben - halbHoehe),
+              new THREE.Vector2(links, vOben - halbHoehe),
+            ]))
+          }
         }
       })
       return new THREE.ShapeGeometry(shape)
@@ -753,7 +769,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         const gruppe = baueWandElement(raumWurzel, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur)
         // Nische einmal hier suchen und an ihre Wand hängen, statt bei jeder Kamerabewegung (siehe
         // setzeWandSichtbar). Segment-Fallback wie in wandelemente.js.
-        const nische = item.typ === 'durchgang' ? gruppe.getObjectByName('durchgang-nische') : null
+        const nische = gruppe.getObjectByName('wand-nische')
         if (nische) (wandMeshe[item.wandSegment] || wandMeshe[0]).nischen.push(nische)
         wandElementGruppen.push({ gruppe, item })
       }
@@ -1701,16 +1717,17 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
           neueY = Math.max(0, Math.min(wandHoehe - elHoehe, v + offsetV))
         }
         eintrag.gruppe.position.set(px, neueY, pz)
-        // Offener Durchgang (Teil 3a): das "Loch" steckt in der Wandgeometrie selbst, nicht in der
-        // (unsichtbaren) Gruppe — beim Verschieben muss deshalb die Wand live mitgeschnitten
-        // werden, sonst bliebe das alte Loch stehen, während nur die unsichtbare Klickfläche
-        // mitwandert.
-        if (eintrag.item.typ === 'durchgang') {
-          segment.mesh.geometry.dispose()
-          segment.mesh.geometry = wandGeometrieFuerSegment(eintrag.item.wandSegment, segment, {
-            id: eintrag.item.id, u: mitteU - elBreite / 2, breite: elBreite, hoehe: elHoehe,
-          })
-        }
+        // Das Loch steckt in der Wandgeometrie selbst, nicht in der Gruppe — beim Verschieben muss
+        // deshalb die Wand live mitgeschnitten werden.
+        //
+        // Für jedes Wandelement, nicht mehr nur für Durchgänge: Seit die Wand für alle ein Loch
+        // schneidet, bliebe beim Ziehen sonst das alte Loch leer stehen. unten muss mit, sonst
+        // springt ein Fenster beim Verschieben auf Bodenhöhe.
+        segment.mesh.geometry.dispose()
+        segment.mesh.geometry = wandGeometrieFuerSegment(eintrag.item.wandSegment, segment, {
+          id: eintrag.item.id, u: mitteU - elBreite / 2, breite: elBreite, hoehe: elHoehe,
+          unten: eintrag.item.typ === 'fenster' ? neueY : 0,
+        })
         wandElementDrag.bewegt = true
         berechneAnzeige(eintrag, segment, elBreite)
         return
@@ -1720,9 +1737,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         // Ecke eines Fensters/Durchgangs ziehen (Teil 2 / Teil 3a) — gleiches Prinzip wie beim
         // Wandmaterial-Bereich unten: der diagonal gegenüberliegende Punkt (anchorU/V) bleibt fix.
         // Die Gruppe wird für die Live-Vorschau nur skaliert+neu positioniert statt neu gebaut
-        // (siehe Kommentar oben im Architektur-Überblick) — exakt wird es erst beim Loslassen. Bei
-        // einem Durchgang wird zusätzlich die Wandgeometrie selbst live mitgeschnitten (siehe unten,
-        // anders als beim Fenster ist das hier günstig genug für jeden Mousemove).
+        // (siehe Kommentar oben im Architektur-Überblick) — exakt wird es erst beim Loslassen. Die
+        // Wandgeometrie wird zusätzlich live mitgeschnitten (siehe unten; günstig genug für jeden
+        // Mousemove).
         const { eintrag, segment, anchorU, anchorV, urspruenglicheBreite, urspruenglicheHoehe } = wandElementHandleDrag
         const ebene = ebeneFuerSegment(eintrag.item.wandSegment)
         const schnitt = zeigerAufWeltpunkt(clientX, clientY, ebene)
@@ -1752,12 +1769,13 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         const mitteU = neuU + neuBreite / 2
         const t = mitteU / (segment.laenge || 1)
         eintrag.gruppe.position.set(segment.x1 + segment.dx * t, neuV, segment.z1 + segment.dz * t)
-        if (eintrag.item.typ === 'durchgang') {
-          segment.mesh.geometry.dispose()
-          segment.mesh.geometry = wandGeometrieFuerSegment(eintrag.item.wandSegment, segment, {
-            id: eintrag.item.id, u: neuU, breite: neuBreite, hoehe: neuHoehe,
-          })
-        }
+        // Wie beim Verschieben oben: für jedes Wandelement, mit Unterkante — sonst bliebe beim
+        // Größenziehen eines Fensters das alte Loch stehen, während das Fenster schon wächst.
+        segment.mesh.geometry.dispose()
+        segment.mesh.geometry = wandGeometrieFuerSegment(eintrag.item.wandSegment, segment, {
+          id: eintrag.item.id, u: neuU, breite: neuBreite, hoehe: neuHoehe,
+          unten: eintrag.item.typ === 'fenster' ? neuV : 0,
+        })
         wandElementHandleDrag.bewegt = true
         berechneElementAuswahl(eintrag, segment, neuBreite, neuHoehe)
         return
