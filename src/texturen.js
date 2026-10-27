@@ -1342,6 +1342,65 @@ export function erzeugeUmgebungsTextur() {
   return texture
 }
 
+let rasenTexturCache = null
+
+// Rasen unter und um das Gebäude. Gezeichnet wie die übrigen Texturen, keine Bilddatei.
+//
+// Deterministisch mit fester Saat und Math.imul: Sonst wächst nach jedem Neuladen ein anderer
+// Rasen, und ohne imul überschreitet saat * 1103515245 den Bereich, in dem Javascript ganze
+// Zahlen genau hält (siehe erzeugeAussichtTextur, dort war genau das der Fehler).
+export function erzeugeRasenTextur() {
+  if (rasenTexturCache) return rasenTexturCache
+  const groesse = 512
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = groesse
+  const ctx = canvas.getContext('2d')
+
+  let saat = 20261028
+  const zufall = () => {
+    saat = (Math.imul(saat, 1103515245) + 12345) & 0x7fffffff
+    return saat / 0x7fffffff
+  }
+
+  ctx.fillStyle = '#6E8B52'
+  ctx.fillRect(0, 0, groesse, groesse)
+
+  // Flecken in beide Richtungen, heller und dunkler. Nur dunkle Flecken sähen nach Schmutz aus,
+  // nur helle nach Filz.
+  for (let i = 0; i < 2600; i++) {
+    const x = zufall() * groesse, y = zufall() * groesse
+    const r = 2 + zufall() * 7
+    const d = (0.05 + zufall() * 0.18).toFixed(2)
+    ctx.fillStyle = zufall() < 0.5 ? `rgba(140,168,96,${d})` : `rgba(62,82,46,${d})`
+    ctx.beginPath()
+    ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  // Kurze Halme als Striche. Sie tragen aus der Nähe und verschwinden aus der Entfernung im
+  // Mittelwert — richtig für eine Fläche, die meistens von weit oben zu sehen ist.
+  for (let i = 0; i < 4200; i++) {
+    const x = zufall() * groesse, y = zufall() * groesse
+    const l = 3 + zufall() * 5
+    ctx.strokeStyle = zufall() < 0.5 ? 'rgba(126,154,88,0.5)' : 'rgba(70,92,52,0.5)'
+    ctx.lineWidth = 0.8
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    ctx.lineTo(x + (zufall() - 0.5) * 2, y - l)
+    ctx.stroke()
+  }
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+  // Die Scheibe unten hat UV 0..1 über ihren ganzen Durchmesser von 300 m. 150 Wiederholungen
+  // ergeben damit eine Kachel von 2 m — grob genug zum Kacheln, fein genug aus 10 m Höhe.
+  texture.repeat.set(150, 150)
+  texture.colorSpace = THREE.SRGBColorSpace
+  texture.userData.persistenteTextur = true
+  rasenTexturCache = texture
+  return texture
+}
+
 let aussichtTexturCache = null
 
 // Dorfansicht hinter Fenstern, Balkon- und Haustüren. Blickhöhe erster bis zweiter Stock: Der

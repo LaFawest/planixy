@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandTexturFuerFlaeche, erzeugeBacksteinTextur, erzeugeAussichtTextur, aussichtTageszeitFarbe } from './texturen'
+import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandTexturFuerFlaeche, erzeugeBacksteinTextur, erzeugeAussichtTextur, aussichtTageszeitFarbe, erzeugeRasenTextur } from './texturen'
 import { baueTrennwaende } from './scene/trennwaende'
 import { baueWandElement, wandElementUnterkante, wandElementOeffnung, SOCKEL_HOEHE } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
@@ -490,6 +490,35 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     boden.rotation.x = -Math.PI / 2
     boden.receiveShadow = true
     raumWurzel.add(boden)
+
+    // Rasen unter und um das Gebäude. Ohne Grund wirkt der Raum von außen wie ein Modell auf
+    // einem leeren Tisch — das war Hassans "Sandwich", und der Grund allein hat den Eindruck
+    // sichtbar verändert.
+    //
+    // receiveShadow steht hier als Vorbereitung, nicht als Wirkung: Die Wände haben kein
+    // castShadow, das Gebäude wirft also keinen Schatten. Nur Fensterrahmen, Leuchten und Möbel
+    // tun das. Solange das so ist, nimmt diese Fläche Schatten an, die es nicht gibt.
+    //
+    // Scheibe statt Rechteck: Ihr Rand ist aus jeder Blickrichtung gleich weit weg und liest sich
+    // bei flachem Blick als Horizont, statt als Kante quer durchs Bild. Radius 150 m, während die
+    // Kamera auf höchstens 40 m kommt.
+    //
+    // 3 cm unter dem Fußboden, sonst flimmern die beiden Flächen gegeneinander. Von außen ergibt
+    // das eine kaum sichtbare Stufe am Wandfuß, die eher wie ein Sockel wirkt als wie ein Fehler.
+    const RASEN_RADIUS = 150
+    const rasenTextur = erzeugeRasenTextur()
+    // Ohne Anisotropie wird eine Bodenfläche, die bei flachem Blick weit nach hinten läuft, zu
+    // Streifenmatsch.
+    rasenTextur.anisotropy = renderer.capabilities.getMaxAnisotropy()
+    const rasenMat = new THREE.MeshStandardMaterial({ map: rasenTextur, roughness: 0.95, metalness: 0.0 })
+    const rasen = new THREE.Mesh(new THREE.CircleGeometry(RASEN_RADIUS, 64), rasenMat)
+    rasen.rotation.x = -Math.PI / 2
+    rasen.position.y = -0.03
+    rasen.receiveShadow = true
+    // Kein Klickziel: Der Raycaster für Möbel und Wandelemente würde sonst neben dem Raum auf
+    // dem Rasen treffen.
+    rasen.raycast = () => {}
+    raumWurzel.add(rasen)
 
     // Dieselbe Rotation wie boden, nicht ihr Gegenstück (+90°): eine Drehung um die X-Achse
     // spiegelt bei entgegengesetztem Vorzeichen zusätzlich die Z-Koordinate der Kontur (bei
