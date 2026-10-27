@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandTexturFuerFlaeche, erzeugeBacksteinTextur, erzeugeAussichtTextur, aussichtTageszeitFarbe, erzeugeRasenTextur } from './texturen'
+import { erzeugeHolzTextur, erzeugeStoffTextur, erzeugeBodenTextur, erzeugeUmgebungsTextur, erzeugeWandTexturFuerFlaeche, erzeugeBacksteinTextur, erzeugeAussichtTextur, aussichtTageszeitFarbe, erzeugeRasenTextur, himmelTageszeitFarbe } from './texturen'
 import { baueTrennwaende } from './scene/trennwaende'
 import { baueWandElement, wandElementUnterkante, wandElementOeffnung, SOCKEL_HOEHE } from './scene/wandelemente'
 import { baueMoebel } from './scene/moebel'
@@ -55,6 +55,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   // Ein Material für alle Aussichts-Flächen. Als Ref, damit der Tageszeit-Effekt weiter unten
   // seinen Farbton ändern kann, ohne die Szene neu zu bauen — dasselbe Muster wie beleuchtungRef.
   const aussichtMaterialRef = useRef(null)
+  // Himmel und Nebel folgen der Tageszeit, ohne dass die Szene neu gebaut wird — dasselbe Muster
+  // wie kameraZuruecksetzenRef: Der Effekt legt die Funktion hier ab, der Tageszeit-Effekt ruft sie.
+  const himmelAktualisierenRef = useRef(() => {})
 
   // App schneller machen, Schritt 3, Teilpunkt 4.4: Szene, Kamera und Renderer werden nur noch
   // einmal beim Mount erzeugt (siehe Lebenszyklus-Effekt weiter unten) statt bei jedem Neuaufbau —
@@ -300,8 +303,19 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     const height = mount.clientHeight
 
     const scene = new THREE.Scene()
+    // Himmel und Nebel bekommen dieselbe Farbe, und zwar die der Tageszeit. Dasselbe für beide,
+    // weil die Rasenscheibe im Nebel ausläuft: Nur mit gleicher Farbe geht der Boden sauber in den
+    // Himmel über, statt gegen eine fremde Farbe zu laufen. Vorher standen beide fest auf
+    // #F5F4F0 — nachts also ein weißer Himmel über schwarzem Boden.
     scene.background = new THREE.Color('#F5F4F0')
     scene.fog = new THREE.Fog('#F5F4F0', 20, 40)
+    const setzeHimmel = (stunde) => {
+      const farbe = himmelTageszeitFarbe(stunde)
+      scene.background.copy(farbe)
+      scene.fog.color.copy(farbe)
+    }
+    setzeHimmel(tageszeitRef.current)
+    himmelAktualisierenRef.current = setzeHimmel
     // Seit Teilpunkt 4.1 eine gecachte, dauerhaft gültige Textur — wird deshalb hier auch nicht
     // mehr disposed (siehe Aufräumen unten).
     scene.environment = erzeugeUmgebungsTextur()
@@ -2535,6 +2549,7 @@ return () => {
     if (aussichtMaterialRef.current) {
       aussichtMaterialRef.current.color.copy(aussichtTageszeitFarbe(tageszeit))
     }
+    himmelAktualisierenRef.current(tageszeit)
     if (!beleuchtungRef.current) return
     aktualisiereBeleuchtung(beleuchtungRef.current, tageszeit)
   }, [tageszeit])

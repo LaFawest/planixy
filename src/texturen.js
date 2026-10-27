@@ -1581,6 +1581,37 @@ export function erzeugeAussichtTextur() {
   return texture
 }
 
+// Himmelfarbe nach Tageszeit (Stunden 0-24), für scene.background und scene.fog. Dieselbe
+// Sonnenhöhen-Rechnung wie aussichtTageszeitFarbe und tageslichtWerte().
+//
+// Der Tagwert ist unverändert #F5F4F0: Mittags soll sich am Bild nichts ändern. Bewegt wird nur,
+// was zum Horizont und in die Nacht hin passiert — sonst wäre das eine viel größere Änderung als
+// die, um die es geht (nachts stand ein weißer Himmel über schwarzem Boden, seit es einen Boden
+// gibt).
+//
+// Gemischt wird im sRGB-Raum, nicht mit Color.lerp: THREE.Color hält die Werte linear, und linear
+// gemischt landen 90 % Richtung Nachtblau bei #5A5C61 — einem Grau, das wie ein bedeckter Tag
+// aussah. In sRGB gemischt kommt an, was die Zahlen versprechen.
+//
+// Nacht ist #2A3550 und wird um Mitternacht ganz erreicht. #1B2436 war im Bild auch brauchbar,
+// aber dunkler, als es für die Übersicht von außen gut ist.
+const himmelMische = (a, b, t) => {
+  const x = a.getRGB({ r: 0, g: 0, b: 0 }, THREE.SRGBColorSpace)
+  const y = b.getRGB({ r: 0, g: 0, b: 0 }, THREE.SRGBColorSpace)
+  return new THREE.Color().setRGB(
+    x.r + (y.r - x.r) * t, x.g + (y.g - x.g) * t, x.b + (y.b - x.b) * t, THREE.SRGBColorSpace,
+  )
+}
+export function himmelTageszeitFarbe(tageszeit) {
+  const roh = Math.sin((tageszeit - 6) / 12 * Math.PI)
+  const sonnenhoehe = Math.max(0, roh)
+  const nacht = Math.max(0, -roh)
+  const warm = Math.max(0, 1 - sonnenhoehe * 2.2)
+  const tag = new THREE.Color(0xf5f4f0)
+  const abend = himmelMische(tag, new THREE.Color(0xf0b887), warm * 0.55 * (1 - nacht))
+  return himmelMische(abend, new THREE.Color(0x2a3550), nacht)
+}
+
 // Farbton für die Aussicht nach Tageszeit (Stunden 0-24, wie tageszeit im Raum-Design). Dieselbe
 // Sonnenhöhen-Rechnung wie tageslichtWerte() in scene/beleuchtung.js: zum Horizont hin warm,
 // nachts blau und dunkel. Die Ansicht selbst ist unbeleuchtet, der Ton macht die Tageszeit.
