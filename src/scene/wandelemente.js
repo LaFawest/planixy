@@ -142,6 +142,54 @@ function setzeAussichtUV(geo, oeffnung, hoehe, segmentIndex) {
   uv.needsUpdate = true
 }
 
+// Ein Türblatt mit rechteckigem Ausschnitt, aus vier Platten gebaut: links, rechts, oben, unten.
+// Fürs Auge dasselbe wie ein massives Blatt mit einem Loch darin, aber ohne echte
+// Geometrie-Verrechnung — die three.js nicht mitbringt und die für vier Rechtecke auch niemand
+// braucht.
+//
+// Bis hierher war jedes verglaste Blatt eine massive Box mit einer Scheibe davor. Deshalb sah man
+// durch das Glas das Blatt und nicht hindurch.
+//
+// Alle Maße in Blatt-Koordinaten, Nullpunkt in der Blattmitte. ausschnitt = { x, y, breite, hoehe }
+// beschreibt Mitte und Größe des Lochs. Platten mit Breite oder Höhe null entstehen nicht — ein
+// Ausschnitt, der bis an die Blattkante reicht, lässt die betreffende Platte einfach weg.
+function baueBlattMitAusschnitt(breite, hoehe, tiefe, material, ausschnitt) {
+  const blatt = new THREE.Group()
+  const platte = (mx, my, pb, ph) => {
+    if (pb <= 0.001 || ph <= 0.001) return
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(pb, ph, tiefe), material)
+    mesh.position.set(mx, my, 0)
+    mesh.castShadow = true
+    blatt.add(mesh)
+  }
+  const links = -breite / 2, rechts = breite / 2, unten = -hoehe / 2, oben = hoehe / 2
+  const aLinks = ausschnitt.x - ausschnitt.breite / 2
+  const aRechts = ausschnitt.x + ausschnitt.breite / 2
+  const aUnten = ausschnitt.y - ausschnitt.hoehe / 2
+  const aOben = ausschnitt.y + ausschnitt.hoehe / 2
+  platte((links + aLinks) / 2, 0, aLinks - links, hoehe)
+  platte((aRechts + rechts) / 2, 0, rechts - aRechts, hoehe)
+  platte(ausschnitt.x, (aOben + oben) / 2, ausschnitt.breite, oben - aOben)
+  platte(ausschnitt.x, (unten + aUnten) / 2, ausschnitt.breite, aUnten - unten)
+  return blatt
+}
+
+// Eine Scheibe für einen solchen Ausschnitt. Zwei Zentimeter größer als das Loch, damit sie im
+// Falz sitzt und an den Kanten keine Fuge bleibt.
+//
+// Beleuchtet, nicht wie die Aussicht unbeleuchtet: Glas in einer Tür ist eine Fläche im Raum und
+// soll Licht annehmen. Sie schreibt aber keine Tiefe — sonst entscheidet die Zeichenreihenfolge,
+// ob man das dahinter Liegende sieht.
+function baueTuerScheibe(breite, hoehe, deckkraft = 0.18, farbe = '#EAF2F7') {
+  return new THREE.Mesh(
+    new THREE.BoxGeometry(Math.max(0.02, breite + 0.02), Math.max(0.02, hoehe + 0.02), 0.012),
+    new THREE.MeshStandardMaterial({
+      color: farbe, transparent: true, opacity: deckkraft,
+      roughness: 0.05, metalness: 0.0, depthWrite: false,
+    }),
+  )
+}
+
 export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, eckpunkte, holzTextur, backsteinTextur, aussichtMaterial) {
   const elBreite = item.width / 60
   const gruppe = new THREE.Group()
@@ -458,16 +506,26 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
     if (item.stil === 'balkon-einzel') {
       // Balkontür Einzelflügel: wie eine normale Tür aufgebaut (Rahmen, Griff), aber mit einer
       // durchgehenden Glasscheibe statt der zwei Holzfüllungen.
-      const tuerMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.5, metalness: 0.1, map: holzTextur })
-      const tuer = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.06), tuerMat)
-      tuer.position.set(0, elHoehe / 2, 0.03)
-      tuer.castShadow = true
-      gruppe.add(tuer)
+      // Blatt als Rahmen mit echtem Ausschnitt. Der untere Schenkel ist deutlich breiter als die
+      // übrigen — das ist das Merkmal, an dem man eine Balkontür von einem bis zum Boden
+      // reichenden Fenster unterscheidet.
+      const ANSICHT = 0.11
+      const ANSICHT_UNTEN = 0.19
+      const ausBreite = Math.max(0.05, elBreite - 2 * ANSICHT)
+      const ausHoehe = Math.max(0.05, elHoehe - ANSICHT - ANSICHT_UNTEN)
+      // Mitte des Ausschnitts liegt über der Blattmitte, weil unten mehr Rahmen steht.
+      const ausY = (ANSICHT_UNTEN - ANSICHT) / 2
 
-      const glasMat = new THREE.MeshStandardMaterial({ color: '#A8D8F0', transparent: true, opacity: 0.35, roughness: 0.0, metalness: 0.1 })
-      const glas = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.12, elHoehe - 0.12, 0.02), glasMat)
-      glas.position.set(0, elHoehe / 2, 0.06)
-      gruppe.add(glas)
+      const tuerMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.5, metalness: 0.1, map: holzTextur })
+      const blatt = baueBlattMitAusschnitt(elBreite, elHoehe, 0.06, tuerMat, {
+        x: 0, y: ausY, breite: ausBreite, hoehe: ausHoehe,
+      })
+      blatt.position.set(0, elHoehe / 2, 0.03)
+      gruppe.add(blatt)
+
+      const scheibe = baueTuerScheibe(ausBreite, ausHoehe)
+      scheibe.position.set(0, ausY, 0)
+      blatt.add(scheibe)
 
       const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.6, map: holzTextur })
       const rahmenL = new THREE.Mesh(new THREE.BoxGeometry(0.08, elHoehe + 0.1, 0.15), rahmenMat)
@@ -482,7 +540,10 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
 
       const griffMat = new THREE.MeshStandardMaterial({ color: '#888780', metalness: 0.8, roughness: 0.2 })
       const griff = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.2, 0.03), griffMat)
-      griff.position.set(elBreite/2 - 0.1, elHoehe * 0.5, 0.09)
+      // Mitten auf dem senkrechten Schenkel und mit der Rückseite auf dem Blatt (Vorderseite
+      // 0.06). Bei elBreite/2 - 0.1 ragte er 5 mm in den Ausschnitt, und bei z = 0.09 schwebte er
+      // 1,5 cm vor dem Blatt — vorher verdeckte die vorgesetzte Scheibe beides.
+      griff.position.set(elBreite/2 - ANSICHT / 2, elHoehe * 0.5, 0.075)
       gruppe.add(griff)
     } else if (item.stil === 'balkon-doppel') {
       // Balkontür Doppelflügel: zwei Einzelflügel-Türen nebeneinander (je Hälfte baugleich zum
@@ -491,20 +552,29 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
       const halbBreite = (elBreite - MITTELPFOSTEN_BREITE) / 2
       const versatz = (halbBreite + MITTELPFOSTEN_BREITE) / 2
       ;[-versatz, versatz].forEach(x => {
-        const tuerMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.5, metalness: 0.1, map: holzTextur })
-        const tuer = new THREE.Mesh(new THREE.BoxGeometry(halbBreite, elHoehe, 0.06), tuerMat)
-        tuer.position.set(x, elHoehe / 2, 0.03)
-        tuer.castShadow = true
-        gruppe.add(tuer)
+        // Jeder Flügel baugleich zum Einzelflügel, nur schmaler — gleiche Rahmenbreiten, gleicher
+        // breiterer unterer Schenkel.
+        const ANSICHT = 0.1
+        const ANSICHT_UNTEN = 0.17
+        const ausBreite = Math.max(0.05, halbBreite - 2 * ANSICHT)
+        const ausHoehe = Math.max(0.05, elHoehe - ANSICHT - ANSICHT_UNTEN)
+        const ausY = (ANSICHT_UNTEN - ANSICHT) / 2
 
-        const glasMat = new THREE.MeshStandardMaterial({ color: '#A8D8F0', transparent: true, opacity: 0.35, roughness: 0.0, metalness: 0.1 })
-        const glas = new THREE.Mesh(new THREE.BoxGeometry(halbBreite - 0.1, elHoehe - 0.12, 0.02), glasMat)
-        glas.position.set(x, elHoehe / 2, 0.06)
-        gruppe.add(glas)
+        const tuerMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.5, metalness: 0.1, map: holzTextur })
+        const blatt = baueBlattMitAusschnitt(halbBreite, elHoehe, 0.06, tuerMat, {
+          x: 0, y: ausY, breite: ausBreite, hoehe: ausHoehe,
+        })
+        blatt.position.set(x, elHoehe / 2, 0.03)
+        gruppe.add(blatt)
+
+        const scheibe = baueTuerScheibe(ausBreite, ausHoehe)
+        scheibe.position.set(0, ausY, 0)
+        blatt.add(scheibe)
 
         const griffMat = new THREE.MeshStandardMaterial({ color: '#888780', metalness: 0.8, roughness: 0.2 })
         const griff = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.2, 0.03), griffMat)
-        griff.position.set(x > 0 ? x - halbBreite/2 + 0.06 : x + halbBreite/2 - 0.06, elHoehe * 0.5, 0.09)
+        // x passt (6 cm vom Rand, Schenkel 10 cm). z wie beim Einzelflügel auf die Blattfläche.
+        griff.position.set(x > 0 ? x - halbBreite/2 + 0.06 : x + halbBreite/2 - 0.06, elHoehe * 0.5, 0.075)
         gruppe.add(griff)
       })
 
@@ -577,16 +647,25 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
       // Hauseingangstür Alu/Anthrazit: dunkle Anthrazit-Türfüllung in einem hellen Alu-Rahmen,
       // schmaler vertikaler Glasstreifen nahe der Schlossseite (typisch für moderne Haustüren) und
       // ein durchgehender Stoßgriff (Zylinder) statt Knauf.
-      const tuerMat = new THREE.MeshStandardMaterial({ color: '#3B3B39', roughness: 0.4, metalness: 0.3 })
-      const tuer = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.07), tuerMat)
-      tuer.position.set(0, elHoehe / 2, 0.035)
-      tuer.castShadow = true
-      gruppe.add(tuer)
+      // Schmaler Lichtstreifen als echter Ausschnitt, nahe der Schlossseite wie bisher. Oben und
+      // unten bleibt bewusst viel Blatt stehen — ein Streifen, der bis an die Kante läuft, sieht
+      // nach Industrietür aus, nicht nach Hauseingang.
+      const streifenBreite = Math.max(0.04, elBreite * 0.12)
+      const streifenHoehe = Math.max(0.1, elHoehe - 0.6)
+      const streifenX = elBreite / 2 - elBreite * 0.18
 
-      const glasStreifenMat = new THREE.MeshStandardMaterial({ color: '#A8D8F0', transparent: true, opacity: 0.4, roughness: 0.0, metalness: 0.1 })
-      const glasStreifen = new THREE.Mesh(new THREE.BoxGeometry(elBreite * 0.12, elHoehe - 0.3, 0.02), glasStreifenMat)
-      glasStreifen.position.set(elBreite / 2 - elBreite * 0.18, elHoehe / 2, 0.075)
-      gruppe.add(glasStreifen)
+      const tuerMat = new THREE.MeshStandardMaterial({ color: '#3B3B39', roughness: 0.4, metalness: 0.3 })
+      const blatt = baueBlattMitAusschnitt(elBreite, elHoehe, 0.07, tuerMat, {
+        x: streifenX, y: 0, breite: streifenBreite, hoehe: streifenHoehe,
+      })
+      blatt.position.set(0, elHoehe / 2, 0.035)
+      gruppe.add(blatt)
+
+      // Mattiert und weniger durchsichtig als eine Balkontür: An einer Haustür will niemand von
+      // draußen hereinsehen können.
+      const scheibe = baueTuerScheibe(streifenBreite, streifenHoehe, 0.5, '#D7E4EA')
+      scheibe.position.set(streifenX, 0, 0)
+      blatt.add(scheibe)
 
       const rahmenMat = new THREE.MeshStandardMaterial({ color: '#B8B8B4', roughness: 0.3, metalness: 0.7 })
       const rahmenL = new THREE.Mesh(new THREE.BoxGeometry(0.09, elHoehe + 0.1, 0.16), rahmenMat)
@@ -601,7 +680,9 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
 
       const griffMat = new THREE.MeshStandardMaterial({ color: '#5A5A57', metalness: 0.85, roughness: 0.2 })
       const griff = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, elHoehe * 0.45, 8), griffMat)
-      griff.position.set(elBreite/2 - 0.2, elHoehe * 0.5, 0.1)
+      // Links neben dem Lichtstreifen statt bei elBreite/2 - 0.2: Dort lag er bei einer 1 m
+      // breiten Tür mitten im Streifen (0,26 bis 0,38 m), also jetzt über dem Loch.
+      griff.position.set(streifenX - streifenBreite / 2 - 0.07, elHoehe * 0.5, 0.1)
       gruppe.add(griff)
     } else if (item.stil === 'kassette') {
       // Kassettentür: wie die Standard-Tür aufgebaut (Rahmen, Knauf), aber mit drei gerahmten
@@ -643,16 +724,30 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
       // Glastür (Zimmertür): wie Balkontür-Einzelflügel aufgebaut, aber mit hellem/weißem Rahmen
       // statt Holzoptik, mattierter (weniger transparenter) Glasfüllung und einem modernen
       // Flachgriff statt des Balkontür-Griffs — für den Innenraum, nicht für den Wetterschutz.
-      const tuerMat = new THREE.MeshStandardMaterial({ color: '#FAFAF8', roughness: 0.4, metalness: 0.0 })
-      const tuer = new THREE.Mesh(new THREE.BoxGeometry(elBreite, elHoehe, 0.05), tuerMat)
-      tuer.position.set(0, elHoehe / 2, 0.025)
-      tuer.castShadow = true
-      gruppe.add(tuer)
+      // Innen-Glastür: schmaler Rahmen ringsum, großes mattiertes Feld. Anders als bei der
+      // Balkontür bleibt der untere Schenkel nur leicht breiter — eine Zimmertür hat kein Wetter
+      // abzuhalten.
+      //
+      // 9 cm statt der gerechneten 7: Auf dem Schenkel sitzt die Klinke, und ihre Rosette hat 7 cm
+      // Durchmesser — bei 7 cm Schenkel stünde sie bündig an der Glaskante.
+      const ANSICHT = 0.09
+      const ANSICHT_UNTEN = 0.12
+      const ausBreite = Math.max(0.05, elBreite - 2 * ANSICHT)
+      const ausHoehe = Math.max(0.05, elHoehe - ANSICHT - ANSICHT_UNTEN)
+      const ausY = (ANSICHT_UNTEN - ANSICHT) / 2
 
-      const glasMat = new THREE.MeshStandardMaterial({ color: '#DCE8F0', transparent: true, opacity: 0.55, roughness: 0.15, metalness: 0.0 })
-      const glas = new THREE.Mesh(new THREE.BoxGeometry(elBreite - 0.1, elHoehe - 0.1, 0.02), glasMat)
-      glas.position.set(0, elHoehe / 2, 0.05)
-      gruppe.add(glas)
+      const tuerMat = new THREE.MeshStandardMaterial({ color: '#FAFAF8', roughness: 0.4, metalness: 0.0 })
+      const blatt = baueBlattMitAusschnitt(elBreite, elHoehe, 0.05, tuerMat, {
+        x: 0, y: ausY, breite: ausBreite, hoehe: ausHoehe,
+      })
+      blatt.position.set(0, elHoehe / 2, 0.025)
+      gruppe.add(blatt)
+
+      // Mattiert: Eine Zimmer-Glastür ist Sichtschutz, kein Fenster. Deutlich deckender als die
+      // Balkontür, aber hell — man soll sehen, ob im Nachbarraum Licht brennt.
+      const scheibe = baueTuerScheibe(ausBreite, ausHoehe, 0.55, '#DCE8F0')
+      scheibe.position.set(0, ausY, 0)
+      blatt.add(scheibe)
 
       const rahmenMat = new THREE.MeshStandardMaterial({ color: '#F5F0E8', roughness: 0.5 })
       const rahmenL = new THREE.Mesh(new THREE.BoxGeometry(0.06, elHoehe + 0.1, 0.13), rahmenMat)
@@ -665,9 +760,11 @@ export function baueWandElement(scene, item, raumBreite, raumTiefe, wandHoehe, e
       rahmenO.position.set(0, elHoehe + 0.03, 0)
       gruppe.add(rahmenO)
 
-      // z = 0.06: Die Glasfüllung reicht bis dorthin, und der Griff sitzt bei dieser Tür über
-      // dem Glas. Edelstahlton, wie an Glastüren üblich.
-      baueKlinke(gruppe, elBreite/2 - 0.09, elHoehe * 0.47, 0.06, '#A8A8A5')
+      // Mitten auf dem senkrechten Rahmenschenkel. An der alten Stelle (elBreite/2 - 0.09) hätte
+      // die Rosette (7 cm Durchmesser) jetzt zur Hälfte im Ausschnitt gehangen, und z = 0.06 war
+      // die Vorderseite der alten, vorgesetzten Scheibe — das Blatt endet bei 0.05.
+      // Edelstahlton, wie an Glastüren üblich.
+      baueKlinke(gruppe, elBreite/2 - ANSICHT / 2, elHoehe * 0.47, 0.05, '#A8A8A5')
     } else if (item.stil === 'landhaus') {
       // Landhaustür: weiß lackierte Tür mit Sprossen-Gitter (2 senkrechte + 3 waagerechte Stege
       // ergeben ein 6-Felder-Kassettierung), schmiedeeisen-artiger Knauf für den Landhausstil.
