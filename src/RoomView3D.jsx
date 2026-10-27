@@ -903,9 +903,18 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
     let kameraDrinnen = false
     let zoomFrei = false
-    // Letzter Stand von Drehung und Blickpunkt, bei dem die Kamera im Raum stand. Würde die
-    // nächste Drehung oder Verschiebung sie durch eine Wand tragen, wird dieser Stand wieder
-    // hergestellt. null heißt: Die Kamera steht ohnehin draußen, es gibt nichts zu begrenzen.
+    // Letzter Stand von Drehung und Blickpunkt, bei dem die Kamera an einer ERLAUBTEN Stelle
+    // stand — also innerhalb von kameraPolygon, nicht nur innerhalb des Raums. Würde die nächste
+    // Drehung oder Verschiebung sie hinaustragen, wird dieser Stand wieder hergestellt. null
+    // heißt: Die Kamera steht ohnehin nicht an einer erlaubten Stelle, es gibt nichts zu halten,
+    // und jede Bewegung ist frei, bis sie wieder drin ist.
+    //
+    // Dass hier genau dasselbe Polygon gefragt wird wie bei der Rücknahme, ist der ganze Punkt:
+    // Vorher lief diese Prüfung gegen eckpunkte und die Rücknahme gegen das um
+    // KAMERA_WANDABSTAND eingerückte kameraPolygon. Im Streifen dazwischen galt die Kamera als
+    // drinnen, stand aber auf einer unerlaubten Stelle — also wurde jeder Schritt
+    // zurückgenommen, auch der, der hinausgeführt hätte. Fest, in beide Richtungen, und heraus
+    // nur per Zoom oder Zurücksetzen.
     let letzterStand = null
 
     const updateOrbitCamera = () => {
@@ -940,7 +949,10 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         setzeKamera()
       }
       zoomFrei = false
-      kameraDrinnen = kameraUnterDecke() && imRaum(camera.position.x, camera.position.z, eckpunkte)
+      // kameraPolygon und nicht eckpunkte: siehe letzterStand oben. Beide Prüfungen müssen
+      // dasselbe Polygon fragen, sonst entsteht ein Streifen, in dem die Begrenzung scharf ist
+      // und die eigene Lage unerlaubt.
+      kameraDrinnen = kameraUnterDecke() && imRaum(camera.position.x, camera.position.z, kameraPolygon)
       letzterStand = kameraDrinnen
         ? { theta: spherical.theta, phi: spherical.phi, ziel: kameraZiel.clone() }
         : null
