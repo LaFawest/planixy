@@ -473,3 +473,145 @@ export function wandElementShapes(f, s) {
     </>,
   }
 }
+
+// Musterproben für Boden- und Wandbeläge, geschlüsselt über die Materialklasse — dasselbe Feld,
+// unter dem die Textur in texturen.js erzeugt wird. Bisher standen hier Emoji: Bilder der
+// System-Schriftart, auf jedem Gerät anders, ohne Bezug zur Materialfarbe, und mehrere davon
+// sachlich falsch (eine Kastanie für Kork, ein Klemmbrett für Laminat).
+//
+// Gezeigt wird das Material selbst, nicht ein Gegenstand, der damit zu tun hat — eine kleine
+// Probe wie am Baumarktregal. Die Farben sind an den Texturfotos in assets/texturen gemessen und
+// leicht aufgehellt, damit Fugen und Körnung auf 20 Pixeln noch sichtbar bleiben.
+const kachel = (farbe) => (
+  <rect x="1" y="1" width="22" height="22" rx="3" fill={farbe} stroke="#0000001F" strokeWidth="1" />
+)
+const FUGE = '#00000038'
+
+export function materialShapes() {
+  return {
+    // --- Bodenbeläge ---
+    'boden-standard': <>{kachel('#EDEAE4')}</>,
+
+    'boden-parkett': <>
+      {kachel('#B07A50')}
+      <path d="M1,8.5 H23 M1,15.5 H23" stroke={FUGE} strokeWidth="0.9" />
+      <path d="M8,1 V8.5 M16,8.5 V15.5 M6,15.5 V23 M17,15.5 V23" stroke={FUGE} strokeWidth="0.9" />
+    </>,
+
+    'boden-laminat': <>
+      {kachel('#B29C7E')}
+      <path d="M1,7 H23 M1,12 H23 M1,17 H23" stroke={FUGE} strokeWidth="0.8" />
+      <path d="M13,1 V7 M9,12 V17" stroke={FUGE} strokeWidth="0.8" />
+    </>,
+
+    'boden-fliesen': <>
+      {kachel('#DDD5C5')}
+      <path d="M8.3,1 V23 M15.6,1 V23 M1,8.3 H23 M1,15.6 H23" stroke={FUGE} strokeWidth="1" />
+    </>,
+
+    'boden-teppich': <>
+      {kachel('#A3A09A')}
+      <path d="M4,5 h1 M8,4 h1 M12,6 h1 M16,4.5 h1 M20,6 h1 M3,10 h1 M7,9 h1 M11,11 h1 M15,9.5 h1 M19,11 h1 M5,15 h1 M9,14 h1 M13,16 h1 M17,14.5 h1 M21,16 h1 M4,20 h1 M8,19 h1 M12,21 h1 M16,19.5 h1 M20,21 h1"
+        stroke="#00000030" strokeWidth="1.4" strokeLinecap="round" />
+    </>,
+
+    'boden-beton': <>
+      {kachel('#8F897F')}
+      <path d="M5,7 q3,-2 6,0 t5,1" fill="none" stroke="#00000018" strokeWidth="1.4" />
+      <path d="M3,15 q4,2 8,0 t9,1" fill="none" stroke="#00000014" strokeWidth="1.6" />
+      <circle cx="17" cy="6" r="1.1" fill="#00000012" />
+    </>,
+
+    // Fischgrät: das Zickzack IST das Muster. Zwei Reihen gegenläufiger Striche.
+    'boden-fischgraet': <>
+      {kachel('#A57A50')}
+      <path d="M2,10 L6.5,5 L11,10 L15.5,5 L20,10" fill="none" stroke={FUGE} strokeWidth="1.1" />
+      <path d="M2,19 L6.5,14 L11,19 L15.5,14 L20,19" fill="none" stroke={FUGE} strokeWidth="1.1" />
+    </>,
+
+    'boden-schachbrett': <>
+      {kachel('#EFEDE8')}
+      <path d="M1,1 h7.3 v7.3 h-7.3 Z M15.7,1 h7.3 v7.3 h-7.3 Z M8.3,8.3 h7.4 v7.4 h-7.4 Z M1,15.7 h7.3 v7.3 h-7.3 Z M15.7,15.7 h7.3 v7.3 h-7.3 Z"
+        fill="#3A3835" opacity="0.82" />
+    </>,
+
+    'boden-marmor': <>
+      {kachel('#C9B58F')}
+      <path d="M2,16 q5,-6 9,-3 t11,-5" fill="none" stroke="#00000030" strokeWidth="1.2" />
+      <path d="M6,22 q3,-5 7,-4" fill="none" stroke="#00000020" strokeWidth="1" />
+    </>,
+
+    'boden-kork': <>
+      {kachel('#C98A6C')}
+      <path d="M4,6 h1.6 M9,5 h1.6 M14,7 h1.6 M18,5.5 h1.6 M3,11 h1.6 M8,12 h1.6 M13,10.5 h1.6 M18,12 h1.6 M5,17 h1.6 M10,16 h1.6 M15,17.5 h1.6 M19,16.5 h1.6 M6,21 h1.6 M12,20.5 h1.6 M17,21 h1.6"
+        stroke="#00000030" strokeWidth="1.8" strokeLinecap="round" />
+    </>,
+
+    'boden-schiefer': <>
+      {kachel('#3D3433')}
+      <path d="M1,9 L9,7.5 L16,9.5 L23,8 M1,16 L7,17.5 L15,15.5 L23,17" fill="none" stroke="#FFFFFF38" strokeWidth="1.1" />
+      <path d="M9,1 V7.5 M16,9.5 V15.5 M7,17.5 V23" stroke="#FFFFFF38" strokeWidth="1.1" />
+    </>,
+
+    // --- Wandmaterialien ---
+    // Putz bleibt glatt: Mit eigenen Pünktchen war er auf 20 Pixeln nicht von Raufaser fein zu
+    // unterscheiden. Glatt gegen gekörnt ist genau der Unterschied zwischen den beiden.
+    'wand-putz': <>{kachel('#EFEDE8')}</>,
+
+    // Drei Körnungen, derselbe Grund: Der Unterschied ist die Dichte und die Größe der Körner —
+    // genau das, was "fein, mittel, grob" bedeutet.
+    'wand-raufaser-fein': <>
+      {kachel('#EFEDE8')}
+      <path d="M5,6 h0.5 M10,5 h0.5 M15,7 h0.5 M19,6 h0.5 M4,11 h0.5 M9,12 h0.5 M14,10 h0.5 M18,12 h0.5 M6,16 h0.5 M11,17 h0.5 M16,15 h0.5 M20,17 h0.5 M8,20 h0.5 M14,21 h0.5 M19,20 h0.5"
+        stroke="#00000038" strokeWidth="1.1" strokeLinecap="round" />
+    </>,
+
+    'wand-raufaser-mittel': <>
+      {kachel('#EFEDE8')}
+      <path d="M5,6 h1.4 M11,5 h1.4 M16,7.5 h1.4 M4,11 h1.4 M10,12 h1.4 M16,10.5 h1.4 M6,16 h1.4 M12,17 h1.4 M18,15.5 h1.4 M8,20.5 h1.4 M15,21 h1.4"
+        stroke="#0000003A" strokeWidth="1.9" strokeLinecap="round" />
+    </>,
+
+    'wand-raufaser-grob': <>
+      {kachel('#EFEDE8')}
+      <path d="M5,6.5 h2 M12,5.5 h2 M17,8 h2 M4,12 h2 M11,13 h2 M17,11 h2 M6,17.5 h2 M13,18.5 h2 M18,16.5 h2"
+        stroke="#00000048" strokeWidth="2.7" strokeLinecap="round" />
+    </>,
+
+    'wand-tapete-streifen': <>
+      {kachel('#E6DDCD')}
+      <path d="M5,1 V23 M9.5,1 V23 M14,1 V23 M18.5,1 V23" stroke="#00000028" strokeWidth="1.6" />
+    </>,
+
+    'wand-holzpaneele': <>
+      {kachel('#B8956A')}
+      <path d="M6,1 V23 M11,1 V23 M16,1 V23 M21,1 V23" stroke={FUGE} strokeWidth="1" />
+    </>,
+
+    // Akustikpaneel: breite Lamelle, schmale dunkle Fuge dazwischen — das Verhältnis ist das
+    // Erkennungszeichen, nicht die Farbe.
+    'wand-akustikpaneele': <>
+      {kachel('#8E7454')}
+      <path d="M5.5,1 V23 M10.5,1 V23 M15.5,1 V23 M20.5,1 V23" stroke="#1C1712" strokeWidth="2.2" opacity="0.75" />
+    </>,
+
+    // Wandtattoo: ein Motiv auf heller Wand, keine Oberfläche. Deshalb heller Grund mit dunkler
+    // Form statt einer Materialprobe.
+    'wand-tattoo-baum': <>
+      {kachel('#F4F2ED')}
+      <path d="M12,21 V12" stroke="#2E2C28" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M12,12 L7.5,8 M12,14 L16.5,10 M12,9 L9,5.5 M12,10.5 L15,7" stroke="#2E2C28" strokeWidth="1.2" strokeLinecap="round" />
+      <circle cx="7" cy="7.3" r="1.5" fill="#2E2C28" />
+      <circle cx="17" cy="9.3" r="1.5" fill="#2E2C28" />
+      <circle cx="8.4" cy="4.8" r="1.3" fill="#2E2C28" />
+      <circle cx="15.5" cy="6.3" r="1.3" fill="#2E2C28" />
+    </>,
+  }
+}
+
+// Liefert die Musterprobe zu einer Materialklasse, oder null. Null heißt: Es gibt keine
+// gezeichnete Probe, der Aufrufer zeigt sein bisheriges Emoji. So bleiben die zehn
+// Wandtattoo-Motive unverändert, für die eine Zeichnung bei dieser Größe nichts taugt.
+export function materialShape(klasse) {
+  return materialShapes()[klasse] ?? null
+}

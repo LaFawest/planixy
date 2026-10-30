@@ -2,6 +2,7 @@ import { useRooms } from '../context/RoomsContext'
 import { useDesign } from '../context/DesignContext'
 import { polygonFlaeche, rechteckPolygon, lFormPolygon, uFormPolygon, boundingBox } from '../raumPolygon'
 import { RAUM_FORMEN, L_FORM_ECKEN, U_FORM_SEITEN, MIN_RAUM_SCHENKEL_M, bodenBelaege } from '../constants'
+import { materialShape } from '../moebelIcons'
 
 // Breite/Tiefe/Aussparung klemmen wir schon beim Tippen auf mindestens MIN_RAUM_SCHENKEL_M —
 // nicht wegen der Optik, sondern weil ein Zwischenwert, der einen Schenkel schmaler als die
@@ -196,7 +197,13 @@ export default function RaumSchritt() {
               background: (activeRoom?.boden || 'boden-standard') === boden.klasse ? '#EEF4FC' : '#FAFAF8',
               fontSize: '10px', color: (activeRoom?.boden || 'boden-standard') === boden.klasse ? '#185FA5' : '#444441',
             }}>
-              <div style={{ fontSize: '18px', marginBottom: '4px' }}>{boden.icon}</div>
+              {/* Musterprobe statt Emoji. Der Rückfall auf boden.icon bleibt: Käme ein Belag ohne
+                  gezeichnete Probe dazu, stünde dort wieder das Emoji statt einer Lücke. */}
+              <div style={{ marginBottom: '4px', display: 'flex', justifyContent: 'center' }}>
+                {materialShape(boden.klasse)
+                  ? <svg viewBox="0 0 24 24" width="26" height="26">{materialShape(boden.klasse)}</svg>
+                  : <span style={{ fontSize: '18px' }}>{boden.icon}</span>}
+              </div>
               {boden.name}
             </div>
           ))}

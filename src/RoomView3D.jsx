@@ -12,6 +12,7 @@ import { useRooms } from './context/RoomsContext'
 import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
 import { useUI } from './context/UIContext'
+import { materialShape } from './moebelIcons'
 import { wandMaterialien, istGestrichen, wandMaterialInfo, istWandtattoo, istDeckenleuchte, istVerschiebbareDeckenleuchte, istEndpunktVerstellbareDeckenleuchte, istEckSkalierbareDeckenleuchte, berechneInnenmasse, bogenMasse } from './constants'
 
 export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deckenFokus = false, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt } = {}) {
@@ -2582,7 +2583,11 @@ return () => {
                   fontSize: '14px', cursor: 'pointer',
                   border: `${istArmiert || istOffen ? '2px' : '1px'} solid ${istArmiert || istOffen ? '#185FA5' : '#E8E6E0'}`,
                   background: istArmiert ? '#EEF4FC' : '#FAFAF8',
-                }}>{material.icon}</div>
+                }}>
+                  {materialShape(material.klasse)
+                    ? <svg viewBox="0 0 24 24" width="20" height="20">{materialShape(material.klasse)}</svg>
+                    : material.icon}
+                </div>
                 {material.ausfuehrungen && istOffen && (
                   // Name ausgeschrieben statt nur als Tooltip: Bei zehn Tapetenmustern ist ein
                   // Farbpunkt allein nicht unterscheidbar. maxHeight plus Scrollen, damit die
