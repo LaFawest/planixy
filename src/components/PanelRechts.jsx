@@ -9,6 +9,10 @@ import LichtSchritt from './LichtSchritt'
 import MoebelDekoSchritt from './MoebelDekoSchritt'
 import ProduktPanel from './ProduktPanel'
 
+// Dieselbe Zeichenfolge wie in KatalogContext.jsx und ZusammenfassungSeite.jsx. Bewusst je Datei
+// eigen und nicht zentral: Die drei haben nichts miteinander zu tun außer dem Wort.
+const LICHT_KATEGORIE = 'Licht'
+
 const SCHRITT_KOMPONENTEN = {
   1: RaumSchritt,
   2: FensterTuerenSchritt,
@@ -20,8 +24,18 @@ export default function PanelRechts() {
   const { raumPanelOffen, setRaumPanelOffen } = useUI()
   const { activeRoom } = useRooms()
   const { schritt } = useWizard()
-  const { selectedId } = useFurniture()
+  const { selectedId, furniture } = useFurniture()
   const SchrittInhalt = SCHRITT_KOMPONENTEN[schritt]
+
+  // Für Leuchten gibt es keine Produktwahl, und zwar ohne Hinweis darauf. Sie werden vorerst
+  // nicht verlinkt; ein "für diesen Möbeltyp gibt es noch keine Produktvorschläge" verspricht
+  // aber etwas für später, und was nicht versprochen ist, soll gar nicht erst als Leerstelle
+  // erscheinen.
+  //
+  // Die Prüfung steht hier und nicht in ProduktPanel selbst, weil daneben auch die Trennlinie
+  // hängt: Dort allein wäre sie als Strich ohne Inhalt stehen geblieben.
+  const zeigtProduktwahl = selectedId !== null
+    && furniture.find(f => f.id === selectedId)?.kategorie !== LICHT_KATEGORIE
 
   // Licht-Schritt (Phase 6, Teilschritt 1 — 7. Nachbesserung, ersetzt die 6.): die Leuchten-Liste
   // aus LichtSchritt (Überschrift "LEUCHTEN (n)" + eine Zeile je eingefügter Leuchte) hing in der
@@ -54,14 +68,14 @@ export default function PanelRechts() {
       {zeigtListeImmer ? (
         <>
           <SchrittInhalt />
-          {selectedId !== null && (
+          {zeigtProduktwahl && (
             <>
               <div style={{ height: '1px', background: '#E8E6E0' }}></div>
               <ProduktPanel />
             </>
           )}
         </>
-      ) : selectedId !== null ? (
+      ) : zeigtProduktwahl ? (
         <ProduktPanel />
       ) : raumPanelOffen && activeRoom ? (
         <>
