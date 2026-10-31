@@ -24,18 +24,30 @@ export default function PanelRechts() {
   const { raumPanelOffen, setRaumPanelOffen } = useUI()
   const { activeRoom } = useRooms()
   const { schritt } = useWizard()
-  const { selectedId, furniture } = useFurniture()
+  const { selectedId, setSelectedId, furniture } = useFurniture()
   const SchrittInhalt = SCHRITT_KOMPONENTEN[schritt]
 
-  // Für Leuchten gibt es keine Produktwahl, und zwar ohne Hinweis darauf. Sie werden vorerst
-  // nicht verlinkt; ein "für diesen Möbeltyp gibt es noch keine Produktvorschläge" verspricht
-  // aber etwas für später, und was nicht versprochen ist, soll gar nicht erst als Leerstelle
-  // erscheinen.
+  // Für Leuchten sowie für Fenster und Türen gibt es keine Produktwahl, und zwar ohne Hinweis
+  // darauf. Sie werden vorerst nicht verlinkt; ein "für diesen Möbeltyp gibt es noch keine
+  // Produktvorschläge" verspricht aber etwas für später, und was nicht versprochen ist, soll gar
+  // nicht erst als Leerstelle erscheinen.
+  //
+  // Bei Wandelementen ist es mehr als eine Leerstelle: Im Katalog wählt man dort eine Bauart und
+  // kein Produkt (keine Fotos, Marken und Preise, siehe c23bb41), und die Zusammenfassung lässt
+  // Wandelemente ohnehin aus (gruppiere in ZusammenfassungSeite.jsx). Eine Produktwahl am Fenster
+  // hätte also nirgends eine Wirkung.
   //
   // Die Prüfung steht hier und nicht in ProduktPanel selbst, weil daneben auch die Trennlinie
   // hängt: Dort allein wäre sie als Strich ohne Inhalt stehen geblieben.
-  const zeigtProduktwahl = selectedId !== null
-    && furniture.find(f => f.id === selectedId)?.kategorie !== LICHT_KATEGORIE
+  //
+  // Nebenbei behoben: Vorher stand hier `furniture.find(...)?.kategorie !== LICHT_KATEGORIE`.
+  // Findet sich zu einer gesetzten selectedId kein Möbel, ist `?.kategorie` undefined und damit
+  // ungleich "Licht" — die Produktwahl wäre für ein Möbel erschienen, das es nicht gibt. Jetzt
+  // wird erst das Möbel geholt und auf null geprüft.
+  const gewaehltesMoebel = selectedId !== null ? furniture.find(f => f.id === selectedId) : null
+  const zeigtProduktwahl = gewaehltesMoebel != null
+    && gewaehltesMoebel.kategorie !== LICHT_KATEGORIE
+    && !gewaehltesMoebel.istWandElement
 
   // Licht-Schritt (Phase 6, Teilschritt 1 — 7. Nachbesserung, ersetzt die 6.): die Leuchten-Liste
   // aus LichtSchritt (Überschrift "LEUCHTEN (n)" + eine Zeile je eingefügter Leuchte) hing in der
@@ -81,10 +93,27 @@ export default function PanelRechts() {
         <>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <p style={{ fontSize: '10px', color: '#B4B2A9', letterSpacing: '0.08em', margin: 0 }}>RAUMEINSTELLUNGEN</p>
-            <span onClick={() => setRaumPanelOffen(false)} style={{ cursor: 'pointer', color: '#B4B2A9', fontSize: '14px' }}>✕</span>
+            {/* Hebt auch die Auswahl auf, nicht nur raumPanelOffen. Sonst schließt das ✕ bei einem
+                ausgewählten Wandelement nichts: Der Zweig darunter zeigt denselben Inhalt weiter,
+                nur ohne diese Kopfzeile — der Inhalt sprang 23 px nach oben, und der erste
+                Schalter lag danach genau unter dem Zeiger. Wer ein zweites Mal klickte, weil
+                nichts geschlossen schien, schaltete die Fußleiste aus.
+                Für Möbel ändert sich dadurch nichts: Bei ihnen greift zeigtProduktwahl, und diese
+                Kopfzeile wird gar nicht gerendert. */}
+            <span onClick={() => { setRaumPanelOffen(false); setSelectedId(null) }} style={{ cursor: 'pointer', color: '#B4B2A9', fontSize: '14px' }}>✕</span>
           </div>
           <SchrittInhalt />
         </>
+      ) : gewaehltesMoebel && activeRoom ? (
+        // Etwas ist ausgewählt, es gibt dafür aber keine Produktwahl (Wandelement oder Leuchte)
+        // und das Raumpanel ist zu. Hier stand bis zu dieser Änderung der Hinweis auf die
+        // Raumeinstellungen — ein Satz über Name, Größe und Bodenbelag, während ein Fenster
+        // ausgewählt ist. Stattdessen der Inhalt des Schritts, in dem man gerade steht.
+        //
+        // Bewusst OHNE die "RAUMEINSTELLUNGEN"-Kopfzeile und ihr ✕: Das ✕ schaltet
+        // raumPanelOffen aus, und das ist hier schon aus. Es wäre ein Knopf, der nichts tut,
+        // solange die Auswahl steht.
+        <SchrittInhalt />
       ) : (
         <p style={{ fontSize: '12px', color: '#B4B2A9', lineHeight: 1.5 }}>Über „⚙ Raumeinstellungen" links stellst du Name, Größe, Fußleiste, Bodenbelag und Wandfarbe ein.</p>
       )}
