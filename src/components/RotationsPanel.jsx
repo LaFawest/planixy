@@ -3,7 +3,7 @@ import { useFurniture } from '../context/FurnitureContext'
 
 export default function RotationsPanel() {
   const { ansicht } = useUI()
-  const { selectedId, furniture, setSelectedId, rotateFurniture } = useFurniture()
+  const { selectedId, furniture, setSelectedId, rotateFurniture, removeFurniture } = useFurniture()
   if (selectedId === null || ansicht !== '2d') return null
   const selectedItem = furniture.find(f => f.id === selectedId)
   if (!selectedItem) return null
@@ -31,6 +31,16 @@ export default function RotationsPanel() {
           }}>{w}°</div>
         ))}
       </div>
+      {/* Löschen steht hier und nicht mehr als roter ✕ am Objekt selbst (siehe Canvas2D.jsx):
+          Dort deckte der 16 × 16 px große Knopf bei kleinen Objekten — Tischlampe 8 × 8 px,
+          Wandleuchte 4 × 10 px — den größten Teil der Trefferfläche ab.
+          Beschriftet statt als Zeichen, damit er nicht mit dem ✕ rechts daneben verwechselt
+          wird: Das schließt nur die Auswahl. */}
+      <div style={{ width: '1px', alignSelf: 'stretch', background: '#E8E6E0', margin: '0 2px' }}></div>
+      <div onClick={() => { removeFurniture(selectedItem.id); setSelectedId(null) }} style={{
+        padding: '4px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '500',
+        cursor: 'pointer', background: 'white', color: '#E24B4A', border: '1px solid #E24B4A',
+      }}>Löschen</div>
       <span onClick={() => setSelectedId(null)} style={{ cursor: 'pointer', color: '#B4B2A9', fontSize: '16px', marginLeft: '8px' }}>✕</span>
     </div>
   )

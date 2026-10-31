@@ -91,7 +91,7 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
   }, [schritt, setAnsicht])
   const { activeRoom } = useRooms()
   const { fussleiste, fussleisteFarbe } = useDesign()
-  const { furniture, selectedId, setSelectedId, handleDrag, removeFurniture } = useFurniture()
+  const { furniture, selectedId, setSelectedId, handleDrag } = useFurniture()
   const {
     zeichneWand, setZeichneWand, wandVorschau, setWandVorschau, bestaetigeWand, verwerfeWand, startWandZeichnen,
     setSelectedWandId, trennwaende, selectedWandId, handleWandDrag, wandEntwurf, canvasInnerRef,
@@ -103,7 +103,7 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
             (der 3D-Hinweis ist rund 575 px lang) Umbruch statt seitlich aus dem Bild zu ragen. */}
         <div style={{ position: 'absolute', bottom: '16px', left: '50%', transform: 'translateX(-50%)', fontSize: '11px', color: '#B4B2A9', background: 'white', padding: '4px 12px', borderRadius: '20px', border: '1px solid #E8E6E0', zIndex: 10, width: 'max-content', maxWidth: 'calc(100% - 32px)', textAlign: 'center' }}>
           {ansicht === '2d'
-            ? (wandVorschau ? 'Oben bestätigen oder verwerfen' : zeichneWand ? 'Wand ziehen · Winkel schnappt bei 45° · Esc zum Beenden' : 'Doppelklick auf Raumnamen · Blau = Drehen · Rot = Löschen')
+            ? (wandVorschau ? 'Oben bestätigen oder verwerfen' : zeichneWand ? 'Wand ziehen · Winkel schnappt bei 45° · Esc zum Beenden' : 'Doppelklick auf Raumnamen · Objekt anklicken: Drehen und Löschen in der Leiste unten')
             : schritt === 3 ? 'Leuchte anklicken zum Auswählen'
             // Schritt 2 ist der Wand-Fokus: Die Kamera steht fest auf der Wand, die Maus bedient
             // die Wandelemente. Den Zeichen-Modus nennt der Text bewusst nicht — der gilt nur,
@@ -236,8 +236,21 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
               const labelLeft = (x0 + armDepth + x1) / 2
               const labelTop = y1 - armDepth / 2
 
+              // Auswählen und Ziehen hängen am Wrapper und nicht am inneren div: Dieses hat
+              // borderRadius 5px, was bei einem kleinen Objekt (eine Tischlampe ist auf der
+              // Fläche rund 7 px groß) fast einen Kreis daraus macht. Die vier Ecken fielen
+              // dadurch auf den Wrapper, der keinen Handler hatte — gemessen 17 von 196
+              // Rasterpunkten, auf denen ein Klick gar nichts tat. Am Wrapper ist das ganze
+              // Rechteck klickbar, unabhängig vom Radius und von der Objektgröße.
+              // Die Optik bleibt unten am inneren div: Rahmen, Auswahl-Umrandung und Hover.
               return (
-              <div key={item.id} style={{
+              <div key={item.id}
+                onMouseDown={(e) => { handleDrag(e, item.id); setSelectedId(item.id) }}
+                onTouchStart={(e) => { handleDrag(e, item.id); setSelectedId(item.id) }}
+                onClick={(e) => { e.stopPropagation(); setSelectedId(item.id) }}
+                onMouseEnter={e => e.currentTarget.style.boxShadow = `0 0 0 2px ${item.border}`}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = item.ungueltig ? '0 0 0 2px #E24B4A' : selectedId === item.id ? '0 0 0 2px #185FA5' : 'none'}
+                style={{
                 position: 'absolute',
                 // Tür-/Fenster-Elemente sitzen jetzt zentriert auf der Wanddicke (siehe
                 // raumPolygon.js, platziereAufSegment) und würden sonst teilweise hinter dem
@@ -254,28 +267,36 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
                 width: W,
                 height: H,
                 transform: `translate(-50%, -50%) rotate(${item.rotation || 0}deg)`,
+                // Damit auch die Ecken, die jetzt klickbar sind, als ziehbar zu erkennen sind.
+                cursor: 'grab',
+                // Die Umrandung sitzt am Wrapper und nicht am inneren div, weil nur der Wrapper
+                // das ganze Rechteck abdeckt. Am inneren div ging die Hover-Umrandung in den vier
+                // Ecken aus, obwohl man dort ziehen kann: Dessen borderRadius von 5px macht aus
+                // einem kleinen Objekt fast einen Kreis.
+                // Bewusst ohne borderRadius: Ein Radius beschneidet auch die Trefferfläche. Mit
+                // dem Radius des inneren div fielen die vier Ecken wieder durch, diesmal auf die
+                // Abwahl-Ebene darunter — gemessen 16 von 256 Rasterpunkten einer Tischlampe, auf
+                // denen ein Klick die Auswahl aufhob, statt das Objekt zu wählen. Die Umrandung hat
+                // dadurch eckige Ecken, während der Rahmen innen gerundet bleibt.
+                transition: 'box-shadow 0.15s',
+                // Rote Umrandung, wenn die Nachjustierung nach einer Raum-Größenänderung keine
+                // kollisionsfreie Position mehr fand (RoomsContext.jsx, moebelReparieren) —
+                // dieselbe Farbe wie die ungültige Trennwand-Vorschau (Schritt 6), damit "hier
+                // muss manuell nachjustiert werden" auf einen Blick erkennbar ist. Geht der
+                // Selektions-Umrandung vor, bleibt also auch beim Anklicken sichtbar.
+                boxShadow: item.ungueltig ? '0 0 0 2px #E24B4A' : selectedId === item.id ? '0 0 0 2px #185FA5' : 'none',
               }}>
-                <div onMouseDown={(e) => { handleDrag(e, item.id); setSelectedId(item.id) }}
-                  onTouchStart={(e) => { handleDrag(e, item.id); setSelectedId(item.id) }}
-                  onClick={(e) => { e.stopPropagation(); setSelectedId(item.id) }}
-                  style={{
+                {/* Füllung, Rahmen und Inhalt. Umrandung, Hover und Bedienung sitzen am
+                    Wrapper darüber. */}
+                <div style={{
                     width: '100%', height: '100%',
                     background: (isEcksofa || zeigeIcon) ? 'transparent' : item.color,
                     border: (isEcksofa || zeigeIcon) ? 'none' : `${item.istWandElement ? '3px' : '1.5px'} solid ${item.border}`,
                     borderRadius: item.istWandElement ? '3px' : '5px',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontSize: '10px', fontWeight: '500', cursor: 'grab', userSelect: 'none',
-                    color: item.border, position: 'relative', transition: 'box-shadow 0.15s',
-                    // Rote Umrandung, wenn die Nachjustierung nach einer Raum-Größenänderung
-                    // keine kollisionsfreie Position mehr fand (RoomsContext.jsx,
-                    // moebelReparieren) — dieselbe Farbe wie die ungültige Trennwand-Vorschau
-                    // (Schritt 6), damit "hier muss manuell nachjustiert werden" auf einen Blick
-                    // erkennbar ist. Geht der Selektions-Umrandung vor, bleibt also auch beim
-                    // Anklicken sichtbar.
-                    boxShadow: item.ungueltig ? '0 0 0 2px #E24B4A' : selectedId === item.id ? '0 0 0 2px #185FA5' : 'none',
+                    color: item.border, position: 'relative',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.boxShadow = `0 0 0 2px ${item.border}`}
-                  onMouseLeave={e => e.currentTarget.style.boxShadow = item.ungueltig ? '0 0 0 2px #E24B4A' : selectedId === item.id ? '0 0 0 2px #185FA5' : 'none'}
                 >
                   {isEcksofa ? (
                     <>
@@ -299,9 +320,17 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
                       <span style={{ position: 'relative', whiteSpace: 'nowrap', pointerEvents: 'none' }}>{item.name}</span>
                     </>
                   ) : item.name}
-                  <span onMouseDown={(e) => { e.stopPropagation(); e.preventDefault() }}
-                    onClick={(e) => { e.stopPropagation(); removeFurniture(item.id); setSelectedId(null) }}
-                    style={{ position: 'absolute', top: '-8px', right: '-8px', width: '16px', height: '16px', borderRadius: '50%', background: '#E24B4A', color: 'white', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>✕</span>
+                  {/* Hier saß ein roter ✕-Knopf zum Löschen: 16 × 16 px, mit top/right -8px und
+                      borderRadius 50%, also ein Kreis mit Radius 8 um die obere rechte Ecke des
+                      Objekts. Bei großen Möbeln ist das ein Knopf an der Ecke — bei kleinen deckt
+                      er das Objekt ab. Gemessen an einer Tischlampe (8 × 8 px, auf der
+                      verkleinerten Fläche 6,8 × 6,8 px): Von 196 Rasterpunkten (halbe Pixel)
+                      trafen 180 den Knopf und 15 das Objekt, mitten im Raum wie direkt an der
+                      Wand. Wer eine Tischlampe oder einen Spot anklickte, löschte ihn also eher
+                      als ihn auszuwählen.
+                      Löschen steht deshalb in der Leiste unten (RotationsPanel.jsx), die beim
+                      Auswählen ohnehin erscheint. Eine Regel für jede Objektgröße, ohne
+                      Schwellenwert. */}
                 </div>
 
 
