@@ -5,7 +5,7 @@ import { useRooms } from './RoomsContext'
 import { useRaumGeometrie } from './useRaumGeometrie'
 import { useUI } from './UIContext'
 import { vergibMoebelId } from './idZaehler'
-import { snappeWandElement, naechsteFreieEcke, snappeAnFreieKante, platziereAufWandSegment, punktSicherImPolygon } from '../raumPolygon'
+import { snappeWandElement, wandElementMitte, naechsteFreieEcke, snappeAnFreieKante, platziereAufWandSegment, punktSicherImPolygon } from '../raumPolygon'
 
 const FurnitureContext = createContext(null)
 
@@ -260,8 +260,10 @@ export function FurnitureProvider({ children }) {
       if (item.istWandElement) {
         const w = item.width
         const h = item.height
-        const cx = currentLeft + w / 2
-        const cy = currentTop  + h / 2
+        // Mittelpunkt der gezeichneten Box, nicht left + w/2: Auf senkrechten Wänden liegt die
+        // Box quer (siehe wandElementMitte in raumPolygon.js). Vorher verschob jedes Loslassen
+        // das Element dort um (w - h) / 2.
+        const { cx, cy } = wandElementMitte(currentLeft, currentTop, w, h, item.rotation)
         const { left, top, wandSegment, wandPosition, rotation } = snappeWandElement(cx, cy, w, h, innenEckpunkte, wandDicke)
 
         updateFurniture(aktuellesFurniture.map(f => f.id === id

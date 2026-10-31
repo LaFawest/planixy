@@ -14,23 +14,35 @@ export default function RotationsPanel() {
       gap: '12px', justifyContent: 'center', flexShrink: 0,
     }}>
       <span style={{ fontSize: '12px', color: '#888780', fontWeight: '500' }}>{selectedItem.name}</span>
-      <span style={{ fontSize: '12px', color: '#B4B2A9' }}>↻</span>
-      <input type="range" min="0" max="359"
-        value={selectedItem.rotation || 0}
-        onChange={e => rotateFurniture(selectedItem.id, Number(e.target.value))}
-        style={{ width: '160px', cursor: 'pointer' }}
-      />
-      <span style={{ fontSize: '13px', color: '#185FA5', fontWeight: '500', minWidth: '40px' }}>{selectedItem.rotation || 0}°</span>
-      <div style={{ display: 'flex', gap: '6px' }}>
-        {[0, 90, 180, 270].map(w => (
-          <div key={w} onClick={() => rotateFurniture(selectedItem.id, w)} style={{
-            padding: '4px 10px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer',
-            background: (selectedItem.rotation || 0) === w ? '#185FA5' : '#F7F6F2',
-            color: (selectedItem.rotation || 0) === w ? 'white' : '#888780',
-            border: '1px solid #E8E6E0',
-          }}>{w}°</div>
-        ))}
-      </div>
+      {/* Fenster, Türen und Durchgänge bekommen keinen Drehregler: Ihre Ausrichtung folgt aus der
+          Wand, auf der sie sitzen — platziereAufSegment (raumPolygon.js) setzt rotation selbst auf
+          0 oder 90, und die 3D-Ansicht liest rotation bei Wandelementen gar nicht, sondern dreht
+          die Gruppe aus dem Segment. Von Hand gedreht lag ein Fenster deshalb im Grundriss quer
+          im Raum, während 3D es weiter korrekt in der Wandöffnung zeigte — zwei Ansichten, die
+          dasselbe Fenster widersprüchlich zeigen, und der Zustand wurde gespeichert.
+          Name und "Löschen" bleiben stehen: In der 3D-Ansicht gibt es keinen Löschweg für
+          Wandelemente, diese Leiste ist neben dem ✕ in der linken Liste der einzige. */}
+      {!selectedItem.istWandElement && (
+        <>
+          <span style={{ fontSize: '12px', color: '#B4B2A9' }}>↻</span>
+          <input type="range" min="0" max="359"
+            value={selectedItem.rotation || 0}
+            onChange={e => rotateFurniture(selectedItem.id, Number(e.target.value))}
+            style={{ width: '160px', cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: '13px', color: '#185FA5', fontWeight: '500', minWidth: '40px' }}>{selectedItem.rotation || 0}°</span>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {[0, 90, 180, 270].map(w => (
+              <div key={w} onClick={() => rotateFurniture(selectedItem.id, w)} style={{
+                padding: '4px 10px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer',
+                background: (selectedItem.rotation || 0) === w ? '#185FA5' : '#F7F6F2',
+                color: (selectedItem.rotation || 0) === w ? 'white' : '#888780',
+                border: '1px solid #E8E6E0',
+              }}>{w}°</div>
+            ))}
+          </div>
+        </>
+      )}
       {/* Löschen steht hier und nicht mehr als roter ✕ am Objekt selbst (siehe Canvas2D.jsx):
           Dort deckte der 16 × 16 px große Knopf bei kleinen Objekten — Tischlampe 8 × 8 px,
           Wandleuchte 4 × 10 px — den größten Teil der Trefferfläche ab.

@@ -456,6 +456,29 @@ function platziereAufSegment(segment, gewuenschtePosition, w, h, wandDicke) {
   return { left, top, wandSegment: segment.index, wandPosition, rotation }
 }
 
+// Mittelpunkt der TATSÄCHLICH gezeichneten Box eines bestehenden Wandelements, zum Übergeben an
+// snappeWandElement.
+//
+// Nötig, weil platziereAufSegment (oben) ein Element auf einer senkrechten Wand mit rotation 90
+// ablegt: Die Box ist dort h breit und w hoch, und left/top ist ihre obere linke Ecke. Wer
+// stattdessen left + w/2 und top + h/2 rechnet, liegt auf senkrechten Wänden um (w - h) / 2
+// daneben — bei einem Fenster 15 px, also 25 cm, bei einem offenen Durchgang 31 px.
+//
+// Genau das ist passiert, und zwar bei JEDEM Loslassen, auch ohne Bewegung: Ein einfacher Klick
+// auf ein Fenster an der Ost- oder Westwand hat es jedes Mal um 25 cm entlang der Wand
+// verschoben, bis es an der Ecke auf die Nachbarwand sprang. Auf Nord- und Südwand fiel es nicht
+// auf, weil die Formel dort zufällig stimmt.
+//
+// Es ist dieselbe Formel wie die Bounding-Box-Klemmung beim Ziehen (FurnitureContext.jsx,
+// onMove) und wie im Möbel-Zweig von onUp. Sie steht hier als eigene Funktion, weil sie an vier
+// Stellen gebraucht wird und an zwei davon vergessen worden war.
+export function wandElementMitte(left, top, w, h, rotation) {
+  const rad = (rotation || 0) * Math.PI / 180
+  const cos = Math.abs(Math.cos(rad))
+  const sin = Math.abs(Math.sin(rad))
+  return { cx: left + (w * cos + h * sin) / 2, cy: top + (w * sin + h * cos) / 2 }
+}
+
 // Snapt ein Fenster/Tür-Element (Breite w, Höhe h, gesucht um seinen Mittelpunkt cx/cy) auf das
 // nächstgelegene Wandsegment von eckpunkte (muss innenEckpunkte sein, siehe platziereAufSegment).
 // Reine Funktion ohne React-Bezug, deshalb sowohl beim interaktiven Ziehen (FurnitureContext.jsx)

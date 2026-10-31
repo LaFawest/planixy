@@ -6,7 +6,7 @@ import {
   raumformPolygon, boundingBox, innenPolygone,
   rechteckInPolygon as istRechteckInPolygon,
   streckeInPolygon as istStreckeInPolygon,
-  snappeWandElement, platziereAufWandSegment, naechsteFreieEcke, snappeAnFreieKante,
+  snappeWandElement, wandElementMitte, platziereAufWandSegment, naechsteFreieEcke, snappeAnFreieKante,
 } from '../raumPolygon'
 import { DEFAULT_RAUM_DESIGN, WAND_DICKE_PX, erzeugeRaum } from '../constants'
 
@@ -78,8 +78,11 @@ function moebelReparieren(item, bereitsPlatziert, grenzeEckpunkte, grenzStart, g
 function wandElementReparieren(item, innenEckpunkte, wandDicke) {
   const beibehalten = platziereAufWandSegment(item.wandSegment, item.wandPosition, item.width, item.height, innenEckpunkte, wandDicke)
   if (beibehalten) return { ...item, ...beibehalten }
-  const cx = item.left + item.width / 2
-  const cy = item.top + item.height / 2
+  // Mittelpunkt der gezeichneten Box, siehe wandElementMitte in raumPolygon.js. Dieser Weg läuft
+  // nur, wenn platziereAufWandSegment oben aufgegeben hat — dann aber mit demselben Versatz von
+  // (w - h) / 2 wie früher beim Loslassen, und eine Formänderung hätte Fenster auf senkrechten
+  // Wänden um 25 cm verschoben.
+  const { cx, cy } = wandElementMitte(item.left, item.top, item.width, item.height, item.rotation)
   return { ...item, ...snappeWandElement(cx, cy, item.width, item.height, innenEckpunkte, wandDicke) }
 }
 
