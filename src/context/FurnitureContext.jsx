@@ -323,9 +323,46 @@ export function FurnitureProvider({ children }) {
       if (width !== undefined) patch.width = width
       if (hoeheReal !== undefined) patch.hoeheReal = hoeheReal
       if (backstein !== undefined) patch.backstein = backstein
+
+      // Den Grundriss nachführen, wenn sich Wandposition oder Breite geändert haben. left/top
+      // sind keine eigene Wahrheit, sondern die 2D-Darstellung derselben Lage, und
+      // platziereAufSegment rechnet sie aus Segment und Wandposition.
+      //
+      // Vorher blieben sie stehen: Der 3D-Wand-Fokus zeigte das Fenster an der neuen Stelle, der
+      // Grundriss an der alten, und der nächste Klick im Grundriss leitete aus dem alten left/top
+      // wieder eine wandPosition ab und nahm die Verschiebung zurück (gemessen: 0,500 zurück auf
+      // 1,417). Schritt 2 schaltet von selbst in die 3D-Ansicht und ist damit der Editor für
+      // Fenster und Türen -- dort ging Arbeit durch einen einzigen Klick verloren.
+      //
+      // Die zurückgegebene wandPosition wird mit übernommen und nicht die angefragte: Wenn
+      // platziereAufSegment ans Segmentende klemmt, sollen Zahl und Darstellung dieselbe Lage
+      // meinen. Genau dieses Auseinanderlaufen ist der Fehler, um den es hier geht.
+      //
+      // rotation kommt mit, weil sie aus dem Segment folgt (0 oder 90) -- das richtet nebenbei
+      // ein von Hand gedrehtes Altelement wieder ein.
+      //
+      // origWidth wandert mit width mit, weil der Grundriss mit origWidth || width zeichnet.
+      // Ohne das wurde eine Tür mit 42 px gezeichnet, während ihre Wandlücke schon 60 px breit
+      // war.
+      if (wandPosition !== undefined || width !== undefined) {
+        const neueBreite = patch.width ?? f.width
+        if (width !== undefined) patch.origWidth = neueBreite
+        const gelegt = platziereAufWandSegment(
+          f.wandSegment,
+          patch.wandPosition ?? f.wandPosition,
+          neueBreite, f.height, innenEckpunkte, wandDicke,
+        )
+        if (gelegt) {
+          patch.left = gelegt.left
+          patch.top = gelegt.top
+          patch.rotation = gelegt.rotation
+          patch.wandPosition = gelegt.wandPosition
+        }
+      }
+
       return { ...f, ...patch }
     }))
-  }, [updateFurniture, activeRoom])
+  }, [updateFurniture, activeRoom, innenEckpunkte, wandDicke])
 
   // Übernimmt Position eines frei verschiebbaren Deckenlicht-Typs (Spot/Spot-Reihe, Phase 6
   // Teilschritt 2) NACH einem Ziehvorgang in der 3D-Decken-Ansicht (RoomView3D, deckenFokus-Modus)
