@@ -439,6 +439,51 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     const mitteX = box.minX + raumBreite / 2
     const mitteZ = box.minY + raumTiefe / 2
 
+    // Nebelgrenzen beim Aufbau merken. Der Decken-Fokus schiebt den Nebel hinter den Raum (siehe
+    // deckenFokusEinpassen), beim Aufräumen dieses Effekts kommen die alten Werte zurück.
+    const nebelVorher = scene.fog ? { near: scene.fog.near, far: scene.fog.far } : null
+
+    // Decken-Fokus einpassen: Kamera außerhalb des Raums, waagerecht auf halber Wandhöhe, Abstand
+    // so, dass volle Deckenhöhe und volle Raumbreite ins Bild passen (Begründung im langen
+    // Kommentar direkt darunter). Eigene Funktion, weil sie zweimal gebraucht wird: beim Aufbau und
+    // bei jeder Größenänderung (onResizeExtraRef weiter unten). Bis zum 16.11.2026 wurde nur beim
+    // Aufbau eingepasst — wer das Fenster danach verkleinerte, sah den Raum seitlich abgeschnitten.
+    //
+    // Zwei Ergänzungen, beide aus der Messung vom 15.11.2026:
+    // (1) Obergrenze für den Abstand. Bei schmalen Fenstern wuchs er unbegrenzt, gemessen bis 81 m.
+    //     MAX_DECKEN_FOKUS_ABSTAND hält die Kamera sicher auf der Rasenscheibe (150 m Radius); erst
+    //     bei sehr großen Räumen auf sehr schmalen Bildschirmen wird dann seitlich etwas
+    //     abgeschnitten.
+    // (2) Der Nebel wandert mit. Er beginnt sonst fest 20 m vor der Kamera und ist bei 40 m dicht —
+    //     stand die Kamera weiter draußen, lag der Raum selbst im Nebel. Jetzt beginnt er frühestens
+    //     5 m hinter der Rückwand, mit derselben Übergangslänge wie vorher. Steht die Kamera nah
+    //     genug, bleibt er unverändert bei 20 m.
+    const MAX_DECKEN_FOKUS_ABSTAND = 100
+    const NEBEL_ABSTAND_HINTER_RUECKWAND = 5
+    const deckenFokusEinpassen = () => {
+      const fovY = camera.fov * Math.PI / 180
+      const hoehenFitDistanz = (wandHoehe / 2) / Math.tan(fovY / 2)
+      const REFERENZ_ASPEKT = 16 / 9
+      const fovXReferenz = 2 * Math.atan(Math.tan(fovY / 2) * REFERENZ_ASPEKT)
+      const breitenFitDistanzReferenz = (raumBreite / 2) / Math.tan(fovXReferenz / 2)
+      const zielDistanzOhneRand = Math.max(hoehenFitDistanz, breitenFitDistanzReferenz)
+      const zielBreiteMeter = 2 * zielDistanzOhneRand * Math.tan(fovXReferenz / 2)
+      const fovXAktuell = 2 * Math.atan(Math.tan(fovY / 2) * camera.aspect)
+      const distanzFuerZielBreiteAktuell = zielBreiteMeter / (2 * Math.tan(fovXAktuell / 2))
+      const RAND_FAKTOR = 1.6
+      const versatz = Math.min(
+        Math.max(zielDistanzOhneRand, distanzFuerZielBreiteAktuell) * RAND_FAKTOR,
+        MAX_DECKEN_FOKUS_ABSTAND,
+      )
+      camera.position.set(0, wandHoehe / 2, versatz)
+      camera.lookAt(0, wandHoehe / 2, 0)
+      if (scene.fog && nebelVorher) {
+        const uebergang = nebelVorher.far - nebelVorher.near
+        scene.fog.near = Math.max(nebelVorher.near, versatz + raumTiefe / 2 + NEBEL_ABSTAND_HINTER_RUECKWAND)
+        scene.fog.far = scene.fog.near + uebergang
+      }
+    }
+
     // Decken-Fokus (Phase 6, Teilschritt 1 — 4. Nachbesserung nach Hassans Feedback "lieber zoom
     // etwas weiter raus und der Blickwinkel weiter runter"): die vorherige Zielwinkel-Rechnung
     // (28° anvisiert, aber per min() auf den Sicherheitsabstand-Deckel begrenzt) wurde bei
@@ -465,19 +510,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       // Winkelhalbierende-Trick mehr nötig wie in der 7. Nachbesserung). Kein Sicherheitsabstand/keine
       // Raumgrenze mehr nötig, die Kamera darf jetzt bewusst außerhalb des Raums stehen. Die vordere
       // Wand wird weiter unten direkt nach dem Wände-Bauen ausgeblendet.
-      const fovY = camera.fov * Math.PI / 180
-      const hoehenFitDistanz = (wandHoehe / 2) / Math.tan(fovY / 2)
-      const REFERENZ_ASPEKT = 16 / 9
-      const fovXReferenz = 2 * Math.atan(Math.tan(fovY / 2) * REFERENZ_ASPEKT)
-      const breitenFitDistanzReferenz = (raumBreite / 2) / Math.tan(fovXReferenz / 2)
-      const zielDistanzOhneRand = Math.max(hoehenFitDistanz, breitenFitDistanzReferenz)
-      const zielBreiteMeter = 2 * zielDistanzOhneRand * Math.tan(fovXReferenz / 2)
-      const fovXAktuell = 2 * Math.atan(Math.tan(fovY / 2) * camera.aspect)
-      const distanzFuerZielBreiteAktuell = zielBreiteMeter / (2 * Math.tan(fovXAktuell / 2))
-      const RAND_FAKTOR = 1.6
-      const deckenFokusVersatz = Math.max(zielDistanzOhneRand, distanzFuerZielBreiteAktuell) * RAND_FAKTOR
-      camera.position.set(0, wandHoehe / 2, deckenFokusVersatz)
-      camera.lookAt(0, wandHoehe / 2, 0)
+      deckenFokusEinpassen()
     }
 
     // === TEXTUREN (einmal pro Szene erzeugt, mehrfach verwendet) ===
@@ -530,8 +563,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // tun das. Solange das so ist, nimmt diese Fläche Schatten an, die es nicht gibt.
     //
     // Scheibe statt Rechteck: Ihr Rand ist aus jeder Blickrichtung gleich weit weg und liest sich
-    // bei flachem Blick als Horizont, statt als Kante quer durchs Bild. Radius 150 m, während die
-    // Kamera auf höchstens 40 m kommt.
+    // bei flachem Blick als Horizont, statt als Kante quer durchs Bild. Radius 150 m; die Kamera
+    // kommt im Decken-Fokus auf höchstens 100 m (MAX_DECKEN_FOKUS_ABSTAND), sonst auf rund 40 m.
     //
     // 3 cm unter dem Fußboden, sonst flimmern die beiden Flächen gegeneinander. Von außen ergibt
     // das eine kaum sichtbare Stufe am Wandfuß, die eher wie ein Sockel wirkt als wie ein Fehler.
@@ -2289,6 +2322,11 @@ mount.addEventListener('contextmenu', onContextMenu)
 // steht hier und wird bei jedem Lauf dieses Effekts neu hinterlegt — so arbeitet es nie mit
 // veralteten Wänden oder einer veralteten Auswahl.
 onResizeExtraRef.current = () => {
+  // Decken-Fokus neu einpassen. Bis zum 16.11.2026 geschah das nur beim Szenenaufbau — beim
+  // Verkleinern blieb die Kamera stehen und der Raum wurde seitlich abgeschnitten. Die beim Aufbau
+  // ausgeblendete vordere Wand bleibt richtig: Die Kamera bleibt auf derselben Seite (x = 0,
+  // z > 0), es ändert sich nur der Abstand.
+  if (deckenFokusRef.current) deckenFokusEinpassen()
   // Wand-Fokus-Kamera neu einpassen — die Distanz aus berechneWandFokusZiel hängt über fovX von
   // camera.aspect ab, sonst bleibt die Kamera bei einem schmaleren Fenster auf der alten Distanz
   // stehen und die Wand ragt seitlich aus dem Bild. Direkt per setzeWandFokusKamera statt über
@@ -2367,6 +2405,11 @@ return () => {
       mat.dispose()
     })
   })
+  // Nebel zurück auf die Werte vom Aufbau — der Decken-Fokus hat ihn hinter den Raum geschoben.
+  if (scene.fog && nebelVorher) {
+    scene.fog.near = nebelVorher.near
+    scene.fog.far = nebelVorher.far
+  }
   scene.remove(raumWurzel)
 }
   }, [
