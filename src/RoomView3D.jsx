@@ -495,8 +495,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // damit den Aufwinkel bei gleichem Versatz zusätzlich verringert, (3) ein engeres Sichtfeld nur
     // in diesem Modus (Tele-Effekt) lässt die Szene komprimierter/weiter entfernt wirken und nimmt
     // der Weitwinkel-Perspektive die Verzerrung — ohne dass die Kamera den Raum verlassen müsste.
-    // Sicherheitsabstand bleibt dem SICHERHEITSABSTAND-Muster von berechneWandFokusZiel weiter unten
-    // treu, nur etwas knapper gefasst, um mehr Rückzugsraum zu gewinnen.
+    // Der Sicherheitsabstand folgte damals dem SICHERHEITSABSTAND-Muster von berechneWandFokusZiel
+    // (dort seit dem 16.11.2026 entfallen, der Wand-Fokus darf hinter die Rückwand), nur etwas
+    // knapper gefasst, um mehr Rückzugsraum zu gewinnen.
     if (deckenFokusRef.current) {
       // 8. Nachbesserung nach Hassans Referenz-Screenshot ("das ist der Blickwinkel den ich sehen
       // möchte"): Kamera steht jetzt wieder außerhalb des Raums (wie in der 2. Nachbesserung), dieses
@@ -771,6 +772,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         // Nischen der Durchgänge auf dieser Wand (scene/wandelemente.js) — gefüllt erst unten beim
         // Bau der Wandelemente, im Decken-Fokus bleibt die Liste leer.
         nischen: [],
+        // Sockelstücke dieser Wand — gefüllt beim Bau der Sockelleisten. Der Wand-Fokus blendet sie
+        // mit aus, wenn die Wand zwischen Kamera und Fokuswand steht (setzeWandFokusVerdeckung).
+        sockel: [],
       }
     })
 
@@ -781,9 +785,21 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // einzelne Schleifen je Ansicht. visible statt Opazität bei der Nische: fällt so aus der
     // Sortierung transparenter Flächen heraus, das Material bleibt unberührt. Türen, Fenster und die
     // Backstein-Einfassung bleiben wie bisher stehen.
+    //
+    // needsUpdate beim Umschalten von transparent: three.js übersetzt den Shader eines Materials,
+    // das beim ersten Zeichnen transparent: false war, als undurchsichtig — Alpha wird dann fest
+    // auf 1 gesetzt, und opacity 0 wirkt nicht. Ohne neue Übersetzung blieb eine ausgeblendete Wand
+    // deshalb voll sichtbar. Aufgefallen ist das erst mit dem Wand-Fokus hinter der Rückwand
+    // (16.11.2026): Bis dahin wurde eine ausgeblendete Wand immer von hinten gesehen, und deren
+    // Rückseite zeichnet das einseitige Material ohnehin nicht. An der Innenecke einer L-Form sieht
+    // die Kamera aber die Vorderseite.
     const setzeWandSichtbar = (wand, sichtbar) => {
-      wand.mesh.material.opacity = sichtbar ? 1 : 0
-      wand.mesh.material.transparent = !sichtbar
+      const material = wand.mesh.material
+      material.opacity = sichtbar ? 1 : 0
+      if (material.transparent !== !sichtbar) {
+        material.transparent = !sichtbar
+        material.needsUpdate = true
+      }
       wand.nischen.forEach(nische => { nische.visible = sichtbar })
     }
 
@@ -880,6 +896,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
           )
           sockel.rotation.y = winkel
           raumWurzel.add(sockel)
+          wandMeshe[segment.index]?.sockel.push(sockel)
         })
       })
     }
@@ -1103,8 +1120,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
 
 
-    // Berechnet Kamera-Zielposition + Blickpunkt exakt senkrecht mittig vor einer Wand (klassisches
-    // "Objekt in Frustum einpassen", primär an der Wandhöhe ausgerichtet — siehe MAX_BREITEN_AUFSCHLAG
+    // Berechnet Kamera-Zielposition + Blickpunkt exakt senkrecht mittig vor einer Wand: ganze Wand,
+    // solange sie in der Mindestgröße für Details passt, sonst Mindestgröße (siehe PX_PRO_METER_MIN
     // unten). Reine Zielberechnung, keine Kamerabewegung selbst — die übernimmt updateWandFokusCamera
     // weiter unten (harter Sprung oder weicher Schwenk bei einem echten Wandwechsel).
     const berechneWandFokusZiel = (index) => {
@@ -1113,52 +1130,35 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       const { mesh, normale, laenge } = eintrag
       const fovY = camera.fov * Math.PI / 180
       const RAND_FAKTOR = 1.2
-      // fovY/hoehenFitDistanz hängen NICHT von camera.aspect ab — die Höhen-Einpassung ist also
-      // bei jedem Fensterformat automatisch korrekt, unverändert zu vorher.
-      const hoehenFitDistanz = (wandHoehe / 2) / Math.tan(fovY / 2)
-      // Bei den meisten Räumen ist eine Wand deutlich breiter als hoch — reines "ganze Wand ins
-      // Bild einpassen" würde dann von der Breite dominiert, die Kamera müsste so weit zurück,
-      // dass oben/unten ein großer leerer Decken-/Boden-Streifen sichtbar wird (siehe Hassans
-      // Screenshot-Feedback). Deshalb primär an der Wandhöhe ausrichten und die Distanz nur noch
-      // begrenzt in Richtung Breiten-Fit erweitern (max. 35% mehr als der reine Höhen-Fit) — bei
-      // sehr breiten Wänden ist dadurch nicht mehr zwingend die komplette Breite im Bild, dafür
-      // füllt die Wand den Ausschnitt vertikal wie gewünscht. Bei normalen/schmalen Wänden (Höhen-
-      // Fit ohnehin schon der größere Wert) ändert sich nichts.
+      // Mindestgröße für Details (Hassans Entscheidung vom 16.11.2026): 1 m Wand ist mindestens
+      // PX_PRO_METER_MIN Bildpunkte breit. Passt die ganze Wand samt Rand in dieser Größe ins Bild,
+      // wird sie ganz gezeigt, so groß wie möglich. Passt sie nicht, bleibt es bei der Mindestgröße,
+      // und die Kamera zeigt die Mitte der Wand. Den Rest macht ein späterer Schritt durch Schieben
+      // erreichbar.
       //
-      // WICHTIG (Bugfix): diese Breiten-Entscheidung wird an einem FESTEN Referenz-Seitenverhältnis
-      // getroffen, nicht am aktuellen Browserfenster (camera.aspect) — sonst würde ein schmaleres
-      // Fenster rückwirkend weniger Wandbreite erlauben und die Wand seitlich abschneiden, obwohl
-      // bei einem breiteren Fenster genug Platz da wäre (genau der gemeldete Bug: kleiner Monitor
-      // schneidet ab, größerer nicht). Das Referenz-Verhältnis legt nur fest, wie viele Meter
-      // Wandbreite mindestens sichtbar sein sollen — am tatsächlich aktuellen Fensterformat wird
-      // weiter unten die Distanz gesucht, die diese Breite auch wirklich zeigt.
-      const MAX_BREITEN_AUFSCHLAG = 1.35
-      const REFERENZ_ASPEKT = 16 / 9
-      const fovXReferenz = 2 * Math.atan(Math.tan(fovY / 2) * REFERENZ_ASPEKT)
-      const breitenFitDistanzReferenz = (laenge / 2) / Math.tan(fovXReferenz / 2)
-      const zielDistanzOhneRand = Math.min(
-        Math.max(hoehenFitDistanz, breitenFitDistanzReferenz),
-        hoehenFitDistanz * MAX_BREITEN_AUFSCHLAG,
-      )
-      const zielBreiteMeter = 2 * zielDistanzOhneRand * Math.tan(fovXReferenz / 2)
-
-      // Am AKTUELLEN Seitenverhältnis die Distanz finden, die mindestens zielBreiteMeter zeigt —
-      // ist das Fenster schmaler als die Referenz, muss die Kamera weiter zurück; ist es breiter,
-      // reicht schon zielDistanzOhneRand selbst (Math.max greift dann nicht).
-      const fovXAktuell = 2 * Math.atan(Math.tan(fovY / 2) * camera.aspect)
-      const distanzFuerZielBreiteAktuell = zielBreiteMeter / (2 * Math.tan(fovXAktuell / 2))
-      const gewuenschteDistanz = Math.max(zielDistanzOhneRand, distanzFuerZielBreiteAktuell) * RAND_FAKTOR
-      // Kamera darf nie so weit zurück, dass sie über die gegenüberliegende Seite des Raums
-      // hinausgeht (sonst landet sie fast auf/hinter der gegenüberliegenden Wand — sichtbar als
-      // extrem verzerrte Seitenwände und ein von hinten durchscheinendes Fenster/Tür dort, siehe
-      // Bug-Report). Alle Wände in den bisher unterstützten Raumformen (Rechteck/L/U) sind
-      // achsparallel, die Normale zeigt also rein in X- oder rein in Z-Richtung — die verfügbare
-      // Tiefe in Blickrichtung entspricht deshalb der Bounding-Box-Ausdehnung der jeweils anderen
-      // Achse (raumBreite bei einer Ost/West-Normale, raumTiefe bei einer Nord/Süd-Normale).
-      const raumTiefeInRichtung = Math.abs(normale.x) > Math.abs(normale.z) ? raumBreite : raumTiefe
-      const SICHERHEITSABSTAND = 0.4
-      const maxDistanz = Math.max(0.3, raumTiefeInRichtung - SICHERHEITSABSTAND)
-      const distanz = Math.min(gewuenschteDistanz, maxDistanz)
+      // Bis zum 16.11.2026 stand hier eine Rechnung mit festem Referenz-Seitenverhältnis, einem
+      // Deckel von 35 % über dem Höhen-Fit und der Grenze, dass die Kamera den Raum nicht verlassen
+      // darf. Beide Grenzen schnitten die Wand ab: Gemessen fehlten bei halbem Fenster 3,5 von
+      // 15 m, und in einem 4 m tiefen Raum blieb die Kamera bei jeder Fenstergröße bei 3,6 m stehen.
+      // Die Kamera darf jetzt hinter die Rückwand; was dort im Weg steht, blendet
+      // setzeWandFokusVerdeckung aus.
+      //
+      // Der Abstand folgt aus dem Maßstab s (Bildpunkte pro Meter auf der Wand) und der Bildhöhe:
+      // d = Höhe / (2 · s · tan(fovY / 2)). Im Browser am 16.11.2026 bis auf die Nachkommastelle
+      // bestätigt: 240 / 133,3 / 100 px pro Meter bei 1440 × 840 / 800 × 680 / 390 × 639.
+      const PX_PRO_METER_MIN = 100
+      const breitePx = mount.clientWidth
+      const hoehePx = mount.clientHeight
+      let distanz
+      if (breitePx > 0 && hoehePx > 0) {
+        const massstabGanz = Math.min(breitePx / (laenge * RAND_FAKTOR), hoehePx / (wandHoehe * RAND_FAKTOR))
+        const massstab = Math.max(massstabGanz, PX_PRO_METER_MIN)
+        distanz = hoehePx / (2 * massstab * Math.tan(fovY / 2))
+      } else {
+        // Zeichenfläche noch ohne Größe (allererster Aufbau): reiner Höhen-Fit mit Rand. Die
+        // nächste Größenänderung passt richtig ein.
+        distanz = (wandHoehe / 2) / Math.tan(fovY / 2) * RAND_FAKTOR
+      }
       return {
         x: mesh.position.x - normale.x * distanz,
         z: mesh.position.z - normale.z * distanz,
@@ -1190,14 +1190,62 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       return { x: Math.cos(a) * r, z: Math.sin(a) * r }
     }
 
+    // Wand-Fokus: Welche Wände stehen zwischen Kamera und Fokuswand? Seit die Kamera im Wand-Fokus
+    // den Raum verlassen darf (Mindestgröße für Details, 16.11.2026), steht sie oft hinter der
+    // Rückwand. Deren Fläche wird von hinten ohnehin nicht gezeichnet (einseitiges Material), wohl
+    // aber ihre Fenster, Türen, Nischen und Sockelleisten — sie standen in der Untersuchung vom
+    // 16.11.2026 mitten im Bild vor der Fokuswand. Eine Wand gilt als verdeckend, wenn sie
+    // eine der Sichtlinien von der Kamera zu Punkten auf der Fokuswand schneidet. Das trifft beim
+    // Rechteck genau die Rückwand und bei der L-Form auch die Innenecke, an der die Regel
+    // „Normale zeigt zur Kamera" versagt — die Kamera steht dort auf der Innenseite dieser Wand.
+    // Gerechnet in der Draufsicht: Wände reichen vom Boden bis zur Decke, die Höhe spielt keine
+    // Rolle. Trennwände im Raum sind hier nicht berücksichtigt.
+    const SICHTLINIEN = 21
+    const schneidetStrecke = (ax, az, bx, bz, cx, cz, ex, ez) => {
+      const nenner = (bx - ax) * (ez - cz) - (bz - az) * (ex - cx)
+      if (Math.abs(nenner) < 1e-9) return false
+      const t = ((cx - ax) * (ez - cz) - (cz - az) * (ex - cx)) / nenner
+      const u = ((cx - ax) * (bz - az) - (cz - az) * (bx - ax)) / nenner
+      return t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999
+    }
+    const setzeWandFokusVerdeckung = (kameraX, kameraZ) => {
+      const fokusIndex = fokusWandRef.current
+      const fokus = wandMeshe[fokusIndex]
+      wandMeshe.forEach((wand, index) => {
+        let verdeckt = false
+        if (fokus && index !== fokusIndex) {
+          for (let k = 0; k < SICHTLINIEN && !verdeckt; k++) {
+            // 2 % Abstand zu den Ecken, damit keine Sichtlinie im Eckpunkt der Nachbarwand endet
+            const anteil = 0.02 + 0.96 * k / (SICHTLINIEN - 1)
+            const px = fokus.x1 + fokus.dx * anteil
+            const pz = fokus.z1 + fokus.dz * anteil
+            verdeckt = schneidetStrecke(kameraX, kameraZ, px, pz, wand.x1, wand.z1, wand.x1 + wand.dx, wand.z1 + wand.dz)
+          }
+        }
+        setzeWandSichtbar(wand, !verdeckt)
+        wand.sockel.forEach(stueck => { stueck.visible = !verdeckt })
+        wandElementGruppen.forEach(({ gruppe, item }) => {
+          if (item.wandSegment === index) gruppe.visible = !verdeckt
+        })
+      })
+    }
+    // Gegenstück für die freie Ansicht: Dort bleiben Fenster, Türen und Sockelleisten immer stehen,
+    // auch an ausgeblendeten Wänden (siehe setzeWandSichtbar). Die Wände selbst regelt
+    // updateOrbitCamera.
+    const setzeWandFokusVerdeckungZurueck = () => {
+      wandMeshe.forEach(wand => wand.sockel.forEach(stueck => { stueck.visible = true }))
+      wandElementGruppen.forEach(({ gruppe }) => { gruppe.visible = true })
+    }
+
     const setzeWandFokusKamera = (pos, ziel) => {
       camera.position.set(pos.x, wandHoehe / 2, pos.z)
       camera.lookAt(ziel.x, wandHoehe / 2, ziel.z)
-      // Im Wand-Fokus-Modus sollen Decke/Wände immer voll sichtbar sein (kein Ausblenden wie beim
-      // freien Rundumblick, wo die Kamerawinkel-abhängige Transparenz Durchblicke ermöglicht).
+      // Im Wand-Fokus-Modus ist die Decke immer voll sichtbar (kein Ausblenden wie beim freien
+      // Rundumblick). Die Wände sind es nur, solange sie nicht zwischen Kamera und Fokuswand stehen —
+      // seit die Kamera hinter die Rückwand darf, siehe setzeWandFokusVerdeckung.
       decke.material.opacity = 1
       decke.material.transparent = false
-      wandMeshe.forEach(wand => setzeWandSichtbar(wand, true))
+      setzeWandFokusVerdeckung(pos.x, pos.z)
     }
 
     const updateWandFokusCamera = (index) => {
@@ -1227,6 +1275,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       // mit der Orbit-Kamera überschreiben.
       if (deckenFokusRef.current) return
       if (fokusWandRef.current != null) { updateWandFokusCamera(fokusWandRef.current); return }
+      // Was der Wand-Fokus an Fenstern, Türen und Sockelleisten ausgeblendet hat, gehört in der
+      // freien Ansicht wieder ins Bild.
+      setzeWandFokusVerdeckungZurueck()
       updateOrbitCamera()
     }
     updateCamera()
@@ -1462,8 +1513,16 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // (teuren) Szenen-Aufbau-Effekt bei jeder Mausbewegung erneut auslösen (siehe Dependency-Array
     // ganz unten). Committed wird erst einmalig beim Loslassen über onWandElementBewegt.
 
-    const wandElementRaycastZiele = wandElementGruppen.map(w => w.gruppe)
-    const wandBereichRaycastZiele = wandBereichGruppen.map(w => w.mesh)
+    // Anklickbar ist im Wand-Fokus nur, was auf der Fokuswand sitzt. Jedes Wandelement hat eine
+    // beidseitige, unsichtbare Klickfläche, und der Raycaster prüft unsichtbare Objekte mit. Ohne
+    // diese Einschränkung fingen Fenster und Türen der Rückwand Klicks ab, sobald die Kamera hinter
+    // der Rückwand steht (Untersuchung vom 16.11.2026).
+    const wandElementRaycastZiele = () => wandElementGruppen
+      .filter(w => w.item.wandSegment === fokusWandRef.current)
+      .map(w => w.gruppe)
+    const wandBereichRaycastZiele = () => wandBereichGruppen
+      .filter(w => w.bereich.wandSegment === fokusWandRef.current)
+      .map(w => w.mesh)
     let wandElementDrag = null // { eintrag, segment, elBreite, elHoehe, offsetU, offsetV, bewegt }
     let wandBereichDrag = null // { eintrag, offsetU, offsetV, bewegt, aktuellU, aktuellV } — Verschieben (Klick auf die Fläche)
     let wandBereichHandleDrag = null // { eintrag, anchorU, anchorV, bewegt, aktuellU, aktuellV, aktuellBreite, aktuellHoehe } — Ecke ziehen
@@ -1787,7 +1846,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       zeigerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1
       raycaster.setFromCamera(zeigerNDC, camera)
 
-      const treffer = raycaster.intersectObjects(wandElementRaycastZiele, true)
+      const treffer = raycaster.intersectObjects(wandElementRaycastZiele(), true)
       if (treffer.length > 0) {
         let obj = treffer[0].object
         while (obj && !obj.userData?.wandElementId) obj = obj.parent
@@ -1822,7 +1881,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       }
 
       // Kein Fenster/Tür getroffen — als Zweites gegen die Wandmaterial-Bereiche testen (Teil 3).
-      const bereichTreffer = raycaster.intersectObjects(wandBereichRaycastZiele, false)
+      const bereichTreffer = raycaster.intersectObjects(wandBereichRaycastZiele(), false)
       if (bereichTreffer.length === 0) {
         setAusgewaehltesElement(null); setLiveWerte(null); setMassLinien(null)
         ausgewaehlterBereichRef.current = null; setBereichAuswahl(null)
