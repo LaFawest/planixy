@@ -335,6 +335,79 @@ input[type=number]::-webkit-outer-spin-button { opacity: 1; }
   }
 }
 
+/* Wand-Fokus (Schritt 2): die Zeichenfläche als Container. Die Materialleiste richtet sich nach
+   ihrer Breite, nicht nach dem Fenster — Seitenleiste und Panel fallen je nach Fensterbreite weg. */
+.wandfokus-flaeche {
+  container-type: inline-size;
+  container-name: wandfokus;
+}
+/* Materialleiste, breite Fassung: oben, rechts neben der WandMiniKarte (16 px Rand + 190 px
+   Breite + 14 px Abstand). */
+.materialleiste {
+  position: absolute;
+  top: 16px;
+  left: 220px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  background: white;
+  border: 1px solid #E8E6E0;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+.materialkachel {
+  width: 26px;
+  height: 26px;
+}
+.kachel-huelle {
+  position: relative;
+}
+.kachel-ausklapp {
+  position: absolute;
+  top: 34px;
+  left: 0;
+  width: 150px;
+}
+/* Schmale Fassung, wenn die Leiste oben nicht mehr neben die Minikarte passt (220 + 250 px), mit
+   etwas Luft: unter 500 px, dieselbe Grenze zwischen Handy und Tablet wie HOCHFORMAT_MIN_BREITE
+   in RoomView3D.jsx.
+   Gemessen am 16.11.2026: Bei 390 px Zeichenfläche lagen 110 px der Leiste außerhalb des Bildes,
+   nur 4 bis 6 der 8 Kacheln waren erreichbar, und die aufgeklappte Tapetenliste war bis auf einen
+   Rand abgeschnitten. Jetzt liegt die Leiste über die ganze Breite am unteren Rand, mit größeren
+   Kacheln für den Finger, und die Liste klappt nach oben auf, ausgerichtet an der Leiste. */
+@container wandfokus (max-width: 499px) {
+  .materialleiste {
+    top: auto;
+    bottom: var(--wandfokus-unten, 16px);
+    left: 8px;
+    right: 8px;
+    justify-content: space-between;
+  }
+  .materialkachel {
+    width: 34px;
+    height: 34px;
+  }
+  .kachel-huelle {
+    position: static;
+  }
+  .kachel-ausklapp {
+    top: auto;
+    bottom: calc(100% + 6px);
+    left: 0;
+    width: 180px;
+  }
+}
+/* Unter 861 px liegt die untere Handy-Navigation (64 px, .mobile-tabs) über der Zeichenfläche.
+   Als Variable am Container, weil eine Container-Abfrage den Container selbst nicht gestalten
+   kann. */
+@media (max-width: 860px) {
+  .wandfokus-flaeche {
+    --wandfokus-unten: 72px;
+  }
+}
+
 /* Hinweiskästchen der Schrittleiste: fest zum Fenster positioniert, Lage kommt aus dem
    style-Attribut (SchrittLeiste.jsx). Fängt keine Mausereignisse ab, sonst flackerte es. */
 .schritt-hinweis {

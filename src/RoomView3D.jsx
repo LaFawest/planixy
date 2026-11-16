@@ -2587,6 +2587,10 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         // Wand-Fokus: Mausrad und Trackpad schieben den Ausschnitt (Schritt 2, Teil 2). Kneifen
         // (Strg) zoomt hier nicht — der Maßstab folgt der Regel in berechneWandFokusZiel.
         if (e.ctrlKey) return
+        // Nur über der Zeichenfläche selbst, wie bei onMouseDown. Über der Materialleiste und ihrer
+        // aufgeklappten Liste soll das Rad die Liste scrollen, nicht die Wand schieben — seit
+        // 0ad5a0c fing onWheel hier alles ab (gefunden am 16.11.2026).
+        if (e.target !== renderer.domElement) return
         // deltaMode 1 = Zeilen (Firefox mit Mausrad), 2 = Seiten. Umgerechnet in Bildpunkte.
         const faktor = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? (mount.clientHeight || 1) : 1)
         let dx = e.deltaX * faktor
@@ -3050,20 +3054,16 @@ return () => {
   }, [tageszeit])
 
   return (
-    <div ref={mountRef} style={{ width: '100%', height: '100%', cursor: deckenFokus ? 'default' : (fokusWand == null ? 'grab' : (zeichenModusMaterial ? 'crosshair' : 'default')), position: 'relative' }}>
+    <div ref={mountRef} className="wandfokus-flaeche" style={{ width: '100%', height: '100%', cursor: deckenFokus ? 'default' : (fokusWand == null ? 'grab' : (zeichenModusMaterial ? 'crosshair' : 'default')), position: 'relative' }}>
       {fokusWand != null && (
-        // left: 220px statt der sonst üblichen 12/16px am linken Rand — dort sitzt bereits die
-        // WandMiniKarte (190px breit, 16px Rand), siehe die Notiz dazu, die vorher beim
-        // "+ Bereich"-Button stand. Palette ersetzt den Button: ein Material anklicken armiert das
-        // Zeichen-Werkzeug (aktiver Swatch hervorgehoben), erneut anklicken oder Escape deaktiviert
-        // es wieder. Das Rechteck selbst wird direkt mit der Maus auf der Wand aufgezogen (wie in
-        // Paint), siehe wandElementMausDown/Move/Up.
-        <div style={{
-          position: 'absolute', top: '16px', left: '220px', zIndex: 10,
-          display: 'flex', alignItems: 'center', gap: '4px', padding: '6px',
-          background: 'white', border: '1px solid #E8E6E0', borderRadius: '10px',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-        }}>
+        // Materialleiste: ein Material anklicken armiert das Zeichen-Werkzeug (aktiver Swatch
+        // hervorgehoben), erneut anklicken oder Escape deaktiviert es wieder. Das Rechteck selbst
+        // wird direkt mit der Maus auf der Wand aufgezogen (wie in Paint), siehe
+        // wandElementMausDown/Move/Up. Lage und Aussehen in index.css (.materialleiste): breit oben
+        // neben der WandMiniKarte, schmal am unteren Rand mit größeren Kacheln — dort lag sie bis
+        // zum 16.11.2026 zur Hälfte außerhalb des Bildes, die hinteren Kacheln waren am Handy
+        // nicht erreichbar.
+        <div className="materialleiste">
           {wandMaterialien.map(material => {
             // Hervorgehoben wird die Kachel, zu der das armierte Material gehört: Ist „Streifen"
             // armiert, leuchtet die Kachel „Mustertapete". Zusätzlich markiert ein Rahmen die
@@ -3071,9 +3071,9 @@ return () => {
             const istArmiert = armierteKachel?.klasse === material.klasse
             const istOffen = offeneKachel === material.klasse
             return (
-              <div key={material.klasse} style={{ position: 'relative' }}>
-                <div onClick={() => kachelAngeklickt(material)} title={material.name} style={{
-                  width: '26px', height: '26px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              <div key={material.klasse} className="kachel-huelle">
+                <div onClick={() => kachelAngeklickt(material)} title={material.name} className="materialkachel" style={{
+                  borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: '14px', cursor: 'pointer',
                   border: `${istArmiert || istOffen ? '2px' : '1px'} solid ${istArmiert || istOffen ? '#185FA5' : '#E8E6E0'}`,
                   background: istArmiert ? '#EEF4FC' : '#FAFAF8',
@@ -3089,9 +3089,8 @@ return () => {
                   // Eigene Schriftart, weil dieser Bereich im 3D-Container sitzt und die des
                   // Panels nicht erbt — dieselbe Angabe steht aus demselben Grund schon an der
                   // Größenanzeige weiter unten.
-                  <div style={{
-                    position: 'absolute', top: '34px', left: 0, zIndex: 11,
-                    width: '150px', maxHeight: '240px', overflowY: 'auto', padding: '6px',
+                  <div className="kachel-ausklapp" style={{
+                    zIndex: 11, maxHeight: '240px', overflowY: 'auto', padding: '6px',
                     background: 'white', border: '1px solid #E8E6E0', borderRadius: '10px',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
                     fontFamily: "'DM Sans', sans-serif",
