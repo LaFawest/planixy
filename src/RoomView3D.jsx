@@ -13,7 +13,7 @@ import { useFurniture } from './context/FurnitureContext'
 import { useDesign } from './context/DesignContext'
 import { useUI } from './context/UIContext'
 import { materialShape } from './moebelIcons'
-import { wandMaterialien, istGestrichen, wandMaterialInfo, istWandtattoo, istDeckenleuchte, istVerschiebbareDeckenleuchte, istEndpunktVerstellbareDeckenleuchte, istEckSkalierbareDeckenleuchte, berechneInnenmasse, bogenMasse } from './constants'
+import { wandMaterialien, istGestrichen, wandMaterialInfo, istWandtattoo, istDeckenleuchte, istVerschiebbareDeckenleuchte, istEndpunktVerstellbareDeckenleuchte, istEckSkalierbareDeckenleuchte, berechneInnenmasse, bogenMasse, FUSSLEISTE_TIEFE_M } from './constants'
 
 export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deckenFokus = false, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt, onAusschnittGeaendert, ausschnittSprung = null } = {}) {
   const { activeRoom: room } = useRooms()
@@ -866,7 +866,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // Brüstung nicht — darunter läuft die Leiste durch, wie in echt. Bewusst über die Kante statt
     // über eine Liste von Typen, sonst wird der nächste neue Elementtyp hier vergessen.
     // SOCKEL_HOEHE kommt aus scene/wandelemente.js — die Fensterbank rechnet mit derselben Höhe.
-    const SOCKEL_TIEFE = 0.04
+    // Derselbe Wert wie die Fußleiste im Grundriss (Innenmaß, Schema 8).
+    const SOCKEL_TIEFE = FUSSLEISTE_TIEFE_M
     // Die Leiste stößt an das Türfutter bzw. die Laibung, nicht an die nackte Öffnungskante.
     const SOCKEL_LUFT = 0.01
     // Kürzer als das lohnt kein Stück — ein Rest von wenigen Millimetern an einer Öffnung dicht am

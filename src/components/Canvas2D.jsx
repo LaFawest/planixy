@@ -23,34 +23,41 @@ const wandFarbeFuer = (room, index) => {
   return room?.wandfarben?.[index] || room?.wandfarbe || '#FFFFFF'
 }
 
-// Position/Größe eines Wandstreifens aus seinem Segment: die Kante selbst bildet eine
-// Seite des Streifens, der Streifen wird um die Wanddicke entgegen der Normale (also nach
-// innen) verbreitert. Nur für achsparallele Segmente korrekt (minY===maxY = horizontal,
-// sonst wird vertikal angenommen) — geprüft für Schritt 9b: die L-/U-Vorlagen bestehen
-// ausschließlich aus achsparallelen Kanten, sind also unproblematisch. Erst echte schräge
-// Kanten (freies Zeichnen, noch nicht geplant) würden hier ein falsches Rechteck liefern und
-// eine echte Verallgemeinerung nötig machen.
+// Wandstreifen im Grundriss (Innenmaß, Schema 8): Das Segment ist die Wandinnenseite, im Ursprung
+// von canvasInnerRef; der Streifen liegt um die Wanddicke nach AUSSEN (in Richtung der Normale) und
+// wird für das äußere Zeichenflächen-div um wandDicke verschoben. Bis Schema 7 war das Segment die
+// Außenkante und der Streifen lag nach innen. Nur für achsparallele Segmente korrekt — die
+// Rechteck-, L- und U-Vorlagen bestehen ausschließlich daraus.
 const wandStreifenStyle = (segment, wandDicke, von, bis) => {
   const minX = Math.min(segment.start.x, segment.ende.x)
   const minY = Math.min(segment.start.y, segment.ende.y)
   const maxY = Math.max(segment.start.y, segment.ende.y)
   if (minY === maxY) {
-    const top = segment.normale.y < 0 ? minY : minY - wandDicke
-    return { left: `${minX + von}px`, top: `${top}px`, width: `${bis - von}px`, height: `${wandDicke}px` }
+    const top = (segment.normale.y < 0 ? minY - wandDicke : minY) + wandDicke
+    return { left: `${minX + von + wandDicke}px`, top: `${top}px`, width: `${bis - von}px`, height: `${wandDicke}px` }
   }
-  const left = segment.normale.x < 0 ? minX : minX - wandDicke
-  return { left: `${left}px`, top: `${minY + von}px`, width: `${wandDicke}px`, height: `${bis - von}px` }
+  const left = (segment.normale.x < 0 ? minX - wandDicke : minX) + wandDicke
+  return { left: `${left}px`, top: `${minY + von + wandDicke}px`, width: `${wandDicke}px`, height: `${bis - von}px` }
+}
+
+// Ist die Ecke zwischen zwei aufeinanderfolgenden Segmenten eine äußere (konvexe) Ecke? Die
+// Eckpunkte laufen im Uhrzeigersinn (Bildschirmkoordinaten, siehe wandSegmente in raumPolygon.js),
+// dort hat eine äußere Ecke ein positives Kreuzprodukt der Richtungen. An einer äußeren Ecke muss
+// der Wandstreifen um die Wanddicke verlängert werden, sonst bleibt außen ein leeres Quadrat; an
+// einer inneren Ecke (L-/U-Form) nicht, dort überlappen sich die beiden Streifen schon.
+const istAeussereEcke = (a, b) => {
+  const ax = a.ende.x - a.start.x, ay = a.ende.y - a.start.y
+  const bx = b.ende.x - b.start.x, by = b.ende.y - b.start.y
+  return ax * by - ay * bx > 0
 }
 
 // Aufgeteilte Stücke eines Wandstreifens: volle Segmentlänge minus die Spannen der Tür-/Fenster-
 // Elemente, die auf diesem Segment sitzen — sonst würde die Wand durchgehend gezeichnet, obwohl
-// eine Tür eigentlich einen Durchbruch hat. Die Spanne jedes Elements wird aus seiner bereits
-// berechneten Bildschirmposition (left/top/width, canvasInnerRef-lokal) abgeleitet statt separat
-// aus wandSegment/wandPosition neu hergeleitet — so bleibt die Lücke immer deckungsgleich mit dem
-// tatsächlich gerenderten Element, unabhängig davon, dass ein nach innen versetztes Segment
-// (innenEckpunkte) an denselben Ecken kürzer ist als das äußere Segment, auf dem der Wandstreifen
-// selbst gezeichnet wird.
-const wandStreifenStuecke = (segment, wandDicke, elemente) => {
+// eine Tür eigentlich einen Durchbruch hat. Die Spanne kommt aus der Bildschirmposition des
+// Elements (left/top/width, im selben Ursprung wie das Segment), damit die Lücke immer
+// deckungsgleich mit dem gezeichneten Element ist. ecken.start/ecken.ende: äußere Ecke am
+// Segmentanfang bzw. -ende (istAeussereEcke) — das jeweils äußerste Stück wird dort verlängert.
+const wandStreifenStuecke = (segment, wandDicke, elemente, ecken) => {
   const minX = Math.min(segment.start.x, segment.ende.x)
   const maxX = Math.max(segment.start.x, segment.ende.x)
   const minY = Math.min(segment.start.y, segment.ende.y)
@@ -58,10 +65,14 @@ const wandStreifenStuecke = (segment, wandDicke, elemente) => {
   const horizontal = minY === maxY
   const laenge = horizontal ? maxX - minX : maxY - minY
   const achsenStart = horizontal ? minX : minY
+  // Liegt der Segmentanfang am kleinen oder am großen Ende der Achse?
+  const startVorn = horizontal ? segment.start.x <= segment.ende.x : segment.start.y <= segment.ende.y
+  const verlaengerungVorn = (startVorn ? ecken.start : ecken.ende) ? wandDicke : 0
+  const verlaengerungHinten = (startVorn ? ecken.ende : ecken.start) ? wandDicke : 0
 
   const luecken = elemente
     .map(el => {
-      const von = (horizontal ? el.left : el.top) + wandDicke - achsenStart
+      const von = (horizontal ? el.left : el.top) - achsenStart
       return [Math.max(0, Math.min(laenge, von)), Math.max(0, Math.min(laenge, von + el.width))]
     })
     .sort((a, b) => a[0] - b[0])
@@ -74,10 +85,14 @@ const wandStreifenStuecke = (segment, wandDicke, elemente) => {
   })
   if (cursor < laenge) stuecke.push([cursor, laenge])
 
-  return stuecke.map(([von, bis]) => wandStreifenStyle(segment, wandDicke, von, bis))
+  return stuecke.map(([von, bis]) => wandStreifenStyle(
+    segment, wandDicke,
+    von === 0 ? -verlaengerungVorn : von,
+    bis === laenge ? laenge + verlaengerungHinten : bis,
+  ))
 }
 
-export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, wandSegmente, innenEckpunkte }) {
+export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, wandSegmente, innenEckpunkte, grenzeEckpunkte }) {
   const { ansicht, setAnsicht } = useUI()
   const { schritt } = useWizard()
 
@@ -145,9 +160,14 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
           }}>
             {/* Wände einzeln einfärbbar — ein oder mehrere Streifen pro Wandsegment, mit Lücken
                 für die Tür-/Fenster-Elemente, die darauf sitzen */}
-            {wandSegmente.map(segment => {
+            {wandSegmente.map((segment, i) => {
               const elemente = furniture.filter(f => f.istWandElement && f.wandSegment === segment.index)
-              return wandStreifenStuecke(segment, wandDicke, elemente).map((style, i) => (
+              const n = wandSegmente.length
+              const ecken = {
+                start: istAeussereEcke(wandSegmente[(i - 1 + n) % n], segment),
+                ende: istAeussereEcke(segment, wandSegmente[(i + 1) % n]),
+              }
+              return wandStreifenStuecke(segment, wandDicke, elemente, ecken).map((style, i) => (
                 <div key={`${segment.index}-${i}`} style={{
                   position: 'absolute', ...style,
                   background: wandFarbeFuer(activeRoom, segment.index),
@@ -212,13 +232,15 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
               )}
             </svg>
 
+            {/* Fußleiste: der Ring zwischen Wandinnenseite (innenEckpunkte) und Möbelgrenze
+                (grenzeEckpunkte), so tief wie in 3D (FUSSLEISTE_TIEFE_M). Bis Schema 7 waren es vier
+                feste 8-px-Streifen am Rand des Rechtecks — bei L-/U-Formen an der falschen Stelle. */}
             {fussleiste && (
-              <>
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '8px', background: fussleisteFarbe, zIndex: 2 }}></div>
-                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '8px', background: fussleisteFarbe, zIndex: 2 }}></div>
-                <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '8px', background: fussleisteFarbe, zIndex: 2 }}></div>
-                <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: '8px', background: fussleisteFarbe, zIndex: 2 }}></div>
-              </>
+              <svg width={innenB} height={innenT} style={{ position: 'absolute', inset: 0, zIndex: 2, pointerEvents: 'none', overflow: 'visible' }}>
+                <path fillRule="evenodd" fill={fussleisteFarbe} d={
+                  `M${innenEckpunkte.map(p => `${p.x},${p.y}`).join(' L')} Z M${grenzeEckpunkte.map(p => `${p.x},${p.y}`).join(' L')} Z`
+                } />
+              </svg>
             )}
             {furniture.filter(item => !istDeckenleuchte(item.name)).map(item => {
               const W = item.origWidth || item.width

@@ -3,12 +3,12 @@ import { useUI } from './UIContext'
 import { useProjekte } from './ProjectsContext'
 import { vergibRaumId } from './idZaehler'
 import {
-  raumformPolygon, boundingBox, innenPolygone,
+  raumformPolygon, boundingBox, innenKonturen,
   rechteckInPolygon as istRechteckInPolygon,
   streckeInPolygon as istStreckeInPolygon,
   snappeWandElement, wandElementMitte, platziereAufWandSegment, naechsteFreieEcke, snappeAnFreieKante,
 } from '../raumPolygon'
-import { DEFAULT_RAUM_DESIGN, WAND_DICKE_PX, erzeugeRaum, istDeckenleuchte } from '../constants'
+import { DEFAULT_RAUM_DESIGN, WAND_DICKE_PX, FUSSLEISTE_TIEFE_M, erzeugeRaum, istDeckenleuchte } from '../constants'
 
 const RoomsContext = createContext(null)
 
@@ -161,14 +161,16 @@ export function RoomsProvider({ children }) {
 
       const polygonPx = raum.eckpunkte.map(p => ({ x: p.x * 60, y: p.y * 60 }))
       const box = boundingBox(polygonPx)
+      // Dieselben Maße wie in useRaumGeometrie.js (Innenmaß seit Schema 8): Wand außen, Fußleiste
+      // FUSSLEISTE_TIEFE_M tief.
       const wandDicke = WAND_DICKE_PX
-      const innenB = box.breite - wandDicke * 2
-      const innenT = box.tiefe - wandDicke * 2
-      const fussleisteBreite = (raum.fussleiste ?? DEFAULT_RAUM_DESIGN.fussleiste) ? 8 : 0
+      const innenB = box.breite
+      const innenT = box.tiefe
+      const fussleisteBreite = (raum.fussleiste ?? DEFAULT_RAUM_DESIGN.fussleiste) ? FUSSLEISTE_TIEFE_M * 60 : 0
       const grenzB = innenB - fussleisteBreite * 2
       const grenzT = innenT - fussleisteBreite * 2
       const grenzStart = fussleisteBreite
-      const { grenzeEckpunkte, innenEckpunkte } = innenPolygone(polygonPx, wandDicke, fussleisteBreite)
+      const { grenzeEckpunkte, innenEckpunkte } = innenKonturen(polygonPx, fussleisteBreite)
 
       // Sammelt die Bounding-Boxen der schon in diesem Durchlauf reparierten Möbelstücke —
       // moebelReparieren braucht sie, um neu geklemmte Kollisionen untereinander aufzulösen

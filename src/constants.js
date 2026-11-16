@@ -392,13 +392,14 @@ export const HIMMELSRICHTUNG_NAME = { nord: 'Nord', ost: 'Ost', sued: 'Süd', we
 // raumPolygon.js, die für jede Form funktioniert.
 export const HIMMELSRICHTUNG_JE_SEGMENT = ['nord', 'ost', 'sued', 'west']
 
-// Dicke der Außenwände in Pixel (bei 60px/m) — Basis für die nutzbare Innenfläche eines Raums
+// Dicke der Außenwände in Pixel (bei 60px/m). Seit Schema 8 (Innenmaß, Hassans Entscheidung vom
+// 16.11.2026) liegt die Wand im Grundriss AUSSEN um die Eckpunkte herum; die Eckpunkte selbst sind
+// die Wandinnenseite. Bis Schema 7 ging die Wand nach innen ab (siehe context/migrationV8.js).
 export const WAND_DICKE_PX = 8
 
-// Tiefe der Fußleiste in Metern. Bisher stand derselbe Wert nur in RoomView3D.jsx (SOCKEL_TIEFE),
-// der Grundriss zeichnete die Leiste 8 px (13,3 cm) breit. Ab dem Innenmaß-Umbau (Schema 8) gilt
-// dieser Wert in 2D und 3D; die Umrechnung gespeicherter Räume (context/migrationV8.js) nutzt ihn
-// schon.
+// Tiefe der Fußleiste in Metern, in Grundriss und 3D gleich (RoomView3D.jsx: SOCKEL_TIEFE). Ein
+// Möbelstück, das man an die Wand schiebt, steht mit Fußleiste genau so weit vor der Wand, ohne
+// direkt daran. Bis Schema 7 war die Leiste im Grundriss 8 px (13,3 cm) breit.
 export const FUSSLEISTE_TIEFE_M = 0.04
 
 export const RAUM_FORMEN = [
@@ -424,9 +425,14 @@ export const U_FORM_SEITEN = [
 // erreichbar ist, aber als Sicherheitsnetz bestehen bleibt.
 export const MIN_RAUM_SCHENKEL_M = 1
 
+// Innenfläche in Pixeln. Seit Schema 8 ist das die volle Raumgröße: Die Raummaße sind das Innenmaß,
+// die Wand liegt außen. Bis Schema 7 wurde hier die Wand zweimal abgezogen, und 3D streckte die
+// Lage der Möbel aus dieser kleineren Fläche auf die volle Raumgröße — daher 15,5 bis 20,7 cm Luft
+// zwischen einem im Grundriss bündigen Möbelstück und der Wand. Die Aufrufer (scene/moebel.js,
+// scene/trennwaende.js, Deckenleuchten in RoomView3D.jsx) rechnen damit jetzt x = −B/2 + cx/60.
 export function berechneInnenmasse(raumBreite, raumTiefe) {
-  const innenBpx = raumBreite * 60 - WAND_DICKE_PX * 2
-  const innenTpx = raumTiefe  * 60 - WAND_DICKE_PX * 2
+  const innenBpx = raumBreite * 60
+  const innenTpx = raumTiefe  * 60
   return { innenBpx, innenTpx }
 }
 

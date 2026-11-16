@@ -204,20 +204,31 @@ export function versetztesPolygon(eckpunkte, versatz) {
   return neuePunkte
 }
 
-// Liefert die beiden inneren Konturen, auf die Möbel/Fenster (grenzeEckpunkte, zusätzlich um die
-// Fußleiste versetzt) bzw. Trennwände (innenEckpunkte) beim Ziehen einrasten — aus dem äußeren
-// Randpolygon (in Pixeln, z.B. polygonPx aus useRaumGeometrie) über versetztesPolygon()
-// abgeleitet. Beide Konturen werden zusätzlich um wandDicke verschoben, weil ihr Ursprung (0,0)
-// im lokalen Koordinatensystem von canvasInnerRef liegt, das selbst schon um wandDicke nach
-// innen versetzt aus dem äußeren Rahmen (eckpunkte) hervorgeht — ohne diesen Shift wären beide
-// Konturen um wandDicke zu weit außen. Hook-freie Variante der Logik, die bisher direkt in
-// useRaumGeometrie.js stand, damit sie auch außerhalb von React-Komponenten aufrufbar ist (siehe
-// RoomsContext.jsx, Nachjustierung nach einer Formänderung, Schritt 9b-2).
+// NUR NOCH für die Umrechnung alter Räume (context/migrationV8.js): die Konturen so, wie der
+// Grundriss sie bis Schema 7 gebildet hat — Eckpunkte als Außenkante, Wand und Fußleiste nach innen
+// abgezogen, Ursprung um wandDicke verschoben. Die App selbst nutzt seit Schema 8 innenKonturen
+// darunter.
 export function innenPolygone(eckpunkte, wandDicke, fussleisteBreite) {
   const verschieben = (polygon) => polygon.map(p => ({ x: p.x - wandDicke, y: p.y - wandDicke }))
   return {
     innenEckpunkte: verschieben(versetztesPolygon(eckpunkte, wandDicke)),
     grenzeEckpunkte: verschieben(versetztesPolygon(eckpunkte, wandDicke + fussleisteBreite)),
+  }
+}
+
+// Die beiden inneren Konturen seit Schema 8 (Innenmaß): innenEckpunkte ist die Wandinnenseite,
+// also die Eckpunkte selbst — dort enden Trennwände, dort sitzen Fenster und Türen (zentriert auf
+// der außen liegenden Wand, siehe platziereAufSegment). grenzeEckpunkte ist dieselbe Kontur um die
+// Fußleiste nach innen versetzt — dort stoßen Möbel an. Ohne Fußleiste sind beide gleich. Ursprung
+// (0,0) ist die innere Wandecke (Minimum der Eckpunkte), derselbe wie für left/top der Möbel und
+// für canvasInnerRef im Grundriss. Hook-frei, damit auch RoomsContext.jsx sie nutzen kann.
+export function innenKonturen(eckpunkte, fussleisteBreite) {
+  const innen = randpolygon(eckpunkte)
+  const box = boundingBox(innen)
+  const verschieben = (polygon) => polygon.map(p => ({ x: p.x - box.minX, y: p.y - box.minY }))
+  return {
+    innenEckpunkte: verschieben(innen),
+    grenzeEckpunkte: verschieben(fussleisteBreite > 0 ? versetztesPolygon(innen, fussleisteBreite) : innen),
   }
 }
 

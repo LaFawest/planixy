@@ -1,8 +1,7 @@
 // Umrechnung gespeicherter Räume von Schema 7 auf 8: Raummaße als Innenmaß (Hassans Entscheidung
-// vom 16.11.2026). Teil 2 des Umbaus — die Funktionen sind hier fertig und geprüft
-// (scripts/pruefe-migration-v8.mjs), hängen aber noch NICHT in der Ladekette von
-// projekteStorage.js. Das passiert erst in Teil 3 zusammen mit dem Umbau von Grundriss und 3D;
-// vorher würde ein umgerechnetes Projekt mit der alten Darstellung falsch aussehen.
+// vom 16.11.2026). Geprüft mit scripts/pruefe-migration-v8.mjs, eingehängt in die Ladekette von
+// projekteStorage.js (migriereProjekteDaten) — alle drei Ladewege laufen hindurch: Gast,
+// Konto und Datei-Import.
 //
 // Bis Schema 7 galt: Die Eckpunkte sind die Außenkante. Der Grundriss zieht die Wand (WAND_DICKE_PX)
 // und die Fußleiste (8 px) nach innen ab, und left/top der Möbel zählen ab der so verkleinerten

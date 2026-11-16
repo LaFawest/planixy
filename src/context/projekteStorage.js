@@ -2,9 +2,10 @@ import { initialRooms, DEFAULT_WIZARD_SCHRITT, HIMMELSRICHTUNG_JE_SEGMENT } from
 import { migriereRaum } from './roomsStorage'
 import { rechteckPolygon } from '../raumPolygon'
 import { raeumeBereinigen } from '../data/moebelFilter'
+import { migriereV7ZuV8 } from './migrationV8'
 
 const STORAGE_KEY = 'planixy-rooms'
-export const SCHEMA_VERSION = 7
+export const SCHEMA_VERSION = 8
 const STANDARD_PROJEKT_NAME = 'Mein Zuhause'
 
 // Auch hier (statt lokal in MigrationsDialog.jsx), weil die Aufräum-Logik unten diesen Key mit
@@ -125,6 +126,9 @@ const migriereV6ZuV7 = (v6Daten) => ({
   })),
 })
 
+// v7 -> v8: Raummaße als Innenmaß (Hassans Entscheidung vom 16.11.2026). Die Umrechnung steht in
+// migrationV8.js, damit sie ohne three.js geprüft werden kann (scripts/pruefe-migration-v8.mjs).
+
 // Wendet die vollständige Migrationskette (v0 -> v1 -> ... -> SCHEMA_VERSION) auf rohe Daten an,
 // egal ob sie aus localStorage oder einer importierten Datei stammen (siehe projektExport.js,
 // parseProjektDatei) — reine Funktion, kein localStorage-Zugriff, damit eine ältere exportierte
@@ -157,6 +161,9 @@ export const migriereProjekteDaten = (rohDaten) => {
   }
   if (daten.schemaVersion === 6) {
     daten = migriereV6ZuV7(daten)
+  }
+  if (daten.schemaVersion === 7) {
+    daten = migriereV7ZuV8(daten)
   }
   if (daten.schemaVersion !== SCHEMA_VERSION) return undefined
   // Möbel ohne 3D-Modell verschwinden auch aus bestehenden Projekten, nicht nur aus dem Katalog

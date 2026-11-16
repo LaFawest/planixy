@@ -74,7 +74,7 @@ function ProjektRoute() {
 }
 
 function AppContent() {
-  const { canvasB, canvasT, wandDicke, innenB, innenT, wandSegmente, innenEckpunkte } = useRaumGeometrie()
+  const { canvasB, canvasT, wandDicke, innenB, innenT, wandSegmente, innenEckpunkte, grenzeEckpunkte } = useRaumGeometrie()
 
   return (
     <div style={{ display: 'flex', height: '100vh', fontFamily: 'sans-serif' }}>
@@ -87,7 +87,7 @@ function AppContent() {
         <Topbar />
         <SchrittLeiste />
 
-        <Canvas2D canvasB={canvasB} canvasT={canvasT} innenB={innenB} innenT={innenT} wandDicke={wandDicke} wandSegmente={wandSegmente} innenEckpunkte={innenEckpunkte} />
+        <Canvas2D canvasB={canvasB} canvasT={canvasT} innenB={innenB} innenT={innenT} wandDicke={wandDicke} wandSegmente={wandSegmente} innenEckpunkte={innenEckpunkte} grenzeEckpunkte={grenzeEckpunkte} />
 
       </div>
 

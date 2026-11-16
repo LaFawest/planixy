@@ -29,7 +29,7 @@ function klemmeMitSlide(kandidatLinks, kandidatOben, letzteLinks, letzteOben, bo
 
 export function FurnitureProvider({ children }) {
   const { activeRoom, activeRoomId, updateRoom } = useRooms()
-  const { grenzB, grenzT, grenzStart, grenzeEckpunkte, innenEckpunkte, wandDicke, rechteckInPolygon, wandSegmente } = useRaumGeometrie()
+  const { grenzB, grenzT, grenzStart, innenB, innenT, grenzeEckpunkte, innenEckpunkte, wandDicke, rechteckInPolygon, wandSegmente } = useRaumGeometrie()
   const { fokusWandIndex } = useUI()
   const [selectedId, setSelectedId] = useState(null)
 
@@ -245,9 +245,20 @@ export function FurnitureProvider({ children }) {
       // schnellen Mausbewegungen), rechteckInPolygon danach nur einmal bis dreimal auf die
       // bereits eingegrenzte Kandidatposition — für die aktuellen Raumgrößen vernachlässigbare
       // Kosten pro Mousemove.
-      const kandidatLinks = Math.max(grenzStart, Math.min(grenzStart + grenzB - boundW, startLeft + (clientX - startX)))
-      const kandidatOben  = Math.max(grenzStart, Math.min(grenzStart + grenzT - boundH, startTop  + (clientY - startY)))
-      const geklemmt = klemmeMitSlide(kandidatLinks, kandidatOben, currentLeft, currentTop, boundW, boundH, rechteckInPolygon)
+      //
+      // Fenster und Türen klemmen nicht an der Fußleiste, sondern an der Wandinnenseite, und ohne
+      // Prüfung gegen die Möbelgrenze: Sie sitzen in der Wand und rasten beim Loslassen ohnehin auf
+      // die nächste Wand ein (onUp unten). Mit der Fußleisten-Grenze blieben sie 4 cm vor dem
+      // Wandende stehen (bis Schema 7: 13,3 cm), obwohl 3D sie bis an die Ecke erlaubt.
+      const istWandElement = item.istWandElement
+      const start = istWandElement ? 0 : grenzStart
+      const breite = istWandElement ? innenB : grenzB
+      const tiefe = istWandElement ? innenT : grenzT
+      const kandidatLinks = Math.max(start, Math.min(start + breite - boundW, startLeft + (clientX - startX)))
+      const kandidatOben  = Math.max(start, Math.min(start + tiefe - boundH, startTop  + (clientY - startY)))
+      const geklemmt = istWandElement
+        ? { left: kandidatLinks, top: kandidatOben }
+        : klemmeMitSlide(kandidatLinks, kandidatOben, currentLeft, currentTop, boundW, boundH, rechteckInPolygon)
       currentLeft = geklemmt.left
       currentTop  = geklemmt.top
       // Frei bewegen ohne Möbel-Kollision (nur Raumgrenze wird geprüft)
@@ -318,7 +329,7 @@ export function FurnitureProvider({ children }) {
     window.addEventListener('mouseup', onUp)
     window.addEventListener('touchmove', onMove, { passive: false })
     window.addEventListener('touchend', onUp)
-  }, [activeRoom, updateFurniture, grenzB, grenzT, grenzStart, grenzeEckpunkte, innenEckpunkte, wandDicke, rechteckInPolygon])
+  }, [activeRoom, updateFurniture, grenzB, grenzT, grenzStart, innenB, innenT, grenzeEckpunkte, innenEckpunkte, wandDicke, rechteckInPolygon])
 
   // Übernimmt Position/Brüstungshöhe eines Fenster/Tür-Elements NACH einem Ziehvorgang im
   // 3D-Wand-Fokus-Editor (RoomView3D, fokusWand-Modus) — bleibt auf demselben Wandsegment, dafür
