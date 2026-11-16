@@ -105,6 +105,21 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   // ein, deshalb reicht dafür ein reiner Ref ohne begleitenden State.
   const ausgewaehltesElementRef = useRef(null)
   const setAusgewaehltesElement = (id) => { ausgewaehltesElementRef.current = id }
+
+  // Möbel aus- und einblenden, nur im Wand-Fokus (Schritt 2) und im Decken-Fokus (Schritt 3). In
+  // beiden sind sie beim Öffnen ausgeblendet — davor verdecken sie die Wand, und in der
+  // Decken-Ansicht haben sie nach Hassans früherer Rückmeldung ohne Anlass nichts zu suchen.
+  // Bewusst lokaler State und nicht UIContext: Den Schalter liest niemand außer dieser Komponente,
+  // und beim Schrittwechsel wird sie neu eingehängt (FensterTuerenAnsicht3D/DeckenAnsicht3D sind
+  // verschiedene Elemente) — damit gilt beim nächsten Betreten automatisch wieder die Vorgabe. In
+  // Schritt 1 und 4 gibt es keinen Schalter, die Möbel sind dort immer sichtbar. Nichts davon
+  // landet in den Raumdaten: Es wird nur group.visible umgeschaltet.
+  const moebelSchalterAktiv = fokusWand != null || deckenFokus
+  const [moebelEingeblendet, setMoebelEingeblendet] = useState(false)
+  const moebelSichtbar = !moebelSchalterAktiv || moebelEingeblendet
+  // Der Möbel-Effekt liest den Wert beim Bauen über diese Ref, statt ihn als Abhängigkeit zu
+  // führen — ein Druck auf den Schalter darf die Möbel nicht neu bauen, nur umschalten.
+  const moebelSichtbarRef = useRef(moebelSichtbar)
   const [liveWerte, setLiveWerte] = useState(null) // { typ, horizontalCm, vertikalCm } | null
   const [massLinien, setMassLinien] = useState(null) // { id, links, rechts, unten } | null
   const [bearbeiteSeite, setBearbeiteSeite] = useState(null) // 'links' | 'rechts' | 'unten' | null
@@ -2373,6 +2388,15 @@ return () => {
     setAusgewaehltesWandElement, onDeckenleuchteAusgewaehlt,
   ])
 
+  // Möbel-Schalter: schaltet nur die Sichtbarkeit der schon gebauten Möbelgruppen um. Kein
+  // Neuaufbau, keine Kamerabewegung. Steht VOR dem Möbel-Effekt, damit die Ref beim ersten Bauen
+  // schon den aktuellen Wert trägt. Unsichtbare Gruppen zeichnet Three.js weder ins Bild noch in
+  // die Schattenkarte; ihr Licht filtert moebelTickRef heraus (siehe Möbel-Effekt).
+  useEffect(() => {
+    moebelSichtbarRef.current = moebelSichtbar
+    moebelGruppenRef.current?.ausblendbareGruppen.forEach(gruppe => { gruppe.visible = moebelSichtbar })
+  }, [moebelSichtbar])
+
   // === MÖBEL-EFFEKT (App schneller machen, Schritt 3, Teilpunkt 4.5) ===
   // Baut die normalen Möbel und die Deckenleuchten (samt ihrer Anfasser und des Auswahl-Rings) in
   // eine eigene Gruppe unter der dauerhaften Szene. Läuft NUR bei Möbel-Änderungen und bei
@@ -2439,14 +2463,22 @@ return () => {
     deckenleuchteRing.visible = false
     if (deckenFokusRef.current) moebelWurzel.add(deckenleuchteRing)
 
+    // Alles außer Deckenleuchten und Wandelementen ist für den Möbel-Schalter ein Möbelstück, auch
+    // Steh- und Tischlampe (Kategorie Deko). Deckenleuchten bleiben immer sichtbar: Sie sind das
+    // Thema von Schritt 3, und ihr Licht prägt den Raum auch in Schritt 2.
+    const ausblendbareGruppen = []
+
     furnitureRef.current.forEach(item => {
       if (item.istWandElement) return
-      // In der Decken-Ansicht (Phase 6, Teilschritt 1, nach Hassans Feedback "die Stehlampen haben
-      // da nichts zu suchen") werden normale Möbelstücke gar nicht erst gebaut — es geht in dieser
-      // Ansicht nur um die Decke plus die 3 sichtbaren Wände, nicht um den restlichen Raum.
-      // Deckenleuchten natürlich weiterhin. In jeder anderen Ansicht ändert sich nichts.
-      if (deckenFokusRef.current && !istDeckenleuchte(item.name)) return
+      // In der Decken-Ansicht galt bisher (Phase 6, Teilschritt 1, nach Hassans Feedback "die
+      // Stehlampen haben da nichts zu suchen"): normale Möbelstücke werden gar nicht erst gebaut.
+      // Seit dem Möbel-Schalter werden sie gebaut, sind dort aber beim Öffnen ausgeblendet — das
+      // Bild bleibt also gleich, nur lassen sie sich jetzt bei Bedarf einblenden.
       const gruppe = baueMoebel(moebelWurzel, item, furnitureRef.current, raumBreite, raumTiefe, wandHoehe, stoffTextur, holzTextur)
+      if (!istDeckenleuchte(item.name)) {
+        gruppe.visible = moebelSichtbarRef.current
+        ausblendbareGruppen.push(gruppe)
+      }
       if (deckenFokusRef.current && istDeckenleuchte(item.name)) {
         const eintrag = { gruppe, item }
         deckenleuchtenGruppen.push(eintrag)
@@ -2492,7 +2524,7 @@ return () => {
       }
     })
 
-    moebelGruppenRef.current = { deckenleuchtenGruppen, ledGriffe, panelGriffe, deckenleuchteRing }
+    moebelGruppenRef.current = { deckenleuchtenGruppen, ledGriffe, panelGriffe, deckenleuchteRing, ausblendbareGruppen }
 
     // Licht-Vorrat (siehe scene/lichtPool.js): Die Leuchten haben beim Bauen keine eigenen
     // Lichtquellen erzeugt, sondern nur leere Platzhalter mit userData.lichtWunsch hinterlassen.
@@ -2505,10 +2537,20 @@ return () => {
     })
     // Lokale Kopie wie im Lebenszyklus-Effekt: dasselbe, nie ausgetauschte Feld.
     const lichtPool = lichtPoolRef.current
+    // Der Vorrat wird für ALLE Platzhalter bereitgestellt, auch die ausgeblendeter Möbel — so
+    // ändert ein Druck auf den Möbel-Schalter nie die Zahl der Lichter (und übersetzt damit keine
+    // Shader neu). Verteilt werden pro Bild nur die Platzhalter sichtbarer Gruppen: Eine
+    // ausgeblendete Stehlampe leuchtet nicht.
     stelleLichtPoolBereit(scene, lichtPool, lichtPlatzhalter.length)
-    moebelTickRef.current = () => verteileLichter(lichtPool, lichtPlatzhalter)
+    const platzhalterGruppe = new Map(lichtPlatzhalter.map(p => {
+      let gruppe = p
+      while (gruppe.parent && gruppe.parent !== moebelWurzel) gruppe = gruppe.parent
+      return [p, gruppe]
+    }))
+    const sichtbarePlatzhalter = () => lichtPlatzhalter.filter(p => platzhalterGruppe.get(p).visible)
+    moebelTickRef.current = () => verteileLichter(lichtPool, sichtbarePlatzhalter())
     // Einmal sofort, damit das erste Bild nach dem Aufbau schon stimmt und nicht kurz dunkel ist.
-    verteileLichter(lichtPool, lichtPlatzhalter)
+    verteileLichter(lichtPool, sichtbarePlatzhalter())
 
     return () => {
       moebelGruppenRef.current = null
@@ -2625,6 +2667,19 @@ return () => {
               </div>
             )
           })}
+        </div>
+      )}
+      {/* Möbel-Schalter. Schritt 2: unter der WandMiniKarte (16 px Rand + 115 px Höhe + 8 px
+          Abstand) statt am Ende der Materialleiste — die beginnt fest bei 220 px und reicht schon
+          heute über einen Handybildschirm hinaus, der Schalter wäre dort nicht erreichbar.
+          Schritt 3: oben links, dort steht sonst nichts. */}
+      {moebelSchalterAktiv && (
+        <div style={{
+          position: 'absolute', top: deckenFokus ? '16px' : '139px', left: '16px', zIndex: 10, padding: '6px',
+          background: 'white', border: '1px solid #E8E6E0', borderRadius: '10px',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+        }}>
+          <MoebelSchalter eingeblendet={moebelEingeblendet} onUmschalten={() => setMoebelEingeblendet(w => !w)} />
         </div>
       )}
       {fokusWand != null && zeichnenLiveGroesse && (
@@ -2812,3 +2867,25 @@ return () => {
   )
 }
 
+
+// Schalter für den Möbel-Schalter in Schritt 2 und 3. Die Beschriftung sagt, was ein Druck
+// bewirkt, nicht in welchem Zustand man ist. Das Auge davor ist offen, wenn ein Druck die Möbel
+// zeigt, und durchgestrichen, wenn er sie versteckt. Eigene Schriftart, weil der Knopf im
+// 3D-Container sitzt und die des Panels nicht erbt.
+function MoebelSchalter({ eingeblendet, onUmschalten }) {
+  const text = eingeblendet ? 'Möbel ausblenden' : 'Möbel einblenden'
+  return (
+    <button type="button" onClick={onUmschalten} aria-pressed={eingeblendet} style={{
+      display: 'flex', alignItems: 'center', gap: '6px', height: '26px', padding: '0 9px',
+      border: '1px solid #E8E6E0', borderRadius: '6px', background: '#FAFAF8', cursor: 'pointer',
+      fontSize: '11.5px', color: '#444441', whiteSpace: 'nowrap', fontFamily: "'DM Sans', sans-serif",
+    }}>
+      <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8s-2.4 4.5-6.5 4.5S1.5 8 1.5 8z" />
+        <circle cx="8" cy="8" r="2" />
+        {eingeblendet && <path d="M2.5 13.5l11-11" />}
+      </svg>
+      {text}
+    </button>
+  )
+}
