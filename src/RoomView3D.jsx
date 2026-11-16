@@ -15,7 +15,7 @@ import { useUI } from './context/UIContext'
 import { materialShape } from './moebelIcons'
 import { wandMaterialien, istGestrichen, wandMaterialInfo, istWandtattoo, istDeckenleuchte, istVerschiebbareDeckenleuchte, istEndpunktVerstellbareDeckenleuchte, istEckSkalierbareDeckenleuchte, berechneInnenmasse, bogenMasse } from './constants'
 
-export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deckenFokus = false, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt } = {}) {
+export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deckenFokus = false, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt, onAusschnittGeaendert, ausschnittSprung = null } = {}) {
   const { activeRoom: room } = useRooms()
   const { furniture } = useFurniture()
   const {
@@ -41,8 +41,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   // dasselbe Muster.
   const callbacksRef = useRef({})
   useEffect(() => {
-    callbacksRef.current = { onWandElementBewegt, onDeckenleuchteBewegt, aktualisiereWandBereich, fuegeWandBereichHinzu }
-  }, [onWandElementBewegt, onDeckenleuchteBewegt, aktualisiereWandBereich, fuegeWandBereichHinzu])
+    callbacksRef.current = { onWandElementBewegt, onDeckenleuchteBewegt, aktualisiereWandBereich, fuegeWandBereichHinzu, onAusschnittGeaendert }
+  }, [onWandElementBewegt, onDeckenleuchteBewegt, aktualisiereWandBereich, fuegeWandBereichHinzu, onAusschnittGeaendert])
 
   // App schneller machen, Schritt 3, Teilpunkt 2: beleuchtungRef merkt sich die von
   // baueBeleuchtung() erzeugten Lichter, damit der Tageszeit-Schnellpfad-Effekt weiter unten sie
@@ -180,6 +180,13 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   // setzt den Versatz auf 0, sobald eine andere Wand im Fokus ist, und trägt dort auch Maßstab und
   // Grenzen ein, die schiebeWandFokus braucht.
   const wandVersatzRef = useRef({ wand: null, u: 0, v: 0, massstab: 100, maxU: 0, maxV: 0 })
+  // Klick in die Wand-Minikarte (Schritt 2, Teil 2b): Der Ausschnitt springt mit seiner Mitte an
+  // diese Stelle der Wand (Anteil 0 = Wandanfang, 1 = Wandende). Die Funktion hinterlegt der
+  // Struktur-Effekt, weil nur er Wände und Kamera kennt.
+  const wandSprungRef = useRef(() => {})
+  useEffect(() => {
+    if (ausschnittSprung) wandSprungRef.current(ausschnittSprung.anteil)
+  }, [ausschnittSprung])
   useEffect(() => {
     fokusWandRef.current = fokusWand
     ausgewaehltesElementRef.current = null
@@ -1132,6 +1139,20 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
 
 
+    // Meldet der Minikarte, welcher Teil der Fokuswand im Bild ist, als Anteil von segment.start
+    // (0) bis segment.ende (1) — ganz: true, wenn es nichts zu schieben gibt. Nur bei einer
+    // Änderung: berechneWandFokusZiel läuft bei jeder Schiebebewegung, und jede Meldung rendert die
+    // Minikarte neu.
+    let gemeldeterAusschnitt = ''
+    const meldeAusschnitt = (ausschnitt) => {
+      const schluessel = ausschnitt.ganz ? `${ausschnitt.wand}:ganz` : `${ausschnitt.wand}:${ausschnitt.von.toFixed(4)}:${ausschnitt.bis.toFixed(4)}`
+      if (schluessel === gemeldeterAusschnitt) return
+      gemeldeterAusschnitt = schluessel
+      callbacksRef.current.onAusschnittGeaendert?.(ausschnitt)
+    }
+    // Wie liegt „rechts im Bild" zur Zeichenrichtung des Segments? +1 gleich, -1 entgegen.
+    const rechtsZurZeichenrichtung = (eintrag) => ((-eintrag.normale.z) * eintrag.dx + eintrag.normale.x * eintrag.dz) >= 0 ? 1 : -1
+
     // Berechnet Kamera-Zielposition + Blickpunkt exakt senkrecht mittig vor einer Wand: ganze Wand,
     // solange sie in der Mindestgröße für Details passt, sonst Mindestgröße (siehe PX_PRO_METER_MIN
     // unten). Reine Zielberechnung, keine Kamerabewegung selbst — die übernimmt updateWandFokusCamera
@@ -1198,6 +1219,15 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       // Richtung das Segment im Grundriss gezeichnet wurde.
       const rechtsX = -normale.z
       const rechtsZ = normale.x
+      if (breitePx > 0 && hoehePx > 0) {
+        if (versatz.maxU > 0) {
+          const mitte = 0.5 + rechtsZurZeichenrichtung(eintrag) * versatz.u / laenge
+          const halb = breitePx / versatz.massstab / 2 / laenge
+          meldeAusschnitt({ wand: index, ganz: false, von: mitte - halb, bis: mitte + halb })
+        } else {
+          meldeAusschnitt({ wand: index, ganz: true })
+        }
+      }
       return {
         x: mesh.position.x - normale.x * distanz + rechtsX * versatz.u,
         y: wandHoehe / 2 + versatz.v,
@@ -1248,30 +1278,45 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       const u = ((cx - ax) * (bz - az) - (cz - az) * (bx - ax)) / nenner
       return t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999
     }
-    // Möbel an verdeckten Wänden (Hassans Entscheidung vom 16.11.2026): Sind die Möbel eingeblendet
-    // und steht die Kamera hinter der Rückwand, stand ein Schrank an dieser Wand zwischen Kamera und
-    // Fokuswand und füllte fast das ganze Bild. Er wird deshalb mit seiner Wand ausgeblendet. „An der
-    // Wand" heißt: Die Grundfläche (achsparallele Box in der Draufsicht) kommt der Wandlinie auf
-    // MOEBEL_WANDABSTAND nahe und liegt in Längsrichtung wenigstens teilweise neben der Wand. Der
-    // Betrag des Abstands, damit bei U-Formen kein Möbelstück im gegenüberliegenden Schenkel jenseits
-    // der Wand mitgezählt wird. Die Grundflächen werden pro Gruppe einmal gemessen; in Schritt 2 und 3
-    // bewegt sich kein Möbelstück, und jeder Neuaufbau bringt neue Gruppen.
+    // Möbel im Wand-Fokus, wenn der Möbel-Schalter sie einblendet (Hassans Entscheidungen vom
+    // 16.11.2026). Ausgeblendet werden zwei Arten:
+    // 1. Möbel an einer verdeckten Wand. „An der Wand" heißt: Die Grundfläche (achsparallele Box in
+    //    der Draufsicht) kommt der Wandlinie auf MOEBEL_WANDABSTAND nahe und liegt in Längsrichtung
+    //    wenigstens teilweise neben der Wand. Der Betrag des Abstands, damit bei U-Formen kein
+    //    Möbelstück im gegenüberliegenden Schenkel jenseits der Wand mitgezählt wird.
+    // 2. Möbel in der vorderen Zone: weniger als MOEBEL_VORDERZONE tief im Raum, gemessen in
+    //    Blickrichtung ab der Stelle, an der der Blick den Raum betritt — an der verdeckten Wand vor
+    //    dem Möbelstück, oder an der Kamera, wenn sie im Raum steht. Gemessen am 16.11.2026: Ein
+    //    Kleiderschrank 1,46 m vor der Rückwand füllte bei 1440 × 840 fast das ganze Bild. Bis
+    //    dahin zählte der Abstand ab der Kamera; das traf am Rechner, aber nicht am Handy, wo die
+    //    Kamera 3,7 m hinter der Rückwand steht und derselbe Schrank 5,2 m entfernt war. Ab der
+    //    Rückwand gemessen fallen auf beiden Größen dieselben Möbel weg.
+    //    Ganz hinter der Kamera bleibt alles sichtbar: Dort sieht man es ohnehin nicht, und eine
+    //    Stehlampe soll weiter leuchten (der Licht-Vorrat beleuchtet nur sichtbare Gruppen).
+    // Die Grundflächen werden pro Gruppe einmal gemessen; in Schritt 2 und 3 bewegt sich kein
+    // Möbelstück, und jeder Neuaufbau bringt neue Gruppen.
     const MOEBEL_WANDABSTAND = 0.3
+    const MOEBEL_VORDERZONE = 2
     let verdeckteWaende = null // Indizes, zuletzt von setzeWandFokusVerdeckung ermittelt; null = noch nie
+    // Wand-Fokus-Kamera für Regel 2, sonst null: { x, z, vorX, vorZ, waende: [{ tiefe, seiteMin, seiteMax }] }
+    // — Blickrichtung und die verdeckten Wände, umgerechnet in Tiefe (nach vorn) und Seite (nach rechts).
+    let moebelKamera = null
     const moebelGrundflaechen = new WeakMap()
-    const grundflaecheEcken = (gruppe) => {
-      let ecken = moebelGrundflaechen.get(gruppe)
-      if (!ecken) {
+    const grundflaeche = (gruppe) => {
+      let flaeche = moebelGrundflaechen.get(gruppe)
+      if (!flaeche) {
         const box = new THREE.Box3().setFromObject(gruppe)
-        ecken = [[box.min.x, box.min.z], [box.max.x, box.min.z], [box.min.x, box.max.z], [box.max.x, box.max.z]]
-        moebelGrundflaechen.set(gruppe, ecken)
+        flaeche = { minX: box.min.x, maxX: box.max.x, minZ: box.min.z, maxZ: box.max.z }
+        moebelGrundflaechen.set(gruppe, flaeche)
       }
-      return ecken
+      return flaeche
     }
     const stehtAnWand = (gruppe, wand) => {
+      const { minX, maxX, minZ, maxZ } = grundflaeche(gruppe)
       const laenge2 = wand.dx * wand.dx + wand.dz * wand.dz || 1
       let naechster = Infinity, tMin = Infinity, tMax = -Infinity
-      grundflaecheEcken(gruppe).forEach(([x, z]) => {
+      const ecken = [[minX, minZ], [maxX, minZ], [minX, maxZ], [maxX, maxZ]]
+      ecken.forEach(([x, z]) => {
         // Die Normale zeigt nach außen, der Abstand in den Raum hinein ist also das Negative.
         const abstand = -((x - wand.x1) * wand.normale.x + (z - wand.z1) * wand.normale.z)
         if (Math.abs(abstand) < Math.abs(naechster)) naechster = abstand
@@ -1281,13 +1326,35 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       })
       return Math.abs(naechster) <= MOEBEL_WANDABSTAND && tMax > 0 && tMin < 1
     }
+    const stehtInVordererZone = (gruppe, kamera) => {
+      const { minX, maxX, minZ, maxZ } = grundflaeche(gruppe)
+      let tiefeMin = Infinity, tiefeMax = -Infinity, seiteMin = Infinity, seiteMax = -Infinity
+      const ecken = [[minX, minZ], [maxX, minZ], [minX, maxZ], [maxX, maxZ]]
+      ecken.forEach(([x, z]) => {
+        const tiefe = (x - kamera.x) * kamera.vorX + (z - kamera.z) * kamera.vorZ
+        const seite = (z - kamera.z) * kamera.vorX - (x - kamera.x) * kamera.vorZ
+        tiefeMin = Math.min(tiefeMin, tiefe)
+        tiefeMax = Math.max(tiefeMax, tiefe)
+        seiteMin = Math.min(seiteMin, seite)
+        seiteMax = Math.max(seiteMax, seite)
+      })
+      if (tiefeMax <= 0) return false
+      // Eintritt in den Raum: die tiefste verdeckte Wand, die seitlich vor dem Möbelstück liegt.
+      // Keine davor (Kamera im Raum, oder das Möbelstück liegt seitlich neben allen): 0, die Kamera.
+      let eintritt = 0
+      kamera.waende.forEach(wand => {
+        if (wand.seiteMax >= seiteMin && wand.seiteMin <= seiteMax) eintritt = Math.max(eintritt, wand.tiefe)
+      })
+      return tiefeMin < eintritt + MOEBEL_VORDERZONE
+    }
     const wendeMoebelSichtbarkeitAn = () => {
       const gruppen = moebelGruppenRef.current?.ausblendbareGruppen
       if (!gruppen) return
       const verdeckt = verdeckteWaende || []
       gruppen.forEach(gruppe => {
         const anVerdeckterWand = verdeckt.some(index => wandMeshe[index] && stehtAnWand(gruppe, wandMeshe[index]))
-        gruppe.visible = moebelSichtbarRef.current && !anVerdeckterWand
+        const inVordererZone = moebelKamera != null && stehtInVordererZone(gruppe, moebelKamera)
+        gruppe.visible = moebelSichtbarRef.current && !anVerdeckterWand && !inVordererZone
       })
     }
     moebelSichtbarkeitAnwendenRef.current = wendeMoebelSichtbarkeitAn
@@ -1313,10 +1380,30 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         })
         if (verdeckt) neuVerdeckt.push(index)
       })
-      if (verdeckteWaende === null || neuVerdeckt.join() !== verdeckteWaende.join()) {
-        verdeckteWaende = neuVerdeckt
-        wendeMoebelSichtbarkeitAn()
+      // Bei jedem Aufruf, nicht nur bei geänderter Wandliste: Die Kamera-Regel hängt an der
+      // Kameraposition, und die ändert sich bei jedem Schieben und jedem Bild des Wandwechsels.
+      verdeckteWaende = neuVerdeckt
+      if (fokus) {
+        // Die Kamera blickt entlang der Normalen der Fokuswand (sie zeigt nach außen). Jede
+        // verdeckte Wand wird in Tiefe und Seite umgerechnet; als ihre Tiefe zählt das nähere Ende,
+        // damit eine Wand quer zum Blick (Innenecke der L-Form) die Zone nicht bis zur Fokuswand
+        // aufzieht.
+        const vorX = fokus.normale.x, vorZ = fokus.normale.z
+        const tiefeVon = (x, z) => (x - kameraX) * vorX + (z - kameraZ) * vorZ
+        const seiteVon = (x, z) => (z - kameraZ) * vorX - (x - kameraX) * vorZ
+        const waende = neuVerdeckt.map(index => {
+          const w = wandMeshe[index]
+          const s1 = seiteVon(w.x1, w.z1), s2 = seiteVon(w.x1 + w.dx, w.z1 + w.dz)
+          return {
+            tiefe: Math.max(0, Math.min(tiefeVon(w.x1, w.z1), tiefeVon(w.x1 + w.dx, w.z1 + w.dz))),
+            seiteMin: Math.min(s1, s2), seiteMax: Math.max(s1, s2),
+          }
+        })
+        moebelKamera = { x: kameraX, z: kameraZ, vorX, vorZ, waende }
+      } else {
+        moebelKamera = null
       }
+      wendeMoebelSichtbarkeitAn()
     }
     // Gegenstück für die freie Ansicht: Dort bleiben Fenster, Türen und Sockelleisten immer stehen,
     // auch an ausgeblendeten Wänden (siehe setzeWandSichtbar). Die Wände selbst regelt
@@ -1324,8 +1411,9 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     const setzeWandFokusVerdeckungZurueck = () => {
       wandMeshe.forEach(wand => wand.sockel.forEach(stueck => { stueck.visible = true }))
       wandElementGruppen.forEach(({ gruppe }) => { gruppe.visible = true })
-      if (verdeckteWaende === null || verdeckteWaende.length > 0) {
+      if (verdeckteWaende === null || verdeckteWaende.length > 0 || moebelKamera != null) {
         verdeckteWaende = []
+        moebelKamera = null
         wendeMoebelSichtbarkeitAn()
       }
     }
@@ -1646,6 +1734,41 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       if (versatz.u === vorherU && versatz.v === vorherV) return false
       onResizeExtraRef.current?.()
       return true
+    }
+    // Klick in die Minikarte: Die Mitte des Ausschnitts springt an diese Stelle der Wand, begrenzt
+    // wie jedes Schieben (berechneWandFokusZiel klemmt beim Neuberechnen).
+    wandSprungRef.current = (anteil) => {
+      const index = fokusWandRef.current
+      const eintrag = wandMeshe[index]
+      if (index == null || !eintrag || wandFokusAnimation) return
+      const versatz = wandVersatzRef.current
+      if (versatz.wand !== index || versatz.maxU === 0) return
+      versatz.u = rechtsZurZeichenrichtung(eintrag) * (anteil - 0.5) * eintrag.laenge
+      onResizeExtraRef.current?.()
+    }
+    // Ziehen an den Bildrand (Schritt 2, Teil 2b): Wer ein Fenster, einen Bereich, eine Ecke oder
+    // ein neues Rechteck an den Rand der Zeichenfläche zieht, nimmt die Ansicht mit. letzterZeiger
+    // merkt sich die Zeigerposition des laufenden Ziehvorgangs; das Schieben selbst passiert pro
+    // Bild in randSchieben (frameTickRef).
+    let letzterZeiger = null // { x, y } in Bildschirmkoordinaten, nur während eines Ziehvorgangs
+    let letzterRandZeitpunkt = null
+    const RAND_ZONE = 40 // px vom Rand der Zeichenfläche
+    const RAND_TEMPO = 400 // px pro Sekunde am Rand und darüber hinaus
+    const randSchieben = () => {
+      const jetzt = performance.now()
+      // Höchstens 50 ms pro Bild: Ein gedrosselter Tab soll keinen großen Sprung machen.
+      const dt = letzterRandZeitpunkt == null ? 0 : Math.min(0.05, (jetzt - letzterRandZeitpunkt) / 1000)
+      letzterRandZeitpunkt = jetzt
+      if (!letzterZeiger || fokusWandRef.current == null || wandFokusAnimation || dt === 0) return
+      if (!wandElementDrag && !wandElementHandleDrag && !wandBereichDrag && !wandBereichHandleDrag && !wandZeichnenDrag) return
+      const rect = mount.getBoundingClientRect()
+      const tempo = (abstand) => (abstand >= RAND_ZONE ? 0 : RAND_TEMPO * Math.min(1, (RAND_ZONE - abstand) / RAND_ZONE))
+      const dx = tempo(rect.right - letzterZeiger.x) - tempo(letzterZeiger.x - rect.left)
+      const dy = tempo(rect.bottom - letzterZeiger.y) - tempo(letzterZeiger.y - rect.top)
+      if (dx === 0 && dy === 0) return
+      // Nach dem Schieben steht das gezogene Teil nicht mehr unter dem Zeiger — derselbe Zug noch
+      // einmal mit der unveränderten Zeigerposition setzt es wieder darunter.
+      if (schiebeWandFokus(dx * dt, dy * dt)) wandElementMausMove(letzterZeiger.x, letzterZeiger.y)
     }
 
     const ebeneFuerSegment = (segmentIndex) => {
@@ -2043,6 +2166,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         return
       }
       if (!wandElementDrag && !wandElementHandleDrag && !wandBereichDrag && !wandBereichHandleDrag && !wandZeichnenDrag) return
+      letzterZeiger = { x: clientX, y: clientY }
 
       if (wandElementDrag) {
         const { eintrag, segment, elBreite, elHoehe, offsetU, offsetV } = wandElementDrag
@@ -2264,6 +2388,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
 
     const wandElementMausUp = () => {
+      letzterZeiger = null
       if (wandSchiebeDrag) {
         const { bewegt, nurSchieben } = wandSchiebeDrag
         wandSchiebeDrag = null
@@ -2448,8 +2573,11 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         // Der Normalfall ist eine lange Wand auf einem flachen Bildschirm: Dort gibt es nur seitlich
         // etwas zu schieben, ein gewöhnliches Mausrad dreht aber senkrecht. Dann schiebt es seitlich.
         if (wandVersatzRef.current.maxV === 0 && dx === 0) { dx = dy; dy = 0 }
-        // Nur abfangen, wenn sich wirklich etwas bewegt hat — am Anschlag bleibt das Rad frei.
-        if (schiebeWandFokus(dx, dy)) e.preventDefault()
+        // Immer abfangen, auch am Anschlag und bei einer Wand, die ganz passt: Ein freies seitliches
+        // Wischen löst auf dem Mac sonst „Zurück" im Browser aus, und hinter der Zeichenfläche gibt
+        // es im Wand-Fokus nichts zu scrollen.
+        e.preventDefault()
+        schiebeWandFokus(dx, dy)
         return
       }
       if (deckenFokusRef.current) return
@@ -2623,6 +2751,7 @@ frameTickRef.current = () => {
     setzeWandFokusKamera(pos, ziel)
     if (t >= 1) wandFokusAnimation = null
   }
+  randSchieben()
 }
 
 return () => {

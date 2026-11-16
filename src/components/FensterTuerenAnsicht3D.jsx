@@ -10,6 +10,11 @@ export default function FensterTuerenAnsicht3D() {
   const { positioniereWandElement } = useFurniture()
   const { setFokusWandIndex } = useUI()
   const [aktiveWand, setAktiveWand] = useState(0)
+  // Wand-Fokus geschoben (Schritt 2, Teil 2b): RoomView3D meldet den sichtbaren Teil der Wand, die
+  // Minikarte zeigt ihn an und meldet einen Klick als Sprung zurück. Ein neues Objekt pro Klick,
+  // damit auch ein zweiter Klick auf dieselbe Stelle ankommt.
+  const [ausschnitt, setAusschnitt] = useState(null)
+  const [ausschnittSprung, setAusschnittSprung] = useState(null)
   // Bei einem Formwechsel (z.B. weniger Wände als zuvor) kann der gespeicherte Index außerhalb
   // liegen — hier direkt beim Rendern auf 0 zurückfallen statt per Effect nachzukorrigieren
   // (vermeidet einen zusätzlichen Render-Zyklus und den entsprechenden Lint-Fehler).
@@ -30,9 +35,15 @@ export default function FensterTuerenAnsicht3D() {
 
   return (
     <div style={{ position: 'absolute', inset: 0 }}>
-      <RoomView3D fokusWand={effektiveWand} onWandElementBewegt={positioniereWandElement} />
+      <RoomView3D
+        fokusWand={effektiveWand} onWandElementBewegt={positioniereWandElement}
+        onAusschnittGeaendert={setAusschnitt} ausschnittSprung={ausschnittSprung}
+      />
       {wandSegmente.length > 0 && (
-        <WandMiniKarte wandSegmente={wandSegmente} aktiveWand={effektiveWand} onWechsel={setAktiveWand} />
+        <WandMiniKarte
+          wandSegmente={wandSegmente} aktiveWand={effektiveWand} onWechsel={setAktiveWand}
+          ausschnitt={ausschnitt} onSprung={anteil => setAusschnittSprung({ anteil })}
+        />
       )}
     </div>
   )
