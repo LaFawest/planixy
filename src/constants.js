@@ -395,6 +395,12 @@ export const HIMMELSRICHTUNG_JE_SEGMENT = ['nord', 'ost', 'sued', 'west']
 // Dicke der Außenwände in Pixel (bei 60px/m) — Basis für die nutzbare Innenfläche eines Raums
 export const WAND_DICKE_PX = 8
 
+// Tiefe der Fußleiste in Metern. Bisher stand derselbe Wert nur in RoomView3D.jsx (SOCKEL_TIEFE),
+// der Grundriss zeichnete die Leiste 8 px (13,3 cm) breit. Ab dem Innenmaß-Umbau (Schema 8) gilt
+// dieser Wert in 2D und 3D; die Umrechnung gespeicherter Räume (context/migrationV8.js) nutzt ihn
+// schon.
+export const FUSSLEISTE_TIEFE_M = 0.04
+
 export const RAUM_FORMEN = [
   { id: 'rechteck', name: 'Rechteck' },
   { id: 'l-form',   name: 'L-Form' },
