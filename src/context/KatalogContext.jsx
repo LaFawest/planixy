@@ -94,7 +94,8 @@ export function KatalogProvider({ children }) {
     const andererSchritt = KATALOG_SCHRITTE.find(s => s !== schritt &&
       alleKatalogItems.some(item => KATEGORIE_FILTER_JE_SCHRITT[s](item) && item.name.toLowerCase().includes(suche.toLowerCase())))
     if (andererSchritt === undefined) return null
-    return { schritt: andererSchritt, label: WIZARD_SCHRITTE.find(s => s.nummer === andererSchritt)?.label }
+    const ziel = WIZARD_SCHRITTE.find(s => s.nummer === andererSchritt)
+    return { schritt: andererSchritt, label: ziel?.label, beschreibung: ziel?.beschreibung }
   }, [katalogSichtbar, gefilterteMoebel, suche, schritt])
 
   const schrittHinweis = useMemo(() => (katalogSichtbar ? null : WIZARD_SCHRITTE.find(s => s.nummer === schritt)?.hinweis), [katalogSichtbar, schritt])

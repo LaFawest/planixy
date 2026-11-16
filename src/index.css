@@ -282,6 +282,85 @@ input[type=number]::-webkit-outer-spin-button { opacity: 1; }
   }
 }
 
+/* Schrittleiste: die Pillen der vier Schritte. Hintergrund und Innenabstand stehen hier und
+   nicht im style-Attribut, weil sich ein Hover-Zustand inline nicht ausdrücken lässt und ein
+   inline gesetzter Hintergrund jede Regel hier überstimmen würde. */
+.schritt-leiste-desktop {
+  container-type: inline-size;
+  container-name: schrittleiste;
+}
+.schritt-pille {
+  padding: 9px clamp(10px, 1.1vw, 18px);
+  background: transparent;
+  transition: background-color 0.15s ease;
+}
+.schritt-pille:hover {
+  background: #F3F2ED;
+}
+.schritt-pille-aktiv,
+.schritt-pille-aktiv:hover {
+  background: #E8F0EA;
+}
+
+/* Schmale Leiste: Die vier ausgeschriebenen Namen brauchen in Schritt 4 rund 900 px
+   Inhaltsbreite. Reicht der Platz nicht, zeigt nur der aktive Schritt seinen Namen, die anderen
+   stehen als Zahlenkreis da; ihr Name erscheint im Hinweiskästchen beim Überfahren. Gemessen
+   wird die Breite der Leiste selbst und nicht die des Fensters — so stimmt die Schwelle auch
+   dann, wenn Seitenleiste oder rechtes Panel einmal fehlen. */
+@container schrittleiste (max-width: 940px) {
+  .schritt-pille:not(.schritt-pille-aktiv) {
+    padding: 9px;
+  }
+  .schritt-pille:not(.schritt-pille-aktiv) .schritt-pille-name {
+    display: none;
+  }
+}
+
+/* Verbindungsstrich zwischen den Pillen. Die Breite steht hier statt im style-Attribut, damit
+   die enge Stufe darunter sie verkürzen kann. */
+.schritt-strich {
+  width: 14px;
+}
+
+/* Enge Stufe: Zwischen 861 und 1024 px Fensterbreite sind Seitenleiste und Panel zusammen
+   370 px breit, ab 1025 px plötzlich 480 px. In diesen beiden Bereichen reichte auch die schmale
+   Fassung nicht. Dann zeigen die Knöpfe nur noch ihren Pfeil, und die Striche werden kürzer.
+   Die Knöpfe behalten ihr aria-label, Bildschirmleser lesen den Namen weiter vor. */
+@container schrittleiste (max-width: 600px) {
+  .schritt-knopf-text {
+    display: none;
+  }
+  .schritt-strich {
+    width: 6px;
+  }
+}
+
+/* Hinweiskästchen der Schrittleiste: fest zum Fenster positioniert, Lage kommt aus dem
+   style-Attribut (SchrittLeiste.jsx). Fängt keine Mausereignisse ab, sonst flackerte es. */
+.schritt-hinweis {
+  position: fixed;
+  z-index: 1000;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #1F3327;
+  color: white;
+  box-shadow: 0 6px 18px rgba(31, 51, 39, 0.18);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.schritt-hinweis-name {
+  font-size: 12.5px;
+  font-weight: 500;
+}
+.schritt-hinweis-text {
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.72);
+}
+
 /* Licht-Schritt: Entfernen-Knopf je Leuchte bekommt die 44px-Antippfläche nur unterhalb der
    Mobile-Bruchstelle (Finger brauchen sie, eine Maus trifft auch das kleine ✕ wie die anderen
    Entfernen-Icons im Rest der App) — sonst schneidet die schmale Desktop-Sidebar (220px) lange

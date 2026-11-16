@@ -41,9 +41,9 @@ export default function KatalogPanel({ spalten, onItemHinzugefuegt }) {
       {sprungHinweis ? (
         <div onClick={() => springeZuSchritt(sprungHinweis.schritt)}
           style={{ padding: '12px', borderRadius: '10px', border: '1px solid #E8E6E0', background: '#F7F6F2', fontSize: '12px', color: '#444441', cursor: 'pointer', lineHeight: 1.5 }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = '#185FA5'; e.currentTarget.style.background = '#EEF4FC' }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = '#2F4B39'; e.currentTarget.style.background = '#E8F0EA' }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E6E0'; e.currentTarget.style.background = '#F7F6F2' }}>
-          Das findest du in Schritt {sprungHinweis.schritt} „{sprungHinweis.label}" →
+          Das findest du in Schritt {sprungHinweis.schritt} „{sprungHinweis.label}" ({sprungHinweis.beschreibung}) →
         </div>
       ) : (
         <>

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { WIZARD_SCHRITTE } from '../constants'
 import { useWizard } from '../context/WizardContext'
@@ -20,6 +21,19 @@ export default function SchrittLeiste() {
 
   const aktuellerSchritt = WIZARD_SCHRITTE.find(s => s.nummer === schritt)
 
+  // Hinweiskästchen beim Überfahren einer Pille: Name und Beschreibung des Schritts. Es ist fest
+  // zum Fenster positioniert und wird AUSSERHALB der Desktop-Leiste gerendert (siehe unten), aus
+  // zwei Gründen: Die Leiste hat overflowX auto, alles, was nach unten herausragt, würde also
+  // abgeschnitten. Und sie ist ein Größen-Container (container-type in index.css) — ein solcher
+  // wird zum Bezugsrahmen für fest positionierte Nachfahren, ein Kästchen darin säße falsch.
+  const [hinweis, setHinweis] = useState(null) // { nummer, x, y } oder null
+  const hinweisZeigen = (e, s) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    setHinweis({ nummer: s.nummer, x: r.left + r.width / 2, y: r.bottom + 8 })
+  }
+  const hinweisVerbergen = () => setHinweis(null)
+  const hinweisSchritt = hinweis ? WIZARD_SCHRITTE.find(s => s.nummer === hinweis.nummer) : null
+
   // Auf mobil öffnet ein Antippen direkt die Schritt-Ansicht im Drawer, statt nur den Schritt zu setzen.
   const schrittWaehlenMobil = (nummer) => {
     setSchritt(nummer)
@@ -30,35 +44,38 @@ export default function SchrittLeiste() {
     <>
       {/* Desktop: volle Leiste mit Labels + Zurück/Weiter */}
       <div className="schritt-leiste-desktop" style={{
-        display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 28px',
+        display: 'flex', alignItems: 'center', gap: '12px', padding: '10px clamp(16px, 2.2vw, 28px)',
         borderBottom: '1px solid #E8E6E0', background: 'white', flexShrink: 0, overflowX: 'auto',
       }}>
-        <button onClick={vorherigerSchritt} disabled={schritt === ERSTER_SCHRITT} style={navButtonStyle(schritt === ERSTER_SCHRITT)}>
-          ← Zurück
+        <button onClick={vorherigerSchritt} disabled={schritt === ERSTER_SCHRITT} style={navButtonStyle(schritt === ERSTER_SCHRITT)} aria-label="Zurück">
+          ←<span className="schritt-knopf-text"> Zurück</span>
         </button>
 
         <div style={{ display: 'flex', alignItems: 'center', flex: 1, justifyContent: 'center' }}>
           {WIZARD_SCHRITTE.map((s, i) => (
             <div key={s.nummer} style={{ display: 'flex', alignItems: 'center' }}>
-              <div onClick={() => setSchritt(s.nummer)} style={{
-                display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px', borderRadius: '20px',
-                cursor: 'pointer', background: schritt === s.nummer ? '#EEF4FC' : 'transparent', whiteSpace: 'nowrap',
-              }}>
+              <div onClick={() => { setSchritt(s.nummer); hinweisVerbergen() }}
+                onMouseEnter={e => hinweisZeigen(e, s)} onMouseLeave={hinweisVerbergen}
+                className={`schritt-pille${schritt === s.nummer ? ' schritt-pille-aktiv' : ''}`}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '999px',
+                  cursor: 'pointer', whiteSpace: 'nowrap',
+                }}>
                 <span style={{
-                  width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: '11px', fontWeight: '500', flexShrink: 0,
-                  background: schritt === s.nummer ? '#185FA5' : (s.bald ? '#F0F0EC' : '#E8E6E0'),
+                  background: schritt === s.nummer ? '#2F4B39' : (s.bald ? '#F0F0EC' : '#E8E6E0'),
                   color: schritt === s.nummer ? 'white' : '#888780',
                 }}>{s.nummer}</span>
-                <span style={{
+                <span className="schritt-pille-name" style={{
                   fontSize: '13px', fontWeight: schritt === s.nummer ? '500' : '400',
-                  color: schritt === s.nummer ? '#185FA5' : (s.bald ? '#B4B2A9' : '#444441'),
+                  color: schritt === s.nummer ? '#1F3327' : (s.bald ? '#B4B2A9' : '#444441'),
                 }}>{s.label}</span>
                 {s.bald && (
                   <span style={{ fontSize: '9px', padding: '1px 6px', borderRadius: '8px', background: '#F0F0EC', color: '#B4B2A9', fontWeight: '500' }}>bald</span>
                 )}
               </div>
-              {i < WIZARD_SCHRITTE.length - 1 && <div style={{ width: '14px', height: '1px', background: '#E8E6E0', flexShrink: 0 }} />}
+              {i < WIZARD_SCHRITTE.length - 1 && <div className="schritt-strich" style={{ height: '1px', background: '#E8E6E0', flexShrink: 0 }} />}
             </div>
           ))}
         </div>
@@ -67,12 +84,12 @@ export default function SchrittLeiste() {
           <button onClick={() => navigate(`/projekt/${id}/zusammenfassung`)} style={{
             padding: '6px 12px', borderRadius: '8px', border: 'none', background: '#2F4B39',
             color: 'white', fontSize: '12px', fontFamily: "'DM Sans', sans-serif", cursor: 'pointer', flexShrink: 0,
-          }}>
-            Zusammenfassung →
+          }} aria-label="Zusammenfassung">
+            <span className="schritt-knopf-text">Zusammenfassung </span>→
           </button>
         ) : (
-          <button onClick={naechsterSchritt} disabled={schritt === LETZTER_SCHRITT} style={navButtonStyle(schritt === LETZTER_SCHRITT)}>
-            Weiter →
+          <button onClick={naechsterSchritt} disabled={schritt === LETZTER_SCHRITT} style={navButtonStyle(schritt === LETZTER_SCHRITT)} aria-label="Weiter">
+            <span className="schritt-knopf-text">Weiter </span>→
           </button>
         )}
       </div>
@@ -89,7 +106,7 @@ export default function SchrittLeiste() {
             <div key={s.nummer} style={{ display: 'flex', alignItems: 'center', flex: i < WIZARD_SCHRITTE.length - 1 ? '1 1 auto' : '0 0 auto' }}>
               <button
                 onClick={() => schrittWaehlenMobil(s.nummer)}
-                aria-label={`Zu Schritt ${s.nummer}: ${s.label}`}
+                aria-label={`Zu Schritt ${s.nummer}: ${s.label} – ${s.beschreibung}`}
                 style={{
                   width: '44px', height: '44px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
                   background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
@@ -97,7 +114,7 @@ export default function SchrittLeiste() {
               >
                 <span style={{
                   width: '10px', height: '10px', borderRadius: '50%', display: 'block', boxSizing: 'border-box',
-                  background: schritt === s.nummer ? '#185FA5' : (s.bald ? '#F0F0EC' : '#E8E6E0'),
+                  background: schritt === s.nummer ? '#2F4B39' : (s.bald ? '#F0F0EC' : '#E8E6E0'),
                   border: s.bald && schritt !== s.nummer ? '1px solid #D3D1C7' : 'none',
                 }} />
               </button>
@@ -106,6 +123,14 @@ export default function SchrittLeiste() {
           ))}
         </div>
       </div>
+
+      {/* Hinweiskästchen der Desktop-Leiste. Steht bewusst hier außen und nicht in der Leiste. */}
+      {hinweisSchritt && (
+        <div className="schritt-hinweis" role="tooltip" style={{ left: hinweis.x, top: hinweis.y }}>
+          <span className="schritt-hinweis-name">{hinweisSchritt.label}</span>
+          <span className="schritt-hinweis-text">{hinweisSchritt.beschreibung}</span>
+        </div>
+      )}
     </>
   )
 }

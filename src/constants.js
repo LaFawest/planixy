@@ -448,11 +448,13 @@ export const DEFAULT_RAUM_DESIGN = { fussleiste: true, fussleisteFarbe: '#E0DDD8
 // funktionsfähig — er bleibt trotzdem anklickbar (kein Zwang zur Reihenfolge).
 // `hinweis` steht nur bei Schritten ohne Katalog (siehe KatalogContext.jsx) und wird dort statt
 // des Möbelrasters angezeigt.
+// `beschreibung` sagt in Alltagsworten, was im Schritt geschieht. Sie steht nicht sichtbar in der
+// Leiste, sondern dient als Tooltip beim Überfahren und als Text für Bildschirmleser.
 export const WIZARD_SCHRITTE = [
-  { nummer: 1, label: 'Raum', hinweis: 'Hier legst du Form, Maße und Bodenbelag deines Raums fest.' },
-  { nummer: 2, label: 'Fenster & Türen' },
-  { nummer: 3, label: 'Licht' },
-  { nummer: 4, label: 'Möbel & Deko' },
+  { nummer: 1, label: 'Basis & Struktur', beschreibung: 'Grundriss und Raum', hinweis: 'Hier legst du Form, Maße und Bodenbelag deines Raums fest.' },
+  { nummer: 2, label: 'Rahmen & Elemente', beschreibung: 'Wände, Fenster und Türen' },
+  { nummer: 3, label: 'Atmosphäre', beschreibung: 'Licht und Stimmung' },
+  { nummer: 4, label: 'Stil & Interieur', beschreibung: 'Möbel und Dekoration' },
 ]
 export const DEFAULT_WIZARD_SCHRITT = WIZARD_SCHRITTE[0].nummer
 
