@@ -8,7 +8,7 @@ import {
   streckeInPolygon as istStreckeInPolygon,
   snappeWandElement, wandElementMitte, platziereAufWandSegment, naechsteFreieEcke, snappeAnFreieKante,
 } from '../raumPolygon'
-import { DEFAULT_RAUM_DESIGN, WAND_DICKE_PX, erzeugeRaum } from '../constants'
+import { DEFAULT_RAUM_DESIGN, WAND_DICKE_PX, erzeugeRaum, istDeckenleuchte } from '../constants'
 
 const RoomsContext = createContext(null)
 
@@ -37,9 +37,10 @@ function polygonPosition(item, boundW, boundH, grenzeEckpunkte, grenzStart, gren
 // dessen nächstgelegene freie Kante (snappeAnFreieKante, raumPolygon.js — dieselbe Funktion wie
 // beim interaktiven Ziehen in FurnitureContext.jsx). Ohne diese Prüfung könnten zwei Möbelstücke,
 // die unabhängig voneinander an dieselbe (jetzt einzige verbliebene) Stelle geklemmt werden,
-// exakt übereinander landen. Elektrogeräte stehen bewusst auf anderen Möbelstücken (siehe
-// FurnitureContext.jsx) und bleiben deshalb von der Kollisionsprüfung UND von
-// `bereitsPlatziert` ausgenommen (mutiert das Array als Sammel-Nebeneffekt für den Aufrufer).
+// exakt übereinander landen. Elektrogeräte stehen bewusst auf anderen Möbelstücken, Deckenleuchten
+// hängen an der Decke (siehe istKeinHindernis in FurnitureContext.jsx) — beide bleiben deshalb von
+// der Kollisionsprüfung UND von `bereitsPlatziert` ausgenommen (mutiert das Array als
+// Sammel-Nebeneffekt für den Aufrufer).
 // Setzt `ungueltig: true`, wenn selbst das Snapping keine freie, im Polygon liegende Position
 // findet — die Position bleibt dann unverändert stehen (nicht an eine geratene Stelle springen),
 // aber sichtbar markiert (Canvas2D.jsx), damit der Nutzer manuell nachjustiert.
@@ -49,12 +50,15 @@ function moebelReparieren(item, bereitsPlatziert, grenzeEckpunkte, grenzStart, g
   const rad = (item.rotation || 0) * Math.PI / 180
   const boundW = w * Math.abs(Math.cos(rad)) + h * Math.abs(Math.sin(rad))
   const boundH = w * Math.abs(Math.sin(rad)) + h * Math.abs(Math.cos(rad))
-  const istElektro = item.kategorie === 'Elektrogeräte'
+  // Ohne Kollisionsprüfung: Elektrogeräte (stehen auf anderen Möbeln) und Deckenleuchten (hängen an
+  // der Decke). Beide werden nur in den Raum geklemmt und sind für andere kein Hindernis — bis zum
+  // 16.11.2026 wurde eine Deckenleuchte hier wie ein Möbelstück verschoben und schob andere weg.
+  const ohneKollision = item.kategorie === 'Elektrogeräte' || istDeckenleuchte(item.name)
 
   const kandidat = polygonPosition(item, boundW, boundH, grenzeEckpunkte, grenzStart, grenzB, grenzT)
   if (!kandidat) return { ...item, ungueltig: true }
 
-  const position = istElektro
+  const position = ohneKollision
     ? kandidat
     : snappeAnFreieKante(kandidat, boundW, boundH, bereitsPlatziert, grenzeEckpunkte, grenzStart, grenzB, grenzT)
 
@@ -62,7 +66,7 @@ function moebelReparieren(item, bereitsPlatziert, grenzeEckpunkte, grenzStart, g
     bereitsPlatziert.push({ left: kandidat.left, top: kandidat.top, breite: boundW, hoehe: boundH })
     return { ...item, left: kandidat.left, top: kandidat.top, ungueltig: true }
   }
-  if (!istElektro) bereitsPlatziert.push({ left: position.left, top: position.top, breite: boundW, hoehe: boundH })
+  if (!ohneKollision) bereitsPlatziert.push({ left: position.left, top: position.top, breite: boundW, hoehe: boundH })
   return { ...item, left: position.left, top: position.top, ungueltig: false }
 }
 

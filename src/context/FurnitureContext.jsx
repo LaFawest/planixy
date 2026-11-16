@@ -7,6 +7,13 @@ import { useUI } from './UIContext'
 import { vergibMoebelId } from './idZaehler'
 import { snappeWandElement, wandElementMitte, naechsteFreieEcke, snappeAnFreieKante, platziereAufWandSegment, punktSicherImPolygon } from '../raumPolygon'
 
+// Was beim Einrasten an die nächste freie Kante (snappeAnFreieKante) kein Hindernis ist:
+// Elektrogeräte stehen auf anderen Möbeln, Deckenleuchten hängen an der Decke, Fenster und Türen
+// sitzen in der Wand. Bis zum 16.11.2026 zählten Deckenleuchten und Wandelemente mit. Eine
+// Deckenlampe in der Raummitte, die der Grundriss gar nicht zeichnet, stieß ein Sofa beim
+// Loslassen um bis zu 43 cm weg — „in der Mitte blockiert etwas, obwohl da nichts ist".
+const istKeinHindernis = (item) => item.kategorie === 'Elektrogeräte' || item.istWandElement || istDeckenleuchte(item.name)
+
 const FurnitureContext = createContext(null)
 
 // Achsen-Slide: Kandidatposition übernehmen, wenn die volle Möbel-Bounding-Box im Polygon
@@ -186,9 +193,11 @@ export function FurnitureProvider({ children }) {
 
       // Elektrogeräte stehen auf anderen Möbelstücken und sind von der Kollisionsprüfung
       // ausgenommen — genau wie beim Loslassen nach einem Drag (handleDrag/onUp unten).
-      if (f.kategorie !== 'Elektrogeräte') {
+      // Deckenleuchten und Wandelemente ebenso, als bewegtes Teil wie als Hindernis: Die eine
+      // hängt an der Decke, das andere sitzt in der Wand (siehe istKeinHindernis).
+      if (f.kategorie !== 'Elektrogeräte' && !istDeckenleuchte(f.name)) {
         const andere = (activeRoom?.furniture || [])
-          .filter(o => o.id !== id && o.kategorie !== 'Elektrogeräte')
+          .filter(o => o.id !== id && !istKeinHindernis(o))
           .map(o => {
             const oW = o.origWidth  || o.width
             const oH = o.origHeight || o.height
@@ -285,7 +294,7 @@ export function FurnitureProvider({ children }) {
       const boundH = iW * Math.abs(Math.sin(rad)) + iH * Math.abs(Math.cos(rad))
 
       const andere = aktuellesFurniture
-        .filter(f => f.id !== id && f.kategorie !== 'Elektrogeräte')
+        .filter(f => f.id !== id && !istKeinHindernis(f))
         .map(f => {
           const fW = f.origWidth  || f.width
           const fH = f.origHeight || f.height
