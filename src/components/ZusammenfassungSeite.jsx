@@ -3,6 +3,7 @@ import { useRooms } from '../context/RoomsContext'
 import { produktEmpfehlungen } from '../data/produktempfehlungen'
 import PlanixyLogo from './PlanixyLogo'
 import LegalLinks from './LegalLinks'
+import { moebelIconTyp, moebelShapes } from '../moebelIcons'
 
 // Die Kategorie der Leuchten aus Schritt 3. Bewusst hier als eigene Konstante und nicht aus einer
 // gemeinsamen Datei importiert: Es ist dieselbe Zeichenfolge, die KatalogContext.jsx für seinen
@@ -44,7 +45,7 @@ function gruppiere(furniture) {
     const verwaist = !istLicht && Boolean(item.produktId) && produkt == null
     const key = item.name + '::' + (produkt?.id ?? (istLicht ? 'licht' : verwaist ? 'verwaist' : 'kein-vorschlag'))
     if (!gruppen.has(key)) {
-      gruppen.set(key, { name: item.name, produkt, verwaist, istLicht, anzahl: 0 })
+      gruppen.set(key, { name: item.name, produkt, verwaist, istLicht, anzahl: 0, farbe: item.color, kante: item.border })
     }
     gruppen.get(key).anzahl += 1
   }
@@ -96,13 +97,18 @@ export default function ZusammenfassungSeite() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {gruppen.map(g => (
                   <div key={g.name + (g.produkt?.id ?? '')} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {g.produkt?.bild ? (
-                      <img src={g.produkt.bild} alt={g.produkt.name}
-                        onError={e => { e.currentTarget.style.display = 'none' }}
-                        style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px', flexShrink: 0, background: '#F7F6F2' }} />
-                    ) : (
-                      <div style={{ width: '40px', height: '40px', borderRadius: '6px', background: '#F7F6F2', flexShrink: 0 }} />
-                    )}
+                    {/* Eingefärbtes Symbol statt Amazon-Foto, wie im Produkt-Panel. Ein Foto von
+                        m.media-amazon.com würde beim Öffnen der Seite die IP-Adresse des Besuchers
+                        an Amazon übertragen — das deckt die Datenschutzerklärung nicht. Ob und wie
+                        Produktfotos zurückkommen, wird mit dem Katalog-Umbau geklärt. */}
+                    <div style={{ width: '40px', height: '40px', borderRadius: '6px', background: '#F7F6F2', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg viewBox="0 0 28 28" width="28" height="28" aria-hidden="true">
+                        {(() => {
+                          const shapes = moebelShapes(g.farbe || '#D3D1C7', g.kante || '#888780')
+                          return shapes[moebelIconTyp(g.name)] || shapes.standard
+                        })()}
+                      </svg>
+                    </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '13px', color: '#2C2C2A' }}>
                         {g.name} {g.anzahl > 1 && <span style={{ color: '#B4B2A9' }}>× {g.anzahl}</span>}
