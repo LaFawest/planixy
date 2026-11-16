@@ -120,6 +120,11 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   // Der Möbel-Effekt liest den Wert beim Bauen über diese Ref, statt ihn als Abhängigkeit zu
   // führen — ein Druck auf den Schalter darf die Möbel nicht neu bauen, nur umschalten.
   const moebelSichtbarRef = useRef(moebelSichtbar)
+  // Setzt die Sichtbarkeit aller ausblendbaren Möbel aus zwei Gründen zusammen: Möbel-Schalter und
+  // Wand-Fokus-Verdeckung (Möbel an einer Wand zwischen Kamera und Fokuswand). Vom Struktur-Effekt
+  // befüllt, weil nur er die Wände kennt; aufgerufen vom Schalter-Effekt, vom Möbel-Effekt nach dem
+  // Bauen und von setzeWandFokusVerdeckung.
+  const moebelSichtbarkeitAnwendenRef = useRef(() => {})
   const [liveWerte, setLiveWerte] = useState(null) // { typ, horizontalCm, vertikalCm } | null
   const [massLinien, setMassLinien] = useState(null) // { id, links, rechts, unten } | null
   const [bearbeiteSeite, setBearbeiteSeite] = useState(null) // 'links' | 'rechts' | 'unten' | null
@@ -168,6 +173,13 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   // hier zugleich die Fenster/Tür-Auswahl zurück (reine Ref-Mutation, kein setState — deshalb als
   // Teil dieses Effects unproblematisch).
   const fokusWandRef = useRef(fokusWand)
+  // Wand-Fokus geschoben (Schritt 2, Teil 2): Versatz der Kamera gegenüber der Wandmitte, in Metern
+  // auf der Wand — u nach rechts im Bild, v nach oben. Eine Ref statt einer Variablen im
+  // Struktur-Effekt, weil der nach jedem verschobenen Fenster neu läuft (wandElementeSignatur) —
+  // die Ansicht spränge sonst nach jedem Loslassen auf die Mitte zurück. berechneWandFokusZiel
+  // setzt den Versatz auf 0, sobald eine andere Wand im Fokus ist, und trägt dort auch Maßstab und
+  // Grenzen ein, die schiebeWandFokus braucht.
+  const wandVersatzRef = useRef({ wand: null, u: 0, v: 0, massstab: 100, maxU: 0, maxV: 0 })
   useEffect(() => {
     fokusWandRef.current = fokusWand
     ausgewaehltesElementRef.current = null
@@ -1133,8 +1145,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       // Mindestgröße für Details (Hassans Entscheidung vom 16.11.2026): 1 m Wand ist mindestens
       // PX_PRO_METER_MIN Bildpunkte breit. Passt die ganze Wand samt Rand in dieser Größe ins Bild,
       // wird sie ganz gezeigt, so groß wie möglich. Passt sie nicht, bleibt es bei der Mindestgröße,
-      // und die Kamera zeigt die Mitte der Wand. Den Rest macht ein späterer Schritt durch Schieben
-      // erreichbar.
+      // und die Kamera zeigt zunächst die Mitte der Wand. Den Rest macht das Schieben erreichbar
+      // (wandVersatzRef, schiebeWandFokus).
       //
       // Bis zum 16.11.2026 stand hier eine Rechnung mit festem Referenz-Seitenverhältnis, einem
       // Deckel von 35 % über dem Höhen-Fit und der Grenze, dass die Kamera den Raum nicht verlassen
@@ -1159,11 +1171,39 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         // nächste Größenänderung passt richtig ein.
         distanz = (wandHoehe / 2) / Math.tan(fovY / 2) * RAND_FAKTOR
       }
+      // Verschiebe-Versatz (Schritt 2, Teil 2). Der tatsächliche Maßstab folgt aus dem Abstand,
+      // daraus die sichtbare Fläche auf der Wand. Geschoben werden darf so weit, bis der Rand der
+      // Wand samt demselben Rand wie bei der ganzen Wand (RAND_FAKTOR) am Bildrand steht. Passt die
+      // Wand ganz ins Bild, sind beide Grenzen 0 — dann gibt es nichts zu schieben.
+      const versatz = wandVersatzRef.current
+      if (versatz.wand !== index) { versatz.wand = index; versatz.u = 0; versatz.v = 0 }
+      if (breitePx > 0 && hoehePx > 0) {
+        versatz.massstab = hoehePx / (2 * distanz * Math.tan(fovY / 2))
+        // Unter 1 mm zählt als 0: Passt die Wand genau, bliebe sonst ein Rundungsrest, und das
+        // Mausrad würde einmal ins Leere „schieben".
+        const grenze = (wandMass, sichtMass) => {
+          const rest = (wandMass * RAND_FAKTOR - sichtMass) / 2
+          return rest > 0.001 ? rest : 0
+        }
+        versatz.maxU = grenze(laenge, breitePx / versatz.massstab)
+        versatz.maxV = grenze(wandHoehe, hoehePx / versatz.massstab)
+      } else {
+        versatz.maxU = 0
+        versatz.maxV = 0
+      }
+      versatz.u = Math.max(-versatz.maxU, Math.min(versatz.maxU, versatz.u))
+      versatz.v = Math.max(-versatz.maxV, Math.min(versatz.maxV, versatz.v))
+      // Rechts im Bild: Die Kamera blickt entlang der Normalen (sie zeigt nach außen), rechts ist
+      // Blickrichtung × oben = (-normale.z, normale.x). Damit ist u unabhängig davon, in welcher
+      // Richtung das Segment im Grundriss gezeichnet wurde.
+      const rechtsX = -normale.z
+      const rechtsZ = normale.x
       return {
-        x: mesh.position.x - normale.x * distanz,
-        z: mesh.position.z - normale.z * distanz,
-        zielX: mesh.position.x,
-        zielZ: mesh.position.z,
+        x: mesh.position.x - normale.x * distanz + rechtsX * versatz.u,
+        y: wandHoehe / 2 + versatz.v,
+        z: mesh.position.z - normale.z * distanz + rechtsZ * versatz.u,
+        zielX: mesh.position.x + rechtsX * versatz.u,
+        zielZ: mesh.position.z + rechtsZ * versatz.u,
       }
     }
 
@@ -1208,9 +1248,53 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       const u = ((cx - ax) * (bz - az) - (cz - az) * (bx - ax)) / nenner
       return t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999
     }
+    // Möbel an verdeckten Wänden (Hassans Entscheidung vom 16.11.2026): Sind die Möbel eingeblendet
+    // und steht die Kamera hinter der Rückwand, stand ein Schrank an dieser Wand zwischen Kamera und
+    // Fokuswand und füllte fast das ganze Bild. Er wird deshalb mit seiner Wand ausgeblendet. „An der
+    // Wand" heißt: Die Grundfläche (achsparallele Box in der Draufsicht) kommt der Wandlinie auf
+    // MOEBEL_WANDABSTAND nahe und liegt in Längsrichtung wenigstens teilweise neben der Wand. Der
+    // Betrag des Abstands, damit bei U-Formen kein Möbelstück im gegenüberliegenden Schenkel jenseits
+    // der Wand mitgezählt wird. Die Grundflächen werden pro Gruppe einmal gemessen; in Schritt 2 und 3
+    // bewegt sich kein Möbelstück, und jeder Neuaufbau bringt neue Gruppen.
+    const MOEBEL_WANDABSTAND = 0.3
+    let verdeckteWaende = null // Indizes, zuletzt von setzeWandFokusVerdeckung ermittelt; null = noch nie
+    const moebelGrundflaechen = new WeakMap()
+    const grundflaecheEcken = (gruppe) => {
+      let ecken = moebelGrundflaechen.get(gruppe)
+      if (!ecken) {
+        const box = new THREE.Box3().setFromObject(gruppe)
+        ecken = [[box.min.x, box.min.z], [box.max.x, box.min.z], [box.min.x, box.max.z], [box.max.x, box.max.z]]
+        moebelGrundflaechen.set(gruppe, ecken)
+      }
+      return ecken
+    }
+    const stehtAnWand = (gruppe, wand) => {
+      const laenge2 = wand.dx * wand.dx + wand.dz * wand.dz || 1
+      let naechster = Infinity, tMin = Infinity, tMax = -Infinity
+      grundflaecheEcken(gruppe).forEach(([x, z]) => {
+        // Die Normale zeigt nach außen, der Abstand in den Raum hinein ist also das Negative.
+        const abstand = -((x - wand.x1) * wand.normale.x + (z - wand.z1) * wand.normale.z)
+        if (Math.abs(abstand) < Math.abs(naechster)) naechster = abstand
+        const t = ((x - wand.x1) * wand.dx + (z - wand.z1) * wand.dz) / laenge2
+        tMin = Math.min(tMin, t)
+        tMax = Math.max(tMax, t)
+      })
+      return Math.abs(naechster) <= MOEBEL_WANDABSTAND && tMax > 0 && tMin < 1
+    }
+    const wendeMoebelSichtbarkeitAn = () => {
+      const gruppen = moebelGruppenRef.current?.ausblendbareGruppen
+      if (!gruppen) return
+      const verdeckt = verdeckteWaende || []
+      gruppen.forEach(gruppe => {
+        const anVerdeckterWand = verdeckt.some(index => wandMeshe[index] && stehtAnWand(gruppe, wandMeshe[index]))
+        gruppe.visible = moebelSichtbarRef.current && !anVerdeckterWand
+      })
+    }
+    moebelSichtbarkeitAnwendenRef.current = wendeMoebelSichtbarkeitAn
     const setzeWandFokusVerdeckung = (kameraX, kameraZ) => {
       const fokusIndex = fokusWandRef.current
       const fokus = wandMeshe[fokusIndex]
+      const neuVerdeckt = []
       wandMeshe.forEach((wand, index) => {
         let verdeckt = false
         if (fokus && index !== fokusIndex) {
@@ -1227,19 +1311,31 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         wandElementGruppen.forEach(({ gruppe, item }) => {
           if (item.wandSegment === index) gruppe.visible = !verdeckt
         })
+        if (verdeckt) neuVerdeckt.push(index)
       })
+      if (verdeckteWaende === null || neuVerdeckt.join() !== verdeckteWaende.join()) {
+        verdeckteWaende = neuVerdeckt
+        wendeMoebelSichtbarkeitAn()
+      }
     }
     // Gegenstück für die freie Ansicht: Dort bleiben Fenster, Türen und Sockelleisten immer stehen,
     // auch an ausgeblendeten Wänden (siehe setzeWandSichtbar). Die Wände selbst regelt
-    // updateOrbitCamera.
+    // updateOrbitCamera. Die Möbel folgen dann nur noch dem Möbel-Schalter.
     const setzeWandFokusVerdeckungZurueck = () => {
       wandMeshe.forEach(wand => wand.sockel.forEach(stueck => { stueck.visible = true }))
       wandElementGruppen.forEach(({ gruppe }) => { gruppe.visible = true })
+      if (verdeckteWaende === null || verdeckteWaende.length > 0) {
+        verdeckteWaende = []
+        wendeMoebelSichtbarkeitAn()
+      }
     }
 
     const setzeWandFokusKamera = (pos, ziel) => {
-      camera.position.set(pos.x, wandHoehe / 2, pos.z)
-      camera.lookAt(ziel.x, wandHoehe / 2, ziel.z)
+      // Höhe aus pos.y, seit sich der Ausschnitt senkrecht schieben lässt (Schritt 2, Teil 2) —
+      // Kamera und Blickpunkt auf derselben Höhe, der Blick bleibt waagerecht und senkrecht zur Wand.
+      const hoehe = pos.y ?? wandHoehe / 2
+      camera.position.set(pos.x, hoehe, pos.z)
+      camera.lookAt(ziel.x, hoehe, ziel.z)
       // Im Wand-Fokus-Modus ist die Decke immer voll sichtbar (kein Ausblenden wie beim freien
       // Rundumblick). Die Wände sind es nur, solange sie nicht zwischen Kamera und Fokuswand stehen —
       // seit die Kamera hinter die Rückwand darf, siehe setzeWandFokusVerdeckung.
@@ -1251,11 +1347,11 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     const updateWandFokusCamera = (index) => {
       const ziel = berechneWandFokusZiel(index)
       if (!ziel) return
-      const endPos = { x: ziel.x, z: ziel.z }
+      const endPos = { x: ziel.x, y: ziel.y, z: ziel.z }
       const endZiel = { x: ziel.zielX, z: ziel.zielZ }
       if (letzterFokusWand !== null && letzterFokusWand !== index) {
         wandFokusAnimation = {
-          startPos: { x: camera.position.x, z: camera.position.z },
+          startPos: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
           startZiel: letztesFokusZiel || endZiel,
           endPos, endZiel,
           startZeit: performance.now(),
@@ -1528,6 +1624,29 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     let wandBereichHandleDrag = null // { eintrag, anchorU, anchorV, bewegt, aktuellU, aktuellV, aktuellBreite, aktuellHoehe } — Ecke ziehen
     let wandZeichnenDrag = null // { segment, startU, startV, material, mesh, aktuellU, aktuellV, aktuellBreite, aktuellHoehe } — neuen Bereich aufziehen
     let wandElementHandleDrag = null // { eintrag, segment, anchorU, anchorV, urspruenglicheBreite, urspruenglicheHoehe, bewegt, aktuellU, aktuellV, aktuellBreite, aktuellHoehe } — Fenster-Ecke ziehen
+    // Ausschnitt schieben (Schritt 2, Teil 2): Ziehen auf einer freien Stelle der Wand, rechte oder
+    // mittlere Maustaste überall, zwei Finger. nurSchieben: kein Abwählen beim Loslassen, auch ohne
+    // Bewegung. Ein Klick ohne Bewegung auf die freie Wand wählt dagegen ab wie bisher — nur jetzt
+    // beim Loslassen statt beim Drücken, sonst wäre jeder Schiebeversuch zugleich ein Abwählen.
+    let wandSchiebeDrag = null // { startX, startY, letzteX, letzteY, bewegt, nurSchieben, zweiFinger }
+    // Ab so vielen Bildpunkten Bewegung gilt ein Druck als Ziehen, nicht mehr als Klick.
+    const KLICK_TOLERANZ = 4
+    // Schiebt den Ausschnitt um die angegebene Kamerabewegung in Bildpunkten (rechts und unten
+    // positiv). Grenzen und Maßstab kommen aus berechneWandFokusZiel; danach dieselbe Neuberechnung
+    // wie bei einer Größenänderung — Kamera, Verdeckung und alle Auswahl-Markierungen, deren
+    // Bildschirmposition von der Kamera abhängt. Gibt zurück, ob sich etwas bewegt hat.
+    const schiebeWandFokus = (dxPx, dyPx) => {
+      if (fokusWandRef.current == null || wandFokusAnimation) return false
+      const versatz = wandVersatzRef.current
+      if (versatz.wand !== fokusWandRef.current || !(versatz.massstab > 0)) return false
+      const vorherU = versatz.u
+      const vorherV = versatz.v
+      versatz.u = Math.max(-versatz.maxU, Math.min(versatz.maxU, versatz.u + dxPx / versatz.massstab))
+      versatz.v = Math.max(-versatz.maxV, Math.min(versatz.maxV, versatz.v - dyPx / versatz.massstab))
+      if (versatz.u === vorherU && versatz.v === vorherV) return false
+      onResizeExtraRef.current?.()
+      return true
+    }
 
     const ebeneFuerSegment = (segmentIndex) => {
       const w = wandMeshe[segmentIndex]
@@ -1811,9 +1930,14 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       }
     }
 
-    const wandElementMausDown = (clientX, clientY) => {
+    const wandElementMausDown = (clientX, clientY, taste = 0) => {
       if (wandFokusAnimation) return
       setBearbeiteSeite(null)
+
+      if (taste === 1 || taste === 2) {
+        wandSchiebeDrag = { startX: clientX, startY: clientY, letzteX: clientX, letzteY: clientY, bewegt: false, nurSchieben: true }
+        return
+      }
 
       // Zeichen-Modus (Teil 3, überarbeitet): ein Material ist über die Palette armiert — der
       // nächste Ziehvorgang zeichnet direkt ein neues Rechteck auf der fokussierten Wand, wie das
@@ -1883,10 +2007,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       // Kein Fenster/Tür getroffen — als Zweites gegen die Wandmaterial-Bereiche testen (Teil 3).
       const bereichTreffer = raycaster.intersectObjects(wandBereichRaycastZiele(), false)
       if (bereichTreffer.length === 0) {
-        setAusgewaehltesElement(null); setLiveWerte(null); setMassLinien(null)
-        ausgewaehlterBereichRef.current = null; setBereichAuswahl(null)
-        setFensterAuswahl(null)
-        setAusgewaehltesWandElement(null)
+        wandSchiebeDrag = { startX: clientX, startY: clientY, letzteX: clientX, letzteY: clientY, bewegt: false, nurSchieben: false }
         return
       }
       const treffermesh = bereichTreffer[0].object
@@ -1908,6 +2029,19 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
 
     const wandElementMausMove = (clientX, clientY) => {
+      if (wandSchiebeDrag) {
+        const drag = wandSchiebeDrag
+        if (!drag.bewegt && Math.hypot(clientX - drag.startX, clientY - drag.startY) < KLICK_TOLERANZ) return
+        if (!drag.bewegt) {
+          drag.bewegt = true
+          renderer.domElement.style.cursor = 'grabbing'
+        }
+        // Der Inhalt folgt dem Zeiger, die Kamera bewegt sich also entgegengesetzt.
+        schiebeWandFokus(drag.letzteX - clientX, drag.letzteY - clientY)
+        drag.letzteX = clientX
+        drag.letzteY = clientY
+        return
+      }
       if (!wandElementDrag && !wandElementHandleDrag && !wandBereichDrag && !wandBereichHandleDrag && !wandZeichnenDrag) return
 
       if (wandElementDrag) {
@@ -2130,6 +2264,18 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     }
 
     const wandElementMausUp = () => {
+      if (wandSchiebeDrag) {
+        const { bewegt, nurSchieben } = wandSchiebeDrag
+        wandSchiebeDrag = null
+        renderer.domElement.style.cursor = ''
+        if (!bewegt && !nurSchieben) {
+          setAusgewaehltesElement(null); setLiveWerte(null); setMassLinien(null)
+          ausgewaehlterBereichRef.current = null; setBereichAuswahl(null)
+          setFensterAuswahl(null)
+          setAusgewaehltesWandElement(null)
+        }
+        return
+      }
       if (wandElementDrag) {
         const { eintrag, segment, elBreite } = wandElementDrag
         if (wandElementDrag.bewegt) {
@@ -2251,7 +2397,12 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       // (Raycast trifft nichts -> Auswahl wird sofort wieder aufgehoben, bevor der Klick das
       // Eingabefeld überhaupt erreicht). Nur echte Canvas-Klicks sollen die 3D-Interaktion auslösen.
       if (e.target !== renderer.domElement) return
-      if (fokusWandRef.current != null) { wandElementMausDown(e.clientX, e.clientY); return }
+      if (fokusWandRef.current != null) {
+        // Mittlere Taste: sonst startet der Browser sein eigenes Auto-Scrollen.
+        if (e.button === 1) e.preventDefault()
+        wandElementMausDown(e.clientX, e.clientY, e.button)
+        return
+      }
       if (deckenFokusRef.current) { deckenleuchteMausDown(e.clientX, e.clientY); return }
       isDragging = true
       mitSchiebeTaste = e.button === 1 || e.button === 2
@@ -2286,7 +2437,21 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       // zusaetzlich die ganze Seite, waehrend die Kamera heranfaehrt. Bewusst nur bei ctrlKey:
       // Ein gewoehnliches Mausrad soll sich ausserhalb der 3D-Ansicht weiter normal verhalten.
       if (e.ctrlKey) e.preventDefault()
-      if (fokusWandRef.current != null) return
+      if (fokusWandRef.current != null) {
+        // Wand-Fokus: Mausrad und Trackpad schieben den Ausschnitt (Schritt 2, Teil 2). Kneifen
+        // (Strg) zoomt hier nicht — der Maßstab folgt der Regel in berechneWandFokusZiel.
+        if (e.ctrlKey) return
+        // deltaMode 1 = Zeilen (Firefox mit Mausrad), 2 = Seiten. Umgerechnet in Bildpunkte.
+        const faktor = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? (mount.clientHeight || 1) : 1)
+        let dx = e.deltaX * faktor
+        let dy = e.deltaY * faktor
+        // Der Normalfall ist eine lange Wand auf einem flachen Bildschirm: Dort gibt es nur seitlich
+        // etwas zu schieben, ein gewöhnliches Mausrad dreht aber senkrecht. Dann schiebt es seitlich.
+        if (wandVersatzRef.current.maxV === 0 && dx === 0) { dx = dy; dy = 0 }
+        // Nur abfangen, wenn sich wirklich etwas bewegt hat — am Anschlag bleibt das Rad frei.
+        if (schiebeWandFokus(dx, dy)) e.preventDefault()
+        return
+      }
       if (deckenFokusRef.current) return
       // Untergrenze von 4 m auf 0,6 m: In einem kleinen Raum kam man bisher an nichts heran,
       // weil 4 m Abstand zur Raummitte schon ausserhalb der Waende liegen konnten.
@@ -2320,7 +2485,18 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       // Siehe onMouseDown oben: nur echte Canvas-Touches sollen die 3D-Interaktion auslösen, nicht
       // ein Antippen der HTML-Overlays (Maßlinien-Zahlen/-Eingabefelder, Zieh-Modus-Buttons).
       if (e.target !== renderer.domElement) return
-      if (fokusWandRef.current != null) { wandElementMausDown(e.touches[0].clientX, e.touches[0].clientY); return }
+      if (fokusWandRef.current != null) {
+        if (e.touches.length >= 2) {
+          wandSchiebeDrag = null
+          if (wandZeichnenDrag) abbrichZeichnen()
+          else wandElementMausUp()
+          const mitte = zweiFingerWerte(e.touches)
+          wandSchiebeDrag = { startX: mitte.x, startY: mitte.y, letzteX: mitte.x, letzteY: mitte.y, bewegt: true, nurSchieben: true, zweiFinger: true }
+          return
+        }
+        wandElementMausDown(e.touches[0].clientX, e.touches[0].clientY)
+        return
+      }
       if (deckenFokusRef.current) { deckenleuchteMausDown(e.touches[0].clientX, e.touches[0].clientY); return }
       isDragging = true
       if (e.touches.length >= 2) {
@@ -2330,7 +2506,17 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       }
     }
     const onTouchMove  = (e) => {
-      if (fokusWandRef.current != null) { wandElementMausMove(e.touches[0].clientX, e.touches[0].clientY); return }
+      if (fokusWandRef.current != null) {
+        if (wandSchiebeDrag?.zweiFinger) {
+          if (e.touches.length >= 2) {
+            const mitte = zweiFingerWerte(e.touches)
+            wandElementMausMove(mitte.x, mitte.y)
+          }
+          return
+        }
+        wandElementMausMove(e.touches[0].clientX, e.touches[0].clientY)
+        return
+      }
       if (deckenFokusRef.current) { deckenleuchteMausMove(e.touches[0].clientX, e.touches[0].clientY); return }
       if (!isDragging) return
       if (e.touches.length >= 2 && lastZweiFinger) {
@@ -2356,7 +2542,14 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       updateCamera()
     }
     const onTouchEnd = (e) => {
-      if (fokusWandRef.current != null) { wandElementMausUp(); return }
+      if (fokusWandRef.current != null) {
+        if (wandSchiebeDrag?.zweiFinger) {
+          if (e.touches.length < 2) wandSchiebeDrag = null
+          return
+        }
+        wandElementMausUp()
+        return
+      }
       if (deckenFokusRef.current) { deckenleuchteMausUp(); return }
       // Von zwei Fingern auf einen: mit dem verbliebenen weitermachen, ohne Sprung.
       if (e.touches.length >= 2) { lastZweiFinger = zweiFingerWerte(e.touches); return }
@@ -2394,7 +2587,7 @@ onResizeExtraRef.current = () => {
   if (fokusWandRef.current != null) {
     const ziel = berechneWandFokusZiel(fokusWandRef.current)
     if (ziel) {
-      setzeWandFokusKamera({ x: ziel.x, z: ziel.z }, { x: ziel.zielX, z: ziel.zielZ })
+      setzeWandFokusKamera({ x: ziel.x, y: ziel.y, z: ziel.z }, { x: ziel.zielX, z: ziel.zielZ })
       letztesFokusZiel = { x: ziel.zielX, z: ziel.zielZ }
     }
   }
@@ -2424,6 +2617,8 @@ frameTickRef.current = () => {
     const t = Math.min(1, (performance.now() - wandFokusAnimation.startZeit) / WAND_WECHSEL_DAUER)
     const fortschritt = easeInOut(t)
     const pos = lerpUmUrsprung(wandFokusAnimation.startPos, wandFokusAnimation.endPos, fortschritt)
+    // Die Höhe gerade dazwischen — die Kreisbahn betrifft nur die Draufsicht.
+    pos.y = wandFokusAnimation.startPos.y + (wandFokusAnimation.endPos.y - wandFokusAnimation.startPos.y) * fortschritt
     const ziel = lerpUmUrsprung(wandFokusAnimation.startZiel, wandFokusAnimation.endZiel, fortschritt)
     setzeWandFokusKamera(pos, ziel)
     if (t >= 1) wandFokusAnimation = null
@@ -2496,7 +2691,9 @@ return () => {
   // die Schattenkarte; ihr Licht filtert moebelTickRef heraus (siehe Möbel-Effekt).
   useEffect(() => {
     moebelSichtbarRef.current = moebelSichtbar
-    moebelGruppenRef.current?.ausblendbareGruppen.forEach(gruppe => { gruppe.visible = moebelSichtbar })
+    // Nicht mehr direkt gruppe.visible = moebelSichtbar: Möbel an einer verdeckten Wand bleiben im
+    // Wand-Fokus auch eingeschaltet ausgeblendet (siehe wendeMoebelSichtbarkeitAn).
+    moebelSichtbarkeitAnwendenRef.current()
   }, [moebelSichtbar])
 
   // === MÖBEL-EFFEKT (App schneller machen, Schritt 3, Teilpunkt 4.5) ===
@@ -2633,6 +2830,9 @@ return () => {
     // Die werden hier einmal eingesammelt; die Zuordnung zu den tatsächlichen Lichtern passiert
     // danach pro Bild, damit ein Licht beim Ziehen einer Deckenleuchte mitwandert.
     moebelWurzel.updateMatrixWorld(true)
+    // Neu gebaute Gruppen tragen nur den Schalterstand; die Wand-Fokus-Verdeckung kommt hier dazu.
+    // Erst nach updateMatrixWorld, weil die Grundflächen aus den Weltkoordinaten gemessen werden.
+    moebelSichtbarkeitAnwendenRef.current()
     const lichtPlatzhalter = []
     moebelWurzel.traverse(obj => {
       if (obj.userData?.lichtWunsch) lichtPlatzhalter.push(obj)
