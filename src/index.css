@@ -408,6 +408,155 @@ input[type=number]::-webkit-outer-spin-button { opacity: 1; }
   }
 }
 
+/* Wand-Fokus: die ganze Ansicht samt Minikarte als Container (FensterTuerenAnsicht3D). Die
+   Minikarte liegt außerhalb der Zeichenfläche und braucht deshalb einen eigenen Container; er ist
+   genau so breit wie die Zeichenfläche. */
+.wandfokus-ansicht {
+  container-type: inline-size;
+  container-name: wandansicht;
+}
+/* Minikarte, breite Fassung: oben links, Karte immer sichtbar, Titel nicht anklickbar. */
+.minikarte {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+  width: 190px;
+  background: white;
+  border: 1px solid #E8E6E0;
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+.minikarte-titel {
+  display: block;
+  width: 100%;
+  margin: 0 0 8px 0;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  font-family: inherit;
+  font-size: 10px;
+  color: #B4B2A9;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+.minikarte-auf {
+  display: none;
+}
+.minikarte-zeile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.minikarte-karte {
+  flex: 1;
+}
+/* Minikarte, schmale Fassung (Handy, Variante 1): eine Leiste „WAND 1 · NORD ▾ ‹ ›". Ein Tipp auf
+   den Titel klappt die Karte darunter auf. Dieselbe Grenze wie die Materialleiste. Die Karte
+   behält ihren Rahmen aus dem style-Attribut (SVG in WandMiniKarte.jsx). */
+@container wandansicht (max-width: 499px) {
+  .minikarte {
+    top: 12px;
+    left: 8px;
+    width: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 4px 4px 12px;
+    border-radius: 20px;
+  }
+  .minikarte-titel {
+    display: flex;
+    align-items: center;
+    width: auto;
+    min-height: 28px;
+    margin: 0 4px 0 0;
+    pointer-events: auto;
+    cursor: pointer;
+  }
+  .minikarte-auf {
+    display: inline;
+    margin-left: 6px;
+  }
+  /* Pfeile werden zu Geschwistern des Titels, damit alles in einer Zeile steht. */
+  .minikarte-zeile {
+    display: contents;
+  }
+  /* Die Karte hängt aufgeklappt unter der Leiste, ohne sie zu verbreitern — sonst schöbe sie
+     sich über den Möbel-Schalter rechts daneben. */
+  .minikarte-karte {
+    display: none;
+  }
+  .minikarte-offen .minikarte-karte {
+    display: block;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 160px;
+    height: 140px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  }
+}
+/* Möbel-Schalter: Lage. Schritt 2 unter der Minikarte, Schritt 3 oben links. */
+.moebelschalter-huelle {
+  position: absolute;
+  top: 139px;
+  left: 16px;
+}
+.moebelschalter-decke {
+  top: 16px;
+}
+/* Beschriftungen beim Ziehen und Malen: oben mittig. */
+.wandfokus-beschriftung {
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+/* Möbel-Schalter: kurzer Text nur am Handy im Wand-Fokus, siehe unten. */
+.moebelschalter-text-kurz {
+  display: none;
+}
+/* Schmale Fassung: Möbel-Schalter oben rechts neben der Minikarten-Leiste, die Beschriftungen
+   darunter, frei. Die Leiste und der Schalter enden bei etwa 52 px. */
+@container wandfokus (max-width: 499px) {
+  .moebelschalter-huelle:not(.moebelschalter-decke) {
+    top: 12px;
+    left: auto;
+    right: 8px;
+  }
+  .wandfokus-beschriftung {
+    top: 60px;
+  }
+  .moebelschalter-huelle:not(.moebelschalter-decke) .moebelschalter-text-lang {
+    display: none;
+  }
+  .moebelschalter-huelle:not(.moebelschalter-decke) .moebelschalter-text-kurz {
+    display: inline;
+  }
+}
+/* Handy, Karte aufgeklappt: Die Beschriftungen stehen unten, direkt über der Materialleiste
+   (48 px hoch, 8 px Abstand). Oben lagen sie beim Ziehen halb unter der offenen Karte, und direkt
+   unter der Karte (202 px) deckten sie das Größenschild des gezogenen Fensters zu. */
+@container wandansicht (max-width: 499px) {
+  .wandfokus-ansicht:has(.minikarte-offen) .wandfokus-beschriftung {
+    top: auto;
+    bottom: calc(var(--wandfokus-unten, 16px) + 56px);
+  }
+}
+/* Tablet und schmale Rechnerfenster (Zeichenfläche 500 bis 719 px): Oben mittig lag die
+   Beschriftung unter der Minikarte (16 bis 206 px) und neben der Materialleiste (220 bis 470 px,
+   bis 56 px hoch). Sie steht dort rechtsbündig unter der Materialleiste. */
+@container wandfokus (min-width: 500px) and (max-width: 719px) {
+  .wandfokus-beschriftung {
+    top: 64px;
+    left: auto;
+    right: 16px;
+    transform: none;
+  }
+}
+
 /* Hinweiskästchen der Schrittleiste: fest zum Fenster positioniert, Lage kommt aus dem
    style-Attribut (SchrittLeiste.jsx). Fängt keine Mausereignisse ab, sonst flackerte es. */
 .schritt-hinweis {

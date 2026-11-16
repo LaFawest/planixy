@@ -3120,13 +3120,12 @@ return () => {
           })}
         </div>
       )}
-      {/* Möbel-Schalter. Schritt 2: unter der WandMiniKarte (16 px Rand + 115 px Höhe + 8 px
-          Abstand) statt am Ende der Materialleiste — die beginnt fest bei 220 px und reicht schon
-          heute über einen Handybildschirm hinaus, der Schalter wäre dort nicht erreichbar.
-          Schritt 3: oben links, dort steht sonst nichts. */}
+      {/* Möbel-Schalter, Lage in index.css (.moebelschalter-huelle). Schritt 2: unter der
+          WandMiniKarte (16 px Rand + 115 px Höhe + 8 px Abstand), in der schmalen Fassung oben
+          rechts neben der Minikarten-Leiste. Schritt 3: oben links, dort steht sonst nichts. */}
       {moebelSchalterAktiv && (
-        <div style={{
-          position: 'absolute', top: deckenFokus ? '16px' : '139px', left: '16px', zIndex: 10, padding: '6px',
+        <div className={`moebelschalter-huelle${deckenFokus ? ' moebelschalter-decke' : ''}`} style={{
+          zIndex: 10, padding: '6px',
           background: 'white', border: '1px solid #E8E6E0', borderRadius: '10px',
           boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
         }}>
@@ -3134,8 +3133,8 @@ return () => {
         </div>
       )}
       {fokusWand != null && zeichnenLiveGroesse && (
-        <div style={{
-          position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', zIndex: 10,
+        <div className="wandfokus-beschriftung" style={{
+          position: 'absolute', zIndex: 10,
           padding: '6px 14px', borderRadius: '20px', background: 'white', border: '1px solid #185FA5',
           boxShadow: '0 2px 8px rgba(0,0,0,0.08)', fontSize: '12px', color: '#185FA5',
           fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap',
@@ -3233,8 +3232,8 @@ return () => {
         </div>
       )}
       {fokusWand != null && liveWerte && (
-        <div style={{
-          position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%)', zIndex: 10,
+        <div className="wandfokus-beschriftung" style={{
+          position: 'absolute', zIndex: 10,
           padding: '6px 14px', borderRadius: '20px', background: 'white', border: '1px solid #E8E6E0',
           boxShadow: '0 2px 8px rgba(0,0,0,0.08)', fontSize: '12px', color: '#444441',
           fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap',
@@ -3326,7 +3325,7 @@ return () => {
 function MoebelSchalter({ eingeblendet, onUmschalten }) {
   const text = eingeblendet ? 'Möbel ausblenden' : 'Möbel einblenden'
   return (
-    <button type="button" onClick={onUmschalten} aria-pressed={eingeblendet} style={{
+    <button type="button" onClick={onUmschalten} aria-pressed={eingeblendet} aria-label={text} title={text} style={{
       display: 'flex', alignItems: 'center', gap: '6px', height: '26px', padding: '0 9px',
       border: '1px solid #E8E6E0', borderRadius: '6px', background: '#FAFAF8', cursor: 'pointer',
       fontSize: '11.5px', color: '#444441', whiteSpace: 'nowrap', fontFamily: "'DM Sans', sans-serif",
@@ -3336,7 +3335,11 @@ function MoebelSchalter({ eingeblendet, onUmschalten }) {
         <circle cx="8" cy="8" r="2" />
         {eingeblendet && <path d="M2.5 13.5l11-11" />}
       </svg>
-      {text}
+      {/* Am Handy nur „Möbel": Mit dem langen Text blieb bei 360 px und zweistelliger Wandnummer
+          1 px Luft zur Minikarten-Leiste. Ob ein- oder ausgeblendet, zeigt das Auge (durchgestrichen
+          = eingeblendet, ein Druck blendet aus); vorgelesen wird der volle Text (aria-label). */}
+      <span className="moebelschalter-text-lang">{text}</span>
+      <span className="moebelschalter-text-kurz">Möbel</span>
     </button>
   )
 }

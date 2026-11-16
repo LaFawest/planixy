@@ -1,9 +1,14 @@
+import { useState } from 'react'
 import { HIMMELSRICHTUNG_NAME } from '../constants'
 import { himmelsrichtungAusNormale } from '../raumPolygon'
 
 // ausschnitt: { wand, ganz, von, bis } aus RoomView3D — welcher Teil der Fokuswand im Bild ist,
 // als Anteil von segment.start (0) bis segment.ende (1). onSprung(anteil): Klick auf die aktive Wand.
 export default function WandMiniKarte({ wandSegmente, aktiveWand, onWechsel, ausschnitt = null, onSprung }) {
+  // Nur in der schmalen Fassung (Handy, index.css): Dort ist die Minikarte eine schmale Leiste
+  // „WAND 1 · NORD ‹ ›", und die Karte selbst klappt erst auf Tipp auf den Titel auf. In der
+  // breiten Fassung ist die Karte immer zu sehen, der Titel ist dort nicht anklickbar.
+  const [offen, setOffen] = useState(false)
   if (!wandSegmente.length) return null
   const punkte = wandSegmente.map(s => s.start)
   const xs = punkte.map(p => p.x), ys = punkte.map(p => p.y)
@@ -54,15 +59,19 @@ export default function WandMiniKarte({ wandSegmente, aktiveWand, onWechsel, aus
     else onWechsel(bester.i)
   }
   return (
-    <div style={{ position: 'absolute', top: '16px', left: '16px', zIndex: 10, width: '190px', background: 'white', border: '1px solid #E8E6E0', borderRadius: '12px', padding: '12px', boxShadow: '0 2px 10px rgba(0,0,0,0.08)' }}>
-      <p style={{ fontSize: '10px', color: '#B4B2A9', letterSpacing: '0.06em', margin: '0 0 8px 0' }}>
+    // Lage und Aussehen in index.css (.minikarte): breit oben links mit Karte, schmal als Leiste,
+    // deren Karte auf Tipp aufklappt (Hassans Entscheidung vom 16.11.2026, Variante 1). Gemessen
+    // vorher am Handy: Die Live-Beschriftung oben mittig lag halb unter der Minikarte.
+    <div className={`minikarte${offen ? ' minikarte-offen' : ''}`}>
+      <button type="button" className="minikarte-titel" onClick={() => setOffen(o => !o)} aria-expanded={offen}>
         WAND {aktiveWand + 1} · {HIMMELSRICHTUNG_NAME[himmelsrichtungAusNormale(segment.normale)].toUpperCase()}
-      </p>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <span className="minikarte-auf" aria-hidden="true">{offen ? '▴' : '▾'}</span>
+      </button>
+      <div className="minikarte-zeile">
         <button onClick={() => weiter(-1)} style={pfeilButtonStil} aria-label="Vorherige Wand">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#444441" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
-        <svg viewBox={`0 0 ${VB} ${VB}`} width="70" height="70" onClick={onKarteKlick} style={{ flex: 1, background: '#FAFAF8', border: '1.5px solid #D3D1C7', borderRadius: '4px', cursor: 'pointer' }}>
+        <svg viewBox={`0 0 ${VB} ${VB}`} width="70" height="70" onClick={onKarteKlick} className="minikarte-karte" style={{ background: '#FAFAF8', border: '1.5px solid #D3D1C7', borderRadius: '4px', cursor: 'pointer' }}>
           <title>Wand anklicken: zur Wand wechseln oder an diese Stelle springen</title>
           <polygon points={pfad} fill="none" stroke="#D3D1C7" strokeWidth="1.5" />
           {teil ? (

@@ -34,7 +34,7 @@ export default function FensterTuerenAnsicht3D() {
   useEffect(() => () => setFokusWandIndex(null), [setFokusWandIndex])
 
   return (
-    <div style={{ position: 'absolute', inset: 0 }}>
+    <div className="wandfokus-ansicht" style={{ position: 'absolute', inset: 0 }}>
       <RoomView3D
         fokusWand={effektiveWand} onWandElementBewegt={positioniereWandElement}
         onAusschnittGeaendert={setAusschnitt} ausschnittSprung={ausschnittSprung}
