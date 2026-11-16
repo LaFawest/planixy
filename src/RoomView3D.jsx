@@ -344,8 +344,16 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // #F5F4F0 — nachts also ein weißer Himmel über schwarzem Boden.
     scene.background = new THREE.Color('#F5F4F0')
     scene.fog = new THREE.Fog('#F5F4F0', 20, 40)
+    // Schnittansicht im Wand-Fokus (Hassans Entscheidung vom 16.11.2026): Steht die Kamera hinter
+    // der Rückwand, gibt es zwischen ihr und dem Raum weder Boden noch Decke, und am Bildrand lagen
+    // Rasen und Himmel. Am Tablet im Hochformat war das über die Hälfte des Bildes. Statt des
+    // Himmels steht dort jetzt der helle Hintergrundton der App, wie bei einem Schnitt in einem
+    // Architekturplan; den Rasen blendet der Struktur-Effekt aus. Die Fenster zeigen weiter ihre
+    // eigene Aussicht-Textur und sind davon nicht berührt. Der Nebel bekommt denselben Ton, im
+    // Wand-Fokus ist ohnehin nichts weit genug weg, um in ihm zu liegen.
+    const SCHNITT_FARBE = new THREE.Color('#F7F6F2')
     const setzeHimmel = (stunde) => {
-      const farbe = himmelTageszeitFarbe(stunde)
+      const farbe = fokusWandRef.current != null ? SCHNITT_FARBE : himmelTageszeitFarbe(stunde)
       scene.background.copy(farbe)
       scene.fog.color.copy(farbe)
     }
@@ -602,6 +610,8 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
     // dem Rasen treffen.
     rasen.raycast = () => {}
     raumWurzel.add(rasen)
+    // Im Wand-Fokus kein Rasen — Schnittansicht, siehe SCHNITT_FARBE im Lebenszyklus-Effekt.
+    rasen.visible = fokusWandRef.current == null
 
     // Dieselbe Rotation wie boden, nicht ihr Gegenstück (+90°): eine Drehung um die X-Achse
     // spiegelt bei entgegengesetztem Vorzeichen zusätzlich die Z-Koordinate der Kontur (bei
@@ -1185,7 +1195,18 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       let distanz
       if (breitePx > 0 && hoehePx > 0) {
         const massstabGanz = Math.min(breitePx / (laenge * RAND_FAKTOR), hoehePx / (wandHoehe * RAND_FAKTOR))
-        const massstab = Math.max(massstabGanz, PX_PRO_METER_MIN)
+        // Hochformat ab Tablet-Breite (Hassans Entscheidung vom 16.11.2026): Bei einer hohen,
+        // schmalen Zeichenfläche musste die Kamera für 100 px/m weit zurück — am Tablet 6,7 bis
+        // 7,6 m hinter die Rückwand, und über die Hälfte des Bildes war Rand. Dort füllt die Wand
+        // jetzt mindestens HOCHFORMAT_WANDANTEIL der Bildhöhe; man sieht weniger von ihr und
+        // schiebt mehr. Am Handy (schmaler als HOCHFORMAT_MIN_BREITE) und am Rechner (Querformat)
+        // bleibt es bei der bisherigen Regel.
+        const HOCHFORMAT_WANDANTEIL = 0.6
+        const HOCHFORMAT_MIN_BREITE = 500
+        const massstabHochformat = hoehePx > breitePx && breitePx >= HOCHFORMAT_MIN_BREITE
+          ? HOCHFORMAT_WANDANTEIL * hoehePx / wandHoehe
+          : 0
+        const massstab = Math.max(massstabGanz, PX_PRO_METER_MIN, massstabHochformat)
         distanz = hoehePx / (2 * massstab * Math.tan(fovY / 2))
       } else {
         // Zeichenfläche noch ohne Größe (allererster Aufbau): reiner Höhen-Fit mit Rand. Die
