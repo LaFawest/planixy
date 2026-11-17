@@ -477,9 +477,14 @@ export const DEFAULT_WIZARD_SCHRITT = WIZARD_SCHRITTE[0].nummer
 // still durchzulassen — genau das war die Ursache des weiße-Seite-Fehlers: ein Aufrufer hatte
 // raumForm/eckpunkte vergessen, und niemand hat es bemerkt, bis die App beim Rendern abstürzte.
 const RAUM_PFLICHTFELDER = ['id', 'name']
+// wandmaterial, wandmaterialien und wandMaterialBereiche fehlten hier bis zum 17.11.2026, obwohl
+// DesignContext.jsx sie schreibt und wandmaterial sogar in DEFAULT_RAUM_DESIGN steht. Der Import
+// eines exportierten Projekts (parseProjektDatei, projektExport.js) prüft jeden Raum über
+// erzeugeRaum und scheiterte deshalb mit „unbekannte Felder".
 const RAUM_OPTIONALE_FELDER = [
   'raumForm', 'breite', 'tiefe', 'aussparungBreite', 'aussparungTiefe', 'ausrichtung',
   'eckpunkte', 'furniture', 'trennwaende', 'boden', 'wandfarbe', 'wandfarben',
+  'wandmaterial', 'wandmaterialien', 'wandMaterialBereiche',
   'fussleiste', 'fussleisteFarbe', 'raumHoehe', 'tageszeit', 'wizardSchritt',
 ]
 const RAUM_FELDER = new Set([...RAUM_PFLICHTFELDER, ...RAUM_OPTIONALE_FELDER])
