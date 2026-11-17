@@ -5,15 +5,22 @@
 // Markierungen. NICHT hierher gehören Inhaltsfarben (Möbel, Wandfarben, Glas, Himmel, Licht) und
 // die Farbcodierung der Katalog-Kategorien — die bleiben in constants.js und den Szenen-Dateien.
 //
-// Dieselben Werte stehen in index.css als :root-Variablen (--akzent, --akzent-hell, --akzent-rand).
-// Bei einer Änderung beide Stellen anpassen.
+// Dieselben Werte stehen in index.css als :root-Variablen (--akzent, --akzent-dunkel, --akzent-hell,
+// --akzent-rand). Bei einer Änderung beide Stellen anpassen.
 
 // Dunkles Grün: Auswahlrand, eingeschalteter Schalter, aktiver Chip, Knopf, Akzenttext.
 // Weiße Schrift darauf: 9,6 : 1.
 export const AKZENT = '#2F4B39'
 
+// Noch dunkleres Grün für den Hover dunkler Knöpfe und das Hinweiskästchen der Schrittleiste.
+export const AKZENT_DUNKEL = '#1F3327'
+
 // Heller Hintergrund einer Auswahl oder eines Hovers. AKZENT als Schrift darauf: 8,3 : 1.
 export const AKZENT_HELL = '#E8F0EA'
+
+// Etwas grauerer heller Ton für Avatar-Kreise (Topbar, Dashboard) und die gewählte Gruppe im
+// Dashboard. Bewusst nicht mit AKZENT_HELL zusammengelegt, damit sich dort nichts verschiebt.
+export const AKZENT_ZART = '#EDF1EC'
 
 // Mittlerer Ton für Schmuckränder ohne Text, etwa den Rahmen um den Grundriss.
 export const AKZENT_RAND = '#B8CCBE'

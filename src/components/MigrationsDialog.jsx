@@ -4,6 +4,7 @@ import { useProjekteListe } from '../context/ProjekteListeContext'
 import { loadProjekte, clearProjekte, MIGRATION_ABLEHNUNG_KEY as ABLEHNUNG_KEY } from '../context/projekteStorage'
 import { erstelleProjektSupabase } from '../context/projekteSupabaseStorage'
 import { serialisiereProjekt, parseProjektDatei, eindeutigerProjektname } from '../context/projektExport'
+import { AKZENT } from '../farben'
 
 // Default-Projekt ("Mein Zuhause" ohne jede Änderung) hat erstelltAm === geaendertAm, weil jede
 // echte Änderung (auch nur ein Wizard-Schritt-Wechsel) über updateProjekt geaendertAm neu setzt —
@@ -117,7 +118,7 @@ export default function MigrationsDialog() {
           </button>
           <button onClick={uebernehmen} disabled={laeuft} style={{
             padding: '8px 16px', borderRadius: '10px', border: 'none',
-            background: laeuft ? '#D3D1C7' : '#2F4B39', color: 'white', fontSize: '13px', fontWeight: '500',
+            background: laeuft ? '#D3D1C7' : AKZENT, color: 'white', fontSize: '13px', fontWeight: '500',
             cursor: laeuft ? 'default' : 'pointer', fontFamily: "'DM Sans', sans-serif",
           }}>
             {laeuft ? 'Übernehme…' : 'Ins Konto übernehmen'}

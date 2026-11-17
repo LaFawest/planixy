@@ -6,6 +6,7 @@ import LegalLinks from './LegalLinks'
 import { useUI } from '../context/UIContext'
 import { useWizard } from '../context/WizardContext'
 import { WIZARD_SCHRITTE } from '../constants'
+import { AKZENT } from '../farben'
 
 // Ab dieser Zieh-Distanz (px) gilt der Wisch-nach-unten-Griff als "Sheet schließen" statt als
 // unbeabsichtigtes Antippen/Zittern.
@@ -87,17 +88,17 @@ export default function MobileNav() {
           { id: 'moebel', icon: '🛋️', label: 'Möbel' },
         ].map(tab => (
           <div key={tab.id} onClick={() => setAktiverTab(aktiverTab === tab.id ? null : tab.id)}
-            style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: aktiverTab === tab.id ? '#2F4B39' : '#B4B2A9', transition: 'color 0.15s' }}>
+            style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: aktiverTab === tab.id ? AKZENT : '#B4B2A9', transition: 'color 0.15s' }}>
             <div style={{ fontSize: '22px', marginBottom: '2px' }}>{tab.icon}</div>
             <div style={{ fontSize: '10px', fontWeight: aktiverTab === tab.id ? '500' : '400' }}>{tab.label}</div>
           </div>
         ))}
         <div onClick={() => setAktiverTab(aktiverTab === 'schritt' ? null : 'schritt')}
-          style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: aktiverTab === 'schritt' ? '#2F4B39' : '#B4B2A9', transition: 'color 0.15s' }}>
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: aktiverTab === 'schritt' ? AKZENT : '#B4B2A9', transition: 'color 0.15s' }}>
           <div style={{
             width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '11px', fontWeight: '600', marginBottom: '2px', flexShrink: 0,
-            background: aktiverTab === 'schritt' ? '#2F4B39' : '#E8E6E0',
+            background: aktiverTab === 'schritt' ? AKZENT : '#E8E6E0',
             color: aktiverTab === 'schritt' ? 'white' : '#888780',
           }}>{schritt}</div>
           <div style={{ fontSize: '10px', fontWeight: aktiverTab === 'schritt' ? '500' : '400', textAlign: 'center' }}>{aktuellerSchrittLabel}</div>

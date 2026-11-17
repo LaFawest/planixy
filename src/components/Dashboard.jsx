@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { PlanixyIcon } from './PlanixyLogo'
 import GastBanner from './GastBanner'
 import LegalLinks from './LegalLinks'
+import { AKZENT, AKZENT_DUNKEL, AKZENT_ZART } from '../farben'
 
 // Suchfeld und Sortierung würden bei ein, zwei Projekten nur unnötig im Weg stehen — sie
 // erscheinen erst ab dieser Anzahl, wenn Scannen der Kacheln allein umständlicher wird.
@@ -99,7 +100,7 @@ function NamensDialog({ titel, anfangswert = '', bestaetigenLabel, onBestaetigen
         </button>
         <button onClick={bestaetigen} disabled={!name.trim()} style={{
           padding: '8px 16px', borderRadius: '10px', border: 'none',
-          background: name.trim() ? '#2F4B39' : '#D3D1C7', color: 'white', fontSize: '13px', fontWeight: '500',
+          background: name.trim() ? AKZENT : '#D3D1C7', color: 'white', fontSize: '13px', fontWeight: '500',
           cursor: name.trim() ? 'pointer' : 'default', fontFamily: "'DM Sans', sans-serif",
         }}>
           {bestaetigenLabel}
@@ -147,7 +148,7 @@ function FehlerDialog({ titel, meldung, onSchliessen }) {
       </p>
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <button onClick={onSchliessen} style={{
-          padding: '8px 16px', borderRadius: '10px', border: 'none', background: '#2F4B39', color: 'white',
+          padding: '8px 16px', borderRadius: '10px', border: 'none', background: AKZENT, color: 'white',
           fontSize: '13px', fontWeight: '500', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
         }}>
           OK
@@ -177,8 +178,8 @@ function KontoMenu({ user }) {
   return (
     <div style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
       <button onClick={() => setOffen(o => !o)} title={user.email} style={{
-        width: '36px', height: '36px', borderRadius: '50%', border: '1px solid #E4DED0', background: '#EDF1EC',
-        color: '#2F4B39', fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex',
+        width: '36px', height: '36px', borderRadius: '50%', border: '1px solid #E4DED0', background: AKZENT_ZART,
+        color: AKZENT, fontSize: '12px', fontWeight: '600', cursor: 'pointer', display: 'flex',
         alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
       }}>
         {kuerzel}
@@ -286,7 +287,7 @@ function KachelMenu({ gruppen, gruppeAktuell, onGruppeAendern, onUmbenennen, onD
                 padding: '9px 14px', fontSize: '13px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
                 whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px',
                 background: gruppenUntermenuOffen ? '#F7F6F2' : 'transparent', fontWeight: gruppenUntermenuOffen ? '500' : '400',
-                color: gruppenUntermenuOffen ? '#1F3327' : '#444441',
+                color: gruppenUntermenuOffen ? AKZENT_DUNKEL : '#444441',
               }}
               onMouseEnter={e => { if (!gruppenUntermenuOffen) e.currentTarget.style.background = '#F7F6F2' }}
               onMouseLeave={e => { if (!gruppenUntermenuOffen) e.currentTarget.style.background = 'transparent' }}
@@ -315,16 +316,16 @@ function KachelMenu({ gruppen, gruppeAktuell, onGruppeAendern, onUmbenennen, onD
                 return (
                   <div key={label} onClick={() => gruppeWaehlen(id)} style={{
                     display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 14px', fontSize: '13px', cursor: 'pointer',
-                    color: gewaehlt ? '#1F3327' : '#444441', fontWeight: gewaehlt ? '500' : '400', fontFamily: "'DM Sans', sans-serif",
+                    color: gewaehlt ? AKZENT_DUNKEL : '#444441', fontWeight: gewaehlt ? '500' : '400', fontFamily: "'DM Sans', sans-serif",
                   }}
                     onMouseEnter={e => e.currentTarget.style.background = '#F7F6F2'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
                     <div style={{
                       width: '14px', height: '14px', borderRadius: '50%', flexShrink: 0, position: 'relative',
-                      border: `1.6px solid ${gewaehlt ? '#2F4B39' : '#C7C3B6'}`,
+                      border: `1.6px solid ${gewaehlt ? AKZENT : '#C7C3B6'}`,
                     }}>
-                      {gewaehlt && <div style={{ position: 'absolute', inset: '2.5px', borderRadius: '50%', background: '#2F4B39' }} />}
+                      {gewaehlt && <div style={{ position: 'absolute', inset: '2.5px', borderRadius: '50%', background: AKZENT }} />}
                     </div>
                     {label}
                   </div>
@@ -332,7 +333,7 @@ function KachelMenu({ gruppen, gruppeAktuell, onGruppeAendern, onUmbenennen, onD
               })}
               <div style={{ height: '1px', background: '#EDEBE3', margin: '6px 0' }} />
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px 8px' }}>
-                <span style={{ color: '#2F4B39', fontSize: '15px', fontWeight: '700' }}>+</span>
+                <span style={{ color: AKZENT, fontSize: '15px', fontWeight: '700' }}>+</span>
                 <input
                   value={neueGruppeName}
                   onChange={e => setNeueGruppeName(e.target.value)}
@@ -359,7 +360,7 @@ function ProjektKachel({ projekt, kartenRef, gruppen, onOeffnen, onUmbenennen, o
       position: 'relative', background: 'white', border: '1px solid #E4DED0', borderRadius: '14px', padding: '20px',
       cursor: 'pointer', transition: 'all 0.15s', boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
     }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = '#2F4B39'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(47,75,57,0.14)' }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = AKZENT; e.currentTarget.style.boxShadow = '0 4px 16px rgba(47,75,57,0.14)' }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = '#E4DED0'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.04)' }}
     >
       <KachelMenu
@@ -515,11 +516,11 @@ export default function Dashboard() {
           <div onClick={() => setAktiveGruppe(null)} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '9px 12px',
             borderRadius: '8px', fontSize: '13px', cursor: 'pointer', marginBottom: '2px',
-            background: aktiveGruppe === null ? '#EDF1EC' : 'transparent',
-            color: aktiveGruppe === null ? '#1F3327' : '#444441', fontWeight: aktiveGruppe === null ? '500' : '400',
+            background: aktiveGruppe === null ? AKZENT_ZART : 'transparent',
+            color: aktiveGruppe === null ? AKZENT_DUNKEL : '#444441', fontWeight: aktiveGruppe === null ? '500' : '400',
           }}>
             <span>Alle Projekte</span>
-            <span style={{ fontSize: '11px', color: aktiveGruppe === null ? '#2F4B39' : '#B4B2A9' }}>{projekte.length}</span>
+            <span style={{ fontSize: '11px', color: aktiveGruppe === null ? AKZENT : '#B4B2A9' }}>{projekte.length}</span>
           </div>
           <div style={{ fontSize: '10px', letterSpacing: '.06em', textTransform: 'uppercase', color: '#B4B2A9', fontWeight: '600', padding: '18px 12px 6px' }}>
             Gruppen
@@ -528,22 +529,22 @@ export default function Dashboard() {
             <div key={g} onClick={() => setAktiveGruppe(g)} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '9px 12px',
               borderRadius: '8px', fontSize: '13px', cursor: 'pointer', marginBottom: '2px',
-              background: aktiveGruppe === g ? '#EDF1EC' : 'transparent',
-              color: aktiveGruppe === g ? '#1F3327' : '#444441', fontWeight: aktiveGruppe === g ? '500' : '400',
+              background: aktiveGruppe === g ? AKZENT_ZART : 'transparent',
+              color: aktiveGruppe === g ? AKZENT_DUNKEL : '#444441', fontWeight: aktiveGruppe === g ? '500' : '400',
             }}>
               <span>{g}</span>
-              <span style={{ fontSize: '11px', color: aktiveGruppe === g ? '#2F4B39' : '#B4B2A9' }}>{projekte.filter(p => p.gruppe === g).length}</span>
+              <span style={{ fontSize: '11px', color: aktiveGruppe === g ? AKZENT : '#B4B2A9' }}>{projekte.filter(p => p.gruppe === g).length}</span>
             </div>
           ))}
           {hatUngruppierte && (
             <div onClick={() => setAktiveGruppe('__ohne__')} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', padding: '9px 12px',
               borderRadius: '8px', fontSize: '13px', cursor: 'pointer', marginBottom: '2px',
-              background: aktiveGruppe === '__ohne__' ? '#EDF1EC' : 'transparent',
-              color: aktiveGruppe === '__ohne__' ? '#1F3327' : '#444441', fontWeight: aktiveGruppe === '__ohne__' ? '500' : '400',
+              background: aktiveGruppe === '__ohne__' ? AKZENT_ZART : 'transparent',
+              color: aktiveGruppe === '__ohne__' ? AKZENT_DUNKEL : '#444441', fontWeight: aktiveGruppe === '__ohne__' ? '500' : '400',
             }}>
               <span>Ohne Gruppe</span>
-              <span style={{ fontSize: '11px', color: aktiveGruppe === '__ohne__' ? '#2F4B39' : '#B4B2A9' }}>{projekte.filter(p => !p.gruppe).length}</span>
+              <span style={{ fontSize: '11px', color: aktiveGruppe === '__ohne__' ? AKZENT : '#B4B2A9' }}>{projekte.filter(p => !p.gruppe).length}</span>
             </div>
           )}
         </div>
@@ -554,18 +555,18 @@ export default function Dashboard() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <PlanixyIcon size={30} />
-            <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '28px', fontWeight: '500', color: '#1F3327' }}>{gruppenTitel || 'Planixy'}</h1>
+            <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '28px', fontWeight: '500', color: AKZENT_DUNKEL }}>{gruppenTitel || 'Planixy'}</h1>
           </div>
           <p style={{ fontSize: '13px', color: '#B4B2A9', marginTop: '2px' }}>{gruppenUntertitel}</p>
         </div>
         <div className="dashboard-header-actions" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <ImportButton onClick={() => importInputRef.current.click()} />
           <button onClick={() => setDialog({ typ: 'neu' })} style={{
-            padding: '10px 20px', background: '#2F4B39', color: 'white', border: 'none', borderRadius: '10px',
+            padding: '10px 20px', background: AKZENT, color: 'white', border: 'none', borderRadius: '10px',
             cursor: 'pointer', fontSize: '13px', fontWeight: '500', fontFamily: "'DM Sans', sans-serif",
           }}
-            onMouseEnter={e => e.currentTarget.style.background = '#1F3327'}
-            onMouseLeave={e => e.currentTarget.style.background = '#2F4B39'}
+            onMouseEnter={e => e.currentTarget.style.background = AKZENT_DUNKEL}
+            onMouseLeave={e => e.currentTarget.style.background = AKZENT}
           >
             + Neues Projekt
           </button>
@@ -600,8 +601,8 @@ export default function Dashboard() {
           <button onClick={() => setFilterOffen(o => !o)} style={{
             display: 'flex', alignItems: 'center', gap: '7px', padding: '9px 14px', fontSize: '13px', fontWeight: '500',
             borderRadius: '10px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", position: 'relative',
-            background: filterOffen ? '#2F4B39' : 'white', color: filterOffen ? 'white' : '#444441',
-            border: `1px solid ${filterOffen ? '#2F4B39' : '#E4DED0'}`,
+            background: filterOffen ? AKZENT : 'white', color: filterOffen ? 'white' : '#444441',
+            border: `1px solid ${filterOffen ? AKZENT : '#E4DED0'}`,
           }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={filterOffen ? 'white' : '#444441'} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="4 4 20 4 14 13 14 20 10 20 10 13 4 4" />
@@ -610,7 +611,7 @@ export default function Dashboard() {
             {filterAktiv && (
               <span style={{
                 width: '6px', height: '6px', borderRadius: '50%', background: '#C9A66B', position: 'absolute', top: '7px', right: '7px',
-                boxShadow: `0 0 0 2px ${filterOffen ? '#2F4B39' : 'white'}`,
+                boxShadow: `0 0 0 2px ${filterOffen ? AKZENT : 'white'}`,
               }} />
             )}
           </button>
@@ -630,8 +631,8 @@ export default function Dashboard() {
               {ZEITRAUM_FILTER.map(z => (
                 <div key={z.id} onClick={() => setZeitraumFilterId(z.id)} style={{
                   padding: '6px 13px', fontSize: '12px', borderRadius: '20px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
-                  border: `1px solid ${z.id === zeitraumFilterId ? '#2F4B39' : '#E4DED0'}`,
-                  background: z.id === zeitraumFilterId ? '#2F4B39' : 'white',
+                  border: `1px solid ${z.id === zeitraumFilterId ? AKZENT : '#E4DED0'}`,
+                  background: z.id === zeitraumFilterId ? AKZENT : 'white',
                   color: z.id === zeitraumFilterId ? 'white' : '#444441',
                   fontWeight: z.id === zeitraumFilterId ? '500' : '400',
                 }}>
@@ -649,8 +650,8 @@ export default function Dashboard() {
               {RAUM_FILTER.map(r => (
                 <div key={r.id} onClick={() => setRaumFilterId(r.id)} style={{
                   padding: '6px 13px', fontSize: '12px', borderRadius: '20px', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
-                  border: `1px solid ${r.id === raumFilterId ? '#2F4B39' : '#E4DED0'}`,
-                  background: r.id === raumFilterId ? '#2F4B39' : 'white',
+                  border: `1px solid ${r.id === raumFilterId ? AKZENT : '#E4DED0'}`,
+                  background: r.id === raumFilterId ? AKZENT : 'white',
                   color: r.id === raumFilterId ? 'white' : '#444441',
                   fontWeight: r.id === raumFilterId ? '500' : '400',
                 }}>
@@ -682,7 +683,7 @@ export default function Dashboard() {
           </p>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button onClick={() => setDialog({ typ: 'neu' })} style={{
-              padding: '10px 20px', background: '#2F4B39', color: 'white', border: 'none', borderRadius: '10px',
+              padding: '10px 20px', background: AKZENT, color: 'white', border: 'none', borderRadius: '10px',
               cursor: 'pointer', fontSize: '13px', fontWeight: '500', fontFamily: "'DM Sans', sans-serif",
             }}>
               + Neues Projekt
@@ -737,8 +738,8 @@ export default function Dashboard() {
                     style={{
                       fontSize: '10px', fontWeight: '600', width: '20px', height: '17px', lineHeight: '17px',
                       textAlign: 'center', borderRadius: '5px',
-                      color: gewaehlt ? 'white' : aktiv ? '#2F4B39' : '#DCD8CB',
-                      background: gewaehlt ? '#2F4B39' : 'transparent',
+                      color: gewaehlt ? 'white' : aktiv ? AKZENT : '#DCD8CB',
+                      background: gewaehlt ? AKZENT : 'transparent',
                       cursor: aktiv ? 'pointer' : 'default',
                     }}
                   >

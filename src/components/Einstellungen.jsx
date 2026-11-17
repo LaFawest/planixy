@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { entferneLokaleGastdaten } from '../context/projekteStorage'
 import LegalLinks from './LegalLinks'
+import { AKZENT, AKZENT_DUNKEL } from '../farben'
 
 // Rohe GoTrue-Fehlermeldungen (Englisch) auf verständliche deutsche Hinweise abbilden — analog zu
 // FEHLER_TEXTE in AuthModal.jsx, aber um die hier relevanten Fälle (E-Mail-/Passwort-Änderung)
@@ -72,7 +73,7 @@ function AendernKnopf({ onClick }) {
   return (
     <button onClick={onClick} style={{
       padding: '7px 16px', borderRadius: '9px', border: '1px solid #E4DED0', background: 'white',
-      color: '#2F4B39', fontSize: '13px', fontWeight: '500', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
+      color: AKZENT, fontSize: '13px', fontWeight: '500', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
     }}>
       Ändern
     </button>
@@ -90,7 +91,7 @@ function FormAktionen({ onAbbrechen, speichernLabel = 'Speichern', ladeStatus, d
       </button>
       <button type="submit" disabled={ladeStatus || deaktiviert} style={{
         padding: '8px 16px', borderRadius: '10px', border: 'none',
-        background: (ladeStatus || deaktiviert) ? '#D3D1C7' : '#2F4B39', color: 'white', fontSize: '13px', fontWeight: '500',
+        background: (ladeStatus || deaktiviert) ? '#D3D1C7' : AKZENT, color: 'white', fontSize: '13px', fontWeight: '500',
         cursor: (ladeStatus || deaktiviert) ? 'default' : 'pointer', fontFamily: "'DM Sans', sans-serif",
       }}>
         {ladeStatus ? '…' : speichernLabel}
@@ -133,7 +134,7 @@ function EmailZeile({ user }) {
             Du erhältst eine Bestätigungs-E-Mail an die neue Adresse. Die Änderung gilt erst nach Bestätigung.
           </p>
           {fehler && <p style={{ fontSize: '12px', color: '#E24B4A', marginBottom: '10px', lineHeight: 1.4 }}>{fehler}</p>}
-          {hinweis && <p style={{ fontSize: '12px', color: '#2F4B39', marginBottom: '10px', lineHeight: 1.4 }}>{hinweis}</p>}
+          {hinweis && <p style={{ fontSize: '12px', color: AKZENT, marginBottom: '10px', lineHeight: 1.4 }}>{hinweis}</p>}
           <FormAktionen onAbbrechen={abbrechen} ladeStatus={ladeStatus} deaktiviert={!neueEmail.trim()} />
         </form>
       )}
@@ -178,7 +179,7 @@ function PasswortZeile() {
             placeholder="Neues Passwort bestätigen" style={eingabeStil}
           />
           {fehler && <p style={{ fontSize: '12px', color: '#E24B4A', marginBottom: '10px', lineHeight: 1.4 }}>{fehler}</p>}
-          {hinweis && <p style={{ fontSize: '12px', color: '#2F4B39', marginBottom: '10px', lineHeight: 1.4 }}>{hinweis}</p>}
+          {hinweis && <p style={{ fontSize: '12px', color: AKZENT, marginBottom: '10px', lineHeight: 1.4 }}>{hinweis}</p>}
           <FormAktionen onAbbrechen={abbrechen} ladeStatus={ladeStatus} deaktiviert={!neuesPasswort || !bestaetigung} />
         </form>
       )}
@@ -267,7 +268,7 @@ function PillToggle({ optionen, aktiv }) {
       {optionen.map(o => (
         <div key={o} style={{
           padding: '6px 14px', fontSize: '12px', fontFamily: "'DM Sans', sans-serif",
-          background: o === aktiv ? '#2F4B39' : 'white', color: o === aktiv ? 'white' : '#888780',
+          background: o === aktiv ? AKZENT : 'white', color: o === aktiv ? 'white' : '#888780',
         }}>
           {o}
         </div>
@@ -282,7 +283,7 @@ function AppKarte() {
       background: 'white', border: '1px solid #E4DED0', borderRadius: '16px', padding: '26px 28px', marginTop: '20px',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', fontWeight: '500', color: '#1F3327' }}>App</h2>
+        <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', fontWeight: '500', color: AKZENT_DUNKEL }}>App</h2>
         <span style={{
           fontSize: '10px', fontWeight: '600', padding: '3px 10px', borderRadius: '20px', background: '#F2E9D8', color: '#8A6D3B',
         }}>
@@ -322,7 +323,7 @@ export default function Einstellungen() {
           display: 'flex', alignItems: 'center', gap: '8px', padding: '8px', margin: '-8px -8px 24px', border: 'none',
           background: 'transparent', cursor: 'pointer', color: '#444441', fontSize: '13px', fontFamily: "'DM Sans', sans-serif",
         }}
-          onMouseEnter={e => e.currentTarget.style.color = '#2F4B39'}
+          onMouseEnter={e => e.currentTarget.style.color = AKZENT}
           onMouseLeave={e => e.currentTarget.style.color = '#444441'}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -331,12 +332,12 @@ export default function Einstellungen() {
           Zurück zum Dashboard
         </button>
 
-        <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '28px', fontWeight: '500', color: '#1F3327', marginBottom: '20px' }}>
+        <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '28px', fontWeight: '500', color: AKZENT_DUNKEL, marginBottom: '20px' }}>
           Einstellungen
         </h1>
 
         <div style={{ background: 'white', border: '1px solid #E4DED0', borderRadius: '16px', padding: '26px 28px' }}>
-          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', fontWeight: '500', color: '#1F3327', marginBottom: '4px' }}>
+          <h2 style={{ fontFamily: "'Playfair Display', serif", fontSize: '18px', fontWeight: '500', color: AKZENT_DUNKEL, marginBottom: '4px' }}>
             Konto
           </h2>
 

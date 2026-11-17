@@ -5,6 +5,7 @@
    im Akzent statt in Chrome-Blau und wird vererbt, gilt also für die ganze Seite (17.11.2026). */
 :root {
   --akzent: #2F4B39;
+  --akzent-dunkel: #1F3327;
   --akzent-hell: #E8F0EA;
   --akzent-rand: #B8CCBE;
   accent-color: var(--akzent);
@@ -315,12 +316,12 @@ input[type=number]::-webkit-outer-spin-button { opacity: 1; }
 /* Tastaturfokus: ein grüner Ring wie die aktive Pille. :focus-visible statt :focus, damit ein
    Mausklick keinen Ring hinterlässt. */
 .schritt-pille:focus-visible {
-  outline: 2px solid #2F4B39;
+  outline: 2px solid var(--akzent);
   outline-offset: 2px;
 }
 .schritt-pille-aktiv,
 .schritt-pille-aktiv:hover {
-  background: #E8F0EA;
+  background: var(--akzent-hell);
 }
 
 /* Schmale Leiste: Die vier ausgeschriebenen Namen brauchen in Schritt 4 rund 900 px
@@ -589,7 +590,7 @@ input[type=number]::-webkit-outer-spin-button { opacity: 1; }
   gap: 2px;
   padding: 8px 12px;
   border-radius: 10px;
-  background: #1F3327;
+  background: var(--akzent-dunkel);
   color: white;
   box-shadow: 0 6px 18px rgba(31, 51, 39, 0.18);
   pointer-events: none;

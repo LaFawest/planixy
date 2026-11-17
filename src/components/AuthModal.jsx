@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { AKZENT } from '../farben'
 
 // Rohe GoTrue-Fehlermeldungen (Englisch) auf verständliche deutsche Hinweise abbilden —
 // unbekannte Meldungen fallen unten auf error.message zurück statt auf einen generischen Text,
@@ -154,7 +155,7 @@ export default function AuthModal({ onSchliessen }) {
           </p>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button type="button" onClick={onSchliessen} style={{
-              padding: '8px 16px', borderRadius: '10px', border: 'none', background: '#2F4B39', color: 'white',
+              padding: '8px 16px', borderRadius: '10px', border: 'none', background: AKZENT, color: 'white',
               fontSize: '13px', fontWeight: '500', cursor: 'pointer', fontFamily: "'DM Sans', sans-serif",
             }}>
               Verstanden
@@ -254,11 +255,11 @@ export default function AuthModal({ onSchliessen }) {
               />
               <span style={{ fontSize: '12px', color: '#444441', lineHeight: 1.5 }}>
                 Ich akzeptiere die{' '}
-                <a href="https://planixy.app/nutzungsbedingungen" target="_blank" rel="noopener noreferrer" style={{ color: '#2F4B39' }}>
+                <a href="https://planixy.app/nutzungsbedingungen" target="_blank" rel="noopener noreferrer" style={{ color: AKZENT }}>
                   Nutzungsbedingungen
                 </a>{' '}
                 und die{' '}
-                <a href="https://planixy.app/datenschutz" target="_blank" rel="noopener noreferrer" style={{ color: '#2F4B39' }}>
+                <a href="https://planixy.app/datenschutz" target="_blank" rel="noopener noreferrer" style={{ color: AKZENT }}>
                   Datenschutzerklärung
                 </a>.
               </span>
@@ -279,7 +280,7 @@ export default function AuthModal({ onSchliessen }) {
               disabled={ladeStatus || (modus === 'registrieren' && !akzeptiert)}
               style={{
                 padding: '8px 16px', borderRadius: '10px', border: 'none',
-                background: (ladeStatus || (modus === 'registrieren' && !akzeptiert)) ? '#D3D1C7' : '#2F4B39',
+                background: (ladeStatus || (modus === 'registrieren' && !akzeptiert)) ? '#D3D1C7' : AKZENT,
                 color: 'white', fontSize: '13px', fontWeight: '500',
                 cursor: (ladeStatus || (modus === 'registrieren' && !akzeptiert)) ? 'default' : 'pointer',
                 fontFamily: "'DM Sans', sans-serif",
@@ -297,7 +298,7 @@ export default function AuthModal({ onSchliessen }) {
 
         {modus === 'passwort-vergessen' && (
           <p style={{ fontSize: '12px', color: '#888780', marginTop: '16px', textAlign: 'center' }}>
-            <span onClick={() => wechsleModus('login')} style={{ color: '#2F4B39', cursor: 'pointer', fontWeight: '500' }}>
+            <span onClick={() => wechsleModus('login')} style={{ color: AKZENT, cursor: 'pointer', fontWeight: '500' }}>
               Zurück zur Anmeldung
             </span>
           </p>
@@ -305,7 +306,7 @@ export default function AuthModal({ onSchliessen }) {
 
         {modus === 'passwort-vergessen-code' && (
           <p style={{ fontSize: '12px', color: '#888780', marginTop: '16px', textAlign: 'center' }}>
-            <span onClick={() => wechsleModus('passwort-vergessen')} style={{ color: '#2F4B39', cursor: 'pointer', fontWeight: '500' }}>
+            <span onClick={() => wechsleModus('passwort-vergessen')} style={{ color: AKZENT, cursor: 'pointer', fontWeight: '500' }}>
               Code erneut anfordern
             </span>
           </p>
@@ -314,7 +315,7 @@ export default function AuthModal({ onSchliessen }) {
         {(modus === 'login' || modus === 'registrieren') && (
           <p style={{ fontSize: '12px', color: '#888780', marginTop: '16px', textAlign: 'center' }}>
             {modus === 'login' ? 'Noch kein Konto?' : 'Schon ein Konto?'}{' '}
-            <span onClick={() => wechsleModus(modus === 'login' ? 'registrieren' : 'login')} style={{ color: '#2F4B39', cursor: 'pointer', fontWeight: '500' }}>
+            <span onClick={() => wechsleModus(modus === 'login' ? 'registrieren' : 'login')} style={{ color: AKZENT, cursor: 'pointer', fontWeight: '500' }}>
               {modus === 'login' ? 'Registrieren' : 'Anmelden'}
             </span>
           </p>

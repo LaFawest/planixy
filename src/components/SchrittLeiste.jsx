@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { WIZARD_SCHRITTE } from '../constants'
 import { useWizard } from '../context/WizardContext'
 import { useUI } from '../context/UIContext'
+import { AKZENT, AKZENT_DUNKEL } from '../farben'
 
 const ERSTER_SCHRITT = WIZARD_SCHRITTE[0].nummer
 const LETZTER_SCHRITT = WIZARD_SCHRITTE[WIZARD_SCHRITTE.length - 1].nummer
@@ -74,12 +75,12 @@ export default function SchrittLeiste() {
                 <span style={{
                   width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: '11px', fontWeight: '500', flexShrink: 0,
-                  background: schritt === s.nummer ? '#2F4B39' : (s.bald ? '#F0F0EC' : '#E8E6E0'),
+                  background: schritt === s.nummer ? AKZENT : (s.bald ? '#F0F0EC' : '#E8E6E0'),
                   color: schritt === s.nummer ? 'white' : '#888780',
                 }}>{s.nummer}</span>
                 <span className="schritt-pille-name" style={{
                   fontSize: '13px', fontWeight: schritt === s.nummer ? '500' : '400',
-                  color: schritt === s.nummer ? '#1F3327' : (s.bald ? '#B4B2A9' : '#444441'),
+                  color: schritt === s.nummer ? AKZENT_DUNKEL : (s.bald ? '#B4B2A9' : '#444441'),
                 }}>{s.label}</span>
                 {s.bald && (
                   <span style={{ fontSize: '9px', padding: '1px 6px', borderRadius: '8px', background: '#F0F0EC', color: '#B4B2A9', fontWeight: '500' }}>bald</span>
@@ -92,7 +93,7 @@ export default function SchrittLeiste() {
 
         {schritt === LETZTER_SCHRITT ? (
           <button onClick={() => navigate(`/projekt/${id}/zusammenfassung`)} style={{
-            padding: '6px 12px', borderRadius: '8px', border: 'none', background: '#2F4B39',
+            padding: '6px 12px', borderRadius: '8px', border: 'none', background: AKZENT,
             color: 'white', fontSize: '12px', fontFamily: "'DM Sans', sans-serif", cursor: 'pointer', flexShrink: 0,
           }} aria-label="Zusammenfassung">
             <span className="schritt-knopf-text">Zusammenfassung </span>→
@@ -124,7 +125,7 @@ export default function SchrittLeiste() {
               >
                 <span style={{
                   width: '10px', height: '10px', borderRadius: '50%', display: 'block', boxSizing: 'border-box',
-                  background: schritt === s.nummer ? '#2F4B39' : (s.bald ? '#F0F0EC' : '#E8E6E0'),
+                  background: schritt === s.nummer ? AKZENT : (s.bald ? '#F0F0EC' : '#E8E6E0'),
                   border: s.bald && schritt !== s.nummer ? '1px solid #D3D1C7' : 'none',
                 }} />
               </button>

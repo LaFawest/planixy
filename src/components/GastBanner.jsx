@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import AuthModal from './AuthModal'
 import { PlanixyIcon } from './PlanixyLogo'
+import { AKZENT, AKZENT_DUNKEL } from '../farben'
 
 const SPEICHER_SCHLUESSEL = 'planixy_gastbanner_ausgeblendet'
 
@@ -54,7 +55,7 @@ export default function GastBanner({ bestaetigt = false }) {
         </button>
         <PlanixyIcon size={44} />
         <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '16px', fontWeight: 500, color: '#1F3327', marginBottom: '4px' }}>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: '16px', fontWeight: 500, color: AKZENT_DUNKEL, marginBottom: '4px' }}>
             {bestaetigt ? 'E-Mail bestätigt' : 'Noch nicht angemeldet'}
           </div>
           <div style={{ fontSize: '13px', color: '#5b5a4d', lineHeight: 1.5, maxWidth: '620px' }}>
@@ -64,11 +65,11 @@ export default function GastBanner({ bestaetigt = false }) {
           </div>
         </div>
         <button onClick={() => setAuthModalOffen(true)} style={{
-          padding: '10px 20px', background: '#2F4B39', color: 'white', border: 'none', borderRadius: '10px',
+          padding: '10px 20px', background: AKZENT, color: 'white', border: 'none', borderRadius: '10px',
           cursor: 'pointer', fontSize: '13px', fontWeight: 500, fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
         }}
-          onMouseEnter={e => e.currentTarget.style.background = '#1F3327'}
-          onMouseLeave={e => e.currentTarget.style.background = '#2F4B39'}
+          onMouseEnter={e => e.currentTarget.style.background = AKZENT_DUNKEL}
+          onMouseLeave={e => e.currentTarget.style.background = AKZENT}
         >
           Anmelden / Registrieren
         </button>
