@@ -58,9 +58,9 @@ export function produkteFuerTyp(moebelName) {
   return produktEmpfehlungen.filter(p => p.moebelName === moebelName)
 }
 
-// Amazon-Preise sind teils (noch) nicht erfasst (preis: null) — dann auf Amazon verweisen statt
-// "0,00 €" oder eine leere Stelle anzuzeigen. Gemeinsam genutzt von Katalog-Karte und Produkt-
-// Wechsel-Panel, damit beide Stellen bei fehlendem Preis denselben Text zeigen.
+// Seit dem 17.11.2026 nirgends mehr aufgerufen: Preise werden nicht angezeigt, bis ein
+// Händler-Feed sie live liefert. Bleibt für diesen Fall stehen. Bei preis: null verweist der Text
+// auf den Händler statt "0,00 €" zu zeigen.
 export function formatPreis(preis) {
   if (preis == null) return 'Preis auf Amazon prüfen'
   return preis.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'

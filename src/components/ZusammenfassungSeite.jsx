@@ -11,17 +11,9 @@ import { AKZENT } from '../farben'
 // Schritt-3-Filter benutzt, und die beiden haben nichts miteinander zu tun außer dem Wort.
 const LICHT_KATEGORIE = 'Licht'
 
-// preis darf in produktempfehlungen.js null sein: Bei einigen Produkten weist Amazon
-// keinen Preis aus. Ohne diese Abfrage wird daraus beim Rechnen eine 0 und die Summe
-// stimmt still nicht mehr.
-function formatPreis(preis) {
-  if (typeof preis !== 'number' || Number.isNaN(preis)) return '—'
-  return preis.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
-}
-
-function hatPreis(produkt) {
-  return produkt != null && typeof produkt.preis === 'number'
-}
+// Keine Preise und keine Summe (17.11.2026): Die Werte in produktempfehlungen.js sind von Hand
+// erfasst und veralten. Preise kommen erst zurück, wenn ein Händler-Feed sie live liefert, dann
+// mit Abrufdatum. Bis dahin verweist die Seite für Preis und Verfügbarkeit auf den Händler.
 
 // Gruppiert die Möbel eines Raums nach (Name + gefundenem Produkt), damit z.B. 4 gleiche
 // Essstühle als eine Zeile mit "× 4" erscheinen statt vier identischer Zeilen. Wandelemente
@@ -58,13 +50,7 @@ export default function ZusammenfassungSeite() {
   const { id } = useParams()
   const { rooms } = useRooms()
 
-  const raeume = rooms.map(room => {
-    const gruppen = gruppiere(room.furniture || [])
-    const raumSumme = gruppen.reduce((summe, g) => summe + (hatPreis(g.produkt) ? g.produkt.preis * g.anzahl : 0), 0)
-    const ohnePreis = gruppen.filter(g => g.produkt && !hatPreis(g.produkt)).length
-    return { room, gruppen, raumSumme, ohnePreis }
-  })
-  const gesamtpreis = raeume.reduce((summe, r) => summe + r.raumSumme, 0)
+  const raeume = rooms.map(room => ({ room, gruppen: gruppiere(room.furniture || []) }))
 
   return (
     <div style={{ minHeight: '100vh', background: '#FBF6EC', padding: '32px 24px', fontFamily: "'DM Sans', sans-serif" }}>
@@ -127,9 +113,6 @@ export default function ZusammenfassungSeite() {
                         </div>
                       )}
                     </div>
-                    <div style={{ fontSize: '13px', fontWeight: '600', color: '#2C2C2A', flexShrink: 0 }}>
-                      {hatPreis(g.produkt) ? formatPreis(g.produkt.preis * g.anzahl) : '—'}
-                    </div>
                   </div>
                 ))}
               </div>
@@ -137,18 +120,9 @@ export default function ZusammenfassungSeite() {
           </div>
         ))}
 
-        <div style={{ background: AKZENT, borderRadius: '14px', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-          <div>
-            <div style={{ fontSize: '11px', color: '#C9E0D2', letterSpacing: '0.06em' }}>GESCHÄTZTE GESAMTSUMME</div>
-            <div style={{ fontSize: '11px', color: '#C9E0D2', marginTop: '2px' }}>
-              Nur für Möbel mit Produktvorschlag · Amazon-Preise können sich ändern
-              {raeume.reduce((n, r) => n + r.ohnePreis, 0) > 0 && ' · einzelne Produkte ohne Preisangabe sind nicht enthalten'}
-            </div>
-          </div>
-          <div style={{ fontSize: '24px', fontWeight: '600', color: 'white', fontFamily: "'Playfair Display', serif" }}>
-            {formatPreis(gesamtpreis)}
-          </div>
-        </div>
+        <p style={{ fontSize: '12px', color: '#888780', lineHeight: 1.5, margin: '4px 0 0' }}>
+          Preis und Verfügbarkeit siehst du beim jeweiligen Händler. Mit „Anzeige“ gekennzeichnete Links sind Werbelinks.
+        </p>
 
         <LegalLinks style={{ marginTop: '28px', justifyContent: 'center' }} />
       </div>

@@ -1,7 +1,7 @@
 import { useFurniture } from '../context/FurnitureContext'
 import { alleKatalogItems } from '../constants'
 import { produktEmpfehlungen } from '../data/produktempfehlungen'
-import { produktAufKatalogItemAnwenden, formatPreis } from '../data/produktAuswahl'
+import { produktAufKatalogItemAnwenden } from '../data/produktAuswahl'
 import { moebelIconTyp, moebelShapes } from '../moebelIcons'
 import { AKZENT, AKZENT_HELL } from '../farben'
 
@@ -64,10 +64,10 @@ export default function ProduktPanel() {
                 <div style={{ fontSize: '11px', color: '#444441', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                   {produkt.name}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '3px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '600', color: AKZENT }}>
-                    {formatPreis(produkt.preis)}
-                  </div>
+                {/* Keine Preise (17.11.2026): Die Werte in produktempfehlungen.js sind von Hand
+                    erfasst und veralten. Preise kommen erst zurück, wenn ein Händler-Feed sie live
+                    liefert, dann mit Abrufdatum. Das Feld preis bleibt in den Daten. */}
+                <div style={{ marginTop: '3px' }}>
                   <span style={{ fontSize: '10px', color: '#B4B2A9' }}>Anzeige</span>
                 </div>
               </div>
