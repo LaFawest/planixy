@@ -510,8 +510,19 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       const fovXAktuell = 2 * Math.atan(Math.tan(fovY / 2) * camera.aspect)
       const distanzFuerZielBreiteAktuell = zielBreiteMeter / (2 * Math.tan(fovXAktuell / 2))
       const RAND_FAKTOR = 1.6
+      // Vorderkante (17.11.2026): Die Rechnung oben passt am Raummittelpunkt ein. Die Vorderkante
+      // liegt aber raumTiefe / 2 näher an der Kamera; bei tiefen Räumen und breiten Bildschirmen
+      // lagen ihre Ecken außerhalb des Bildes, bei 5 × 15 m stand die Kamera sogar im Raum. Deshalb
+      // ein Mindestabstand, bei dem die vordere Decken- und Bodenkante samt Ecken mit 5 % Rand ins
+      // Bild passen. Er greift nur, wo sonst etwas abgeschnitten wäre; übliche Räume (5 × 4, 4 × 5)
+      // behalten genau ihr bisheriges Bild.
+      const VORDERKANTE_RAND = 0.95
+      const vorderkanteDistanz = raumTiefe / 2 + Math.max(
+        (raumBreite / 2) / (Math.tan(fovXAktuell / 2) * VORDERKANTE_RAND),
+        (wandHoehe / 2) / (Math.tan(fovY / 2) * VORDERKANTE_RAND),
+      )
       const versatz = Math.min(
-        Math.max(zielDistanzOhneRand, distanzFuerZielBreiteAktuell) * RAND_FAKTOR,
+        Math.max(Math.max(zielDistanzOhneRand, distanzFuerZielBreiteAktuell) * RAND_FAKTOR, vorderkanteDistanz),
         MAX_DECKEN_FOKUS_ABSTAND,
       )
       camera.position.set(0, wandHoehe / 2, versatz)
@@ -1553,7 +1564,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
       // gebaut hat, ohne dass dieser Effekt neu gelaufen ist.
       const moebelTeile = moebelGruppenRef.current
       if (!moebelTeile) return
-      const { deckenleuchtenGruppen, ledGriffe, panelGriffe, deckenleuchteRing } = moebelTeile
+      const { deckenleuchtenGruppen, ledGriffe, panelGriffe, deckenleuchteRing, setzeMarkierung } = moebelTeile
       const rect = mount.getBoundingClientRect()
       zeigerNDC.x = ((clientX - rect.left) / rect.width) * 2 - 1
       zeigerNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1
@@ -1588,21 +1599,48 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         }
       }
 
-      const treffer = raycaster.intersectObjects(deckenleuchtenGruppen.map(d => d.gruppe), true)
-      if (treffer.length === 0) {
+      // Auswahl (17.11.2026). Bisher entschied der erste Treffer auf die unsichtbaren Trefferflächen:
+      // flache Scheiben an der Decke, die die Kamera fast von der Kante sieht — ein Spot traf nur in
+      // einem rund 10 px hohen Streifen, und von zwei nebeneinanderliegenden Spots war der rechte
+      // praktisch nicht anwählbar, weil die Fläche des linken davorlag. Jetzt in zwei Stufen:
+      // (1) Ist das sichtbare Modell einer Leuchte getroffen (Schirm, Körper, Kabel), gilt diese.
+      // (2) Sonst die Leuchte, deren Bildpunkt dem Klick am nächsten liegt, innerhalb von
+      //     FANG_RADIUS_PX. Lange Leuchten (Spot-Reihe, LED-Streifen) zählen zusätzlich mit zwei
+      //     Punkten nahe ihren Enden. So entscheidet die Nähe, nicht die Reihenfolge der Flächen.
+      const FANG_RADIUS_PX = 24
+      const gruppeVon = (objekt) => {
+        let o = objekt
+        while (o && o.userData.id === undefined) o = o.parent
+        return deckenleuchtenGruppen.find(d => d.gruppe === o)
+      }
+      // Unsichtbare Trefferflächen (material.visible === false) überspringen, siehe oben.
+      const sichtbarerTreffer = raycaster.intersectObjects(deckenleuchtenGruppen.map(d => d.gruppe), true)
+        .find(t => t.object.material?.visible !== false)
+      let eintrag = sichtbarerTreffer ? gruppeVon(sichtbarerTreffer.object) : null
+      if (!eintrag) {
+        let besterAbstand = FANG_RADIUS_PX
+        const punkt = new THREE.Vector3()
+        deckenleuchtenGruppen.forEach(d => {
+          const halbeLaenge = d.item.width / 120
+          const lokaleX = halbeLaenge > 0.25 ? [0, -halbeLaenge * 0.8, halbeLaenge * 0.8] : [0]
+          lokaleX.forEach(lx => {
+            punkt.set(lx, -0.03, 0)
+            d.gruppe.localToWorld(punkt)
+            punkt.project(camera)
+            if (punkt.z > 1) return // hinter der Kamera
+            const px = rect.left + (punkt.x + 1) / 2 * rect.width
+            const py = rect.top + (1 - punkt.y) / 2 * rect.height
+            const abstand = Math.hypot(px - clientX, py - clientY)
+            if (abstand < besterAbstand) { besterAbstand = abstand; eintrag = d }
+          })
+        })
+      }
+      if (!eintrag) {
         deckenleuchteRing.visible = false
         onDeckenleuchteAusgewaehlt?.(null)
         return
       }
-      // intersectObjects trifft ggf. ein Mesh tief in der Gruppe (Schirm, Glühbirne, Kabel) — am
-      // userData.id des Gruppen-Roots entlang nach oben laufen (siehe scene/moebel.js), statt
-      // jeden einzelnen Kindmesh selbst zu markieren.
-      let obj = treffer[0].object
-      while (obj && obj.userData.id === undefined) obj = obj.parent
-      const eintrag = deckenleuchtenGruppen.find(d => d.gruppe === obj)
-      if (!eintrag) return
-      deckenleuchteRing.position.set(eintrag.gruppe.position.x, wandHoehe - 0.02, eintrag.gruppe.position.z)
-      deckenleuchteRing.visible = true
+      setzeMarkierung(eintrag)
       onDeckenleuchteAusgewaehlt?.(eintrag.item.id)
 
       if (istVerschiebbareDeckenleuchte(eintrag.item.name)) {
@@ -2920,23 +2958,71 @@ return () => {
     const MIN_TREFFER = 0.18
     const TREFFER_RAND = 0.14
 
-    // Ring-Mesh knapp unter der Decke, markiert die aktuell ausgewählte Leuchte visuell.
-    // Bis zum 17.11.2026 dünn (6 cm) und zu 60 % deckend — im warmen Lichtschein der Lampe in jedem
-    // Grünton kaum zu sehen. Jetzt breiter, fast deckend und ohne Filmkurve (toneMapped: false, sonst
-    // hellt die Belichtung den Ton auf und nimmt ihm die Sättigung), dazu ein weißer Außenring als
-    // Kind-Mesh: Er folgt Position und Sichtbarkeit des Rings von selbst und trennt das Grün von
-    // jedem Untergrund, auch von einer grünen Decke.
-    const deckenleuchteRing = new THREE.Mesh(
-      new THREE.RingGeometry(0.17, 0.25, 40),
-      new THREE.MeshBasicMaterial({ color: AKZENT_3D, side: THREE.DoubleSide, transparent: true, opacity: 0.9, toneMapped: false }),
-    )
-    deckenleuchteRing.add(new THREE.Mesh(
-      new THREE.RingGeometry(0.25, 0.28, 40),
-      new THREE.MeshBasicMaterial({ color: '#FFFFFF', side: THREE.DoubleSide, transparent: true, opacity: 0.9, toneMapped: false }),
-    ))
-    deckenleuchteRing.rotation.x = -Math.PI / 2
+    // Markierung der ausgewählten Leuchte knapp unter der Decke. Der Name deckenleuchteRing ist
+    // geblieben, damit die Stellen, die Lage und Sichtbarkeit setzen, unverändert laufen; seit dem
+    // 17.11.2026 ist es aber eine Gruppe, deren Form setzeMarkierung bei jeder Auswahl neu baut:
+    // - runde Leuchten: ein Kreis, der mit der Leuchte wächst (vorher fest 0,56 m — Kronleuchter
+    //   und große LED-Panels verdeckten ihn),
+    // - Spot-Reihe, LED-Streifen, LED-Panel: ein Rechteckrahmen, der sich mit der Leuchte dreht;
+    //   ein mitwachsender Kreis wäre bei 1,2 m langen Leuchten riesig.
+    // Beides grün mit weißem Außenrand und ohne Filmkurve (toneMapped: false, sonst hellt die
+    // Belichtung den Ton auf), damit es auch im Lichtschein und auf grüner Decke sichtbar bleibt.
+    const deckenleuchteRing = new THREE.Group()
     deckenleuchteRing.visible = false
     if (deckenFokusRef.current) moebelWurzel.add(deckenleuchteRing)
+    const MARKIERUNG_ABSTAND = 0.04 // Luft zwischen Leuchte und Grün
+    const MARKIERUNG_GRUEN = 0.07
+    const MARKIERUNG_WEISS = 0.03
+    const MARKIERUNG_MIN_RADIUS = 0.17 // kleinster Innenradius, wie der frühere feste Ring
+    const markierungGruen = new THREE.MeshBasicMaterial({ color: AKZENT_3D, side: THREE.DoubleSide, transparent: true, opacity: 0.9, toneMapped: false })
+    const markierungWeiss = new THREE.MeshBasicMaterial({ color: '#FFFFFF', side: THREE.DoubleSide, transparent: true, opacity: 0.9, toneMapped: false })
+    // Rechteckiger Rahmen um eine Fläche halbB × halbT, von Abstand `von` bis `bis` nach außen.
+    const rechteckRahmen = (halbB, halbT, von, bis) => {
+      const form = new THREE.Shape()
+      form.moveTo(-halbB - bis, -halbT - bis)
+      form.lineTo(halbB + bis, -halbT - bis)
+      form.lineTo(halbB + bis, halbT + bis)
+      form.lineTo(-halbB - bis, halbT + bis)
+      form.closePath()
+      const loch = new THREE.Path()
+      loch.moveTo(-halbB - von, -halbT - von)
+      loch.lineTo(-halbB - von, halbT + von)
+      loch.lineTo(halbB + von, halbT + von)
+      loch.lineTo(halbB + von, -halbT - von)
+      loch.closePath()
+      form.holes.push(loch)
+      return new THREE.ShapeGeometry(form)
+    }
+    const setzeMarkierung = (eintrag) => {
+      deckenleuchteRing.children.slice().forEach(kind => {
+        kind.geometry.dispose()
+        deckenleuchteRing.remove(kind)
+      })
+      const { item, gruppe } = eintrag
+      const breite = (item.width / 60) * Math.abs(gruppe.scale.x)
+      const tiefe = (item.height / 60) * Math.abs(gruppe.scale.z)
+      const rechteckig = item.name === 'Spot-Reihe'
+        || istEndpunktVerstellbareDeckenleuchte(item.name)
+        || istEckSkalierbareDeckenleuchte(item.name)
+      let gruen
+      let weiss
+      if (rechteckig) {
+        gruen = rechteckRahmen(breite / 2, tiefe / 2, MARKIERUNG_ABSTAND, MARKIERUNG_ABSTAND + MARKIERUNG_GRUEN)
+        weiss = rechteckRahmen(breite / 2, tiefe / 2, MARKIERUNG_ABSTAND + MARKIERUNG_GRUEN, MARKIERUNG_ABSTAND + MARKIERUNG_GRUEN + MARKIERUNG_WEISS)
+      } else {
+        const innen = Math.max(MARKIERUNG_MIN_RADIUS, Math.max(breite, tiefe) / 2 + MARKIERUNG_ABSTAND)
+        gruen = new THREE.RingGeometry(innen, innen + MARKIERUNG_GRUEN, 48)
+        weiss = new THREE.RingGeometry(innen + MARKIERUNG_GRUEN, innen + MARKIERUNG_GRUEN + MARKIERUNG_WEISS, 48)
+      }
+      ;[[gruen, markierungGruen], [weiss, markierungWeiss]].forEach(([geometrie, material]) => {
+        const flaeche = new THREE.Mesh(geometrie, material)
+        flaeche.rotation.x = -Math.PI / 2 // flach unter die Decke
+        deckenleuchteRing.add(flaeche)
+      })
+      deckenleuchteRing.position.set(gruppe.position.x, wandHoehe - 0.02, gruppe.position.z)
+      deckenleuchteRing.rotation.y = gruppe.rotation.y
+      deckenleuchteRing.visible = true
+    }
 
     // Alles außer Deckenleuchten und Wandelementen ist für den Möbel-Schalter ein Möbelstück, auch
     // Steh- und Tischlampe (Kategorie Deko). Deckenleuchten bleiben immer sichtbar: Sie sind das
@@ -2999,14 +3085,13 @@ return () => {
       }
     })
 
-    moebelGruppenRef.current = { deckenleuchtenGruppen, ledGriffe, panelGriffe, deckenleuchteRing, ausblendbareGruppen }
-    // Ring an die aktuelle Auswahl setzen, jetzt und bei jeder späteren Auswahländerung (siehe
-    // auswahlIdRef oben). Ist keine Deckenleuchte ausgewählt, bleibt er unsichtbar.
+    moebelGruppenRef.current = { deckenleuchtenGruppen, ledGriffe, panelGriffe, deckenleuchteRing, setzeMarkierung, ausblendbareGruppen }
+    // Markierung an die aktuelle Auswahl setzen, jetzt und bei jeder späteren Auswahländerung
+    // (siehe auswahlIdRef oben). Ist keine Deckenleuchte ausgewählt, bleibt sie unsichtbar.
     ringAnAuswahlRef.current = () => {
       const eintrag = deckenleuchtenGruppen.find(d => d.item.id === auswahlIdRef.current)
       if (!eintrag) { deckenleuchteRing.visible = false; return }
-      deckenleuchteRing.position.set(eintrag.gruppe.position.x, wandHoehe - 0.02, eintrag.gruppe.position.z)
-      deckenleuchteRing.visible = true
+      setzeMarkierung(eintrag)
     }
     ringAnAuswahlRef.current()
 
@@ -3042,6 +3127,8 @@ return () => {
     return () => {
       moebelGruppenRef.current = null
       ringAnAuswahlRef.current = () => {}
+      markierungGruen.dispose()
+      markierungWeiss.dispose()
       // Der Vorrat selbst bleibt stehen (er gehört der dauerhaften Szene), aber die Zuordnung zu den
       // gleich abgeräumten Platzhaltern muss weg — sonst zeigt sie auf Objekte, die es nicht mehr
       // gibt, und die Lichter würden an ihrer letzten Stelle weiterleuchten.
