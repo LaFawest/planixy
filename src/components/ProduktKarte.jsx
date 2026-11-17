@@ -1,5 +1,6 @@
 import { moebelIconTyp, moebelShapes } from '../moebelIcons'
 import { AKZENT, AKZENT_HELL } from '../farben'
+import { HAENDLER } from '../data/shopVerweise'
 
 // Eine Produktkarte mit festem Fotoplatz (Katalog-Umbau Teil 4, 17.11.2026). Gemeinsam genutzt von
 // der Produktwahl beim Einfügen (ProduktWahl.jsx) und beim Wechseln (ProduktPanel.jsx).
@@ -12,8 +13,6 @@ import { AKZENT, AKZENT_HELL } from '../farben'
 // am Anfang). Ein Bild von einem fremden Server würde die IP-Adresse jedes Besuchers dorthin
 // übertragen; ob und wie das für Händler-Bilder geht, wird entschieden, wenn die ersten kommen.
 
-const HAENDLER_NAMEN = { amazon: 'Amazon' }
-
 const cm = (wert) => wert.toLocaleString('de-DE', { maximumFractionDigits: 1 })
 
 export default function ProduktKarte({ produkt, bauart, farbe, kante, aktiv = false, onWaehlen }) {
@@ -22,7 +21,7 @@ export default function ProduktKarte({ produkt, bauart, farbe, kante, aktiv = fa
   const eigenesBild = typeof produkt.bildUrl === 'string' && produkt.bildUrl.startsWith('/')
   const { breiteCm: b, tiefeCm: t, hoeheCm: h } = produkt
   const masse = b != null && t != null && h != null ? `${cm(b)} × ${cm(t)} × ${cm(h)} cm` : null
-  const haendlerName = HAENDLER_NAMEN[produkt.haendler] || produkt.haendler
+  const haendlerName = HAENDLER[produkt.haendler]?.name || produkt.haendler
 
   return (
     <div role="button" tabIndex={0} aria-pressed={aktiv}
