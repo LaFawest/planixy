@@ -12,7 +12,10 @@ function MoebelIcon({ item }) {
   )
 }
 
-export function KatalogKarte({ item, onClick }) {
+// ohneEtikett: In Schritt 4 steht die Karte unter ihrer Familien-Überschrift (Katalog-Umbau Teil 3,
+// 17.11.2026). Das alte Kategorie-Etikett ("Wohnen", "Schlafen" …) würde dort nur verwirren, weil es
+// nicht zum Raumfilter passt. In Schritt 3 (Leuchten) bleibt es.
+export function KatalogKarte({ item, onClick, ohneEtikett = false }) {
   if (item.typ) {
     return (
       <div onClick={onClick}
@@ -47,7 +50,9 @@ export function KatalogKarte({ item, onClick }) {
         <MoebelIcon item={item} />
       </div>
       <div style={{ fontWeight: '500' }}>{item.name}</div>
-      <div style={{ marginTop: '4px', fontSize: '10px', padding: '2px 6px', borderRadius: '10px', background: kategorieFarben[item.kategorie]?.bg, color: kategorieFarben[item.kategorie]?.color, display: 'inline-block' }}>{item.kategorie}</div>
+      {!ohneEtikett && (
+        <div style={{ marginTop: '4px', fontSize: '10px', padding: '2px 6px', borderRadius: '10px', background: kategorieFarben[item.kategorie]?.bg, color: kategorieFarben[item.kategorie]?.color, display: 'inline-block' }}>{item.kategorie}</div>
+      )}
     </div>
   )
 }

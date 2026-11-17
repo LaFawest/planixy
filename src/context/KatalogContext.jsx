@@ -1,7 +1,8 @@
 import { createContext, useContext, useCallback, useMemo, useState } from 'react'
-import { alleKatalogItems, kategorien, WIZARD_SCHRITTE } from '../constants'
+import { alleKatalogItems, WIZARD_SCHRITTE } from '../constants'
 import { darfVorkommen } from '../data/moebelFilter'
-import { produkteFuerTyp, produktAufKatalogItemAnwenden } from '../data/produktAuswahl'
+import { produkteFuerTyp, produktAufKatalogItemAnwenden, ersterVorschlag } from '../data/produktAuswahl'
+import { FAMILIEN, UNTERGRUPPEN, RAEUME, BAUARTEN } from '../data/bauarten'
 import { useFurniture } from './FurnitureContext'
 import { useWizard } from './WizardContext'
 
@@ -32,35 +33,53 @@ const KATEGORIE_FILTER_JE_SCHRITT = {
 }
 const KATALOG_SCHRITTE = Object.keys(KATEGORIE_FILTER_JE_SCHRITT).map(Number)
 
+// Eine Suchregel für den Katalog und für beide Hinweise (Raum und Schritt): Treffer im Namen der
+// Bauart oder, bei Bauarten aus data/bauarten.js, im Namen ihrer Familie. s ist schon klein
+// geschrieben und getrimmt; leer passt immer.
+function passtZurSuche(item, s) {
+  if (!s || item.name.toLowerCase().includes(s)) return true
+  const info = BAUARTEN[item.name]
+  const familienName = info ? FAMILIEN.find(f => f.key === info.familie)?.name || '' : ''
+  return familienName.toLowerCase().includes(s)
+}
+
 export function KatalogProvider({ children }) {
   const { addFurniture, addWandElement } = useFurniture()
   const { schritt, setSchritt } = useWizard()
-  const [aktiveKategorie, setAktiveKategorie] = useState('Alle')
+  // Raumfilter in Schritt 4 (Katalog-Umbau Teil 3, 17.11.2026) statt der früheren Kategorie-Chips:
+  // 'alle' oder ein Raum-Schlüssel aus RAEUME (data/bauarten.js). Eine Bauart kann in mehreren
+  // Räumen stehen.
+  const [aktiverRaum, setAktiverRaum] = useState('alle')
   const [suche, setSuche] = useState('')
 
   const katalogSichtbar = KATALOG_SCHRITTE.includes(schritt)
-  const kategorieAuswahlSichtbar = schritt === MOEBEL_SCHRITT
+  const raumAuswahlSichtbar = schritt === MOEBEL_SCHRITT
 
   const erreichbareItems = useMemo(() => {
     const filter = KATEGORIE_FILTER_JE_SCHRITT[schritt]
     return filter ? alleKatalogItems.filter(filter) : []
   }, [schritt])
 
-  // In Schritt 3/4 gibt es nur eine Kategorie, die Auswahl entfällt dort komplett (siehe oben) —
-  // die gespeicherte aktiveKategorie ist dann irrelevant und wird ignoriert statt gefiltert.
-  // Kategorie-/Suchfilter laufen weiterhin über die Typ-Felder (item.kategorie/item.name), nicht
-  // über einzelne Produktfelder — sonst würde Suche/Filterung von Karte zu Karte unterschiedlich
-  // reagieren, obwohl sie zum selben Möbeltyp gehören.
-  const gefilterteTypen = useMemo(() => erreichbareItems.filter(item => {
-    const kategorieOk = !kategorieAuswahlSichtbar || aktiveKategorie === 'Alle' || item.kategorie === aktiveKategorie
-    const sucheOk = item.name.toLowerCase().includes(suche.toLowerCase())
-    return kategorieOk && sucheOk
-  }), [erreichbareItems, kategorieAuswahlSichtbar, aktiveKategorie, suche])
+  // Raum- und Suchfilter laufen über die Bauart, nicht über einzelne Produkte. In Schritt 4 sucht
+  // die Suche zusätzlich im Familiennamen: "sofa" findet auch den Sessel, "bad" die ganze Familie
+  // Bad. Bauarten, die (noch) nicht in BAUARTEN stehen, zeigt Schritt 4 nicht —
+  // scripts/pruefe-bauarten.mjs meldet sie.
+  const gefilterteTypen = useMemo(() => {
+    const s = suche.trim().toLowerCase()
+    return erreichbareItems.filter(item => {
+      if (!raumAuswahlSichtbar) return passtZurSuche(item, s)
+      const info = BAUARTEN[item.name]
+      if (!info) return false
+      const raumOk = aktiverRaum === 'alle' || info.raeume.includes(aktiverRaum)
+      return raumOk && passtZurSuche(item, s)
+    })
+  }, [erreichbareItems, raumAuswahlSichtbar, aktiverRaum, suche])
 
-  // Ein Katalog-Typ mit mehreren echten Amazon-Produkten (z. B. 3 Kleiderschrank-Varianten) wird
-  // hier zu mehreren Karten expandiert — eine pro Produkt, mit dessen eigenem Foto/Marke/Preis —
-  // statt wie bisher einer Karte pro Typ mit zufällig vorausgewähltem ersten Produkt. Wandelemente
-  // (Fenster & Türen) haben keine Produktdaten und bleiben unverändert 1 Karte pro Typ.
+  // Eine Karte je Bauart (Katalog-Umbau Teil 3, 17.11.2026). Bis dahin wurde eine Bauart mit
+  // mehreren Produkten zu mehreren Karten mit gleichem Namen und Symbol aufgefächert. Das Produkt
+  // wählt man ab Teil 4 rechts; bis dahin fügt ein Klick das erste Produkt der Bauart ein
+  // (ersterVorschlag), mit dessen Maßen, Höhe und Farbe — wie bisher die erste der Karten.
+  // Wandelemente (Fenster & Türen) haben keine Produktdaten und bleiben 1 Karte pro Typ.
   const gefilterteMoebel = useMemo(() => gefilterteTypen.flatMap(item => {
     if (item.typ) return [item]
     // Leuchten werden nicht nach Produkten aufgefächert: eine Karte je Leuchtentyp. Seit der
@@ -77,22 +96,43 @@ export function KatalogProvider({ children }) {
       if (!erstes) return [item]
       return [{ ...item, ...produktAufKatalogItemAnwenden(item, erstes), produktId: undefined }]
     }
-    const produkte = produkteFuerTyp(item.name)
-    if (produkte.length === 0) return [item]
-    return produkte.map(produkt => ({
-      ...item,
-      ...produktAufKatalogItemAnwenden(item, produkt),
-      produkt,
-      katalogKey: `${item.name}::${produkt.id}`,
-    }))
+    const produkt = ersterVorschlag(item.name)
+    if (!produkt) return [item]
+    return [{ ...item, ...produktAufKatalogItemAnwenden(item, produkt), produkt, katalogKey: item.name }]
   }), [gefilterteTypen])
+
+  // Gruppen für Schritt 4: Familien in der Reihenfolge von FAMILIEN, darin die Bauarten in der
+  // Reihenfolge von BAUARTEN; Familien mit Untergruppen (Deko) zusätzlich nach Untergruppe. Leere
+  // Familien und Untergruppen fallen weg. In Schritt 2 und 3 null — dort bleibt die flache Liste.
+  const gruppen = useMemo(() => {
+    if (!raumAuswahlSichtbar) return null
+    const reihenfolge = Object.keys(BAUARTEN)
+    const sortiert = [...gefilterteMoebel].sort((a, b) => reihenfolge.indexOf(a.name) - reihenfolge.indexOf(b.name))
+    return FAMILIEN.map(familie => {
+      const items = sortiert.filter(item => BAUARTEN[item.name]?.familie === familie.key)
+      const untergruppen = UNTERGRUPPEN[familie.key]
+        ?.map(u => ({ ...u, items: items.filter(item => BAUARTEN[item.name]?.untergruppe === u.key) }))
+        .filter(u => u.items.length > 0) || null
+      return { ...familie, items, untergruppen }
+    }).filter(familie => familie.items.length > 0)
+  }, [raumAuswahlSichtbar, gefilterteMoebel])
 
   // Findet eine Suche in diesem Schritt nichts, in einem der anderen Katalog-Schritte aber schon,
   // auf den Sprung dorthin hinweisen statt einer leeren Spalte.
+  // Findet die Suche im gewählten Raum nichts, in "Alle Räume" aber schon, darauf hinweisen —
+  // sonst sieht "Bad" + "sofa" aus, als gäbe es gar keine Sofas (Befund vom 17.11.2026).
+  const raumHinweis = useMemo(() => {
+    const s = suche.trim().toLowerCase()
+    if (!raumAuswahlSichtbar || aktiverRaum === 'alle' || gefilterteMoebel.length > 0 || !s) return null
+    const anzahl = erreichbareItems.filter(item => BAUARTEN[item.name] && passtZurSuche(item, s)).length
+    return anzahl > 0 ? { anzahl } : null
+  }, [raumAuswahlSichtbar, aktiverRaum, gefilterteMoebel, suche, erreichbareItems])
+
   const sprungHinweis = useMemo(() => {
-    if (!katalogSichtbar || gefilterteMoebel.length > 0 || !suche.trim()) return null
+    const suchText = suche.trim().toLowerCase()
+    if (!katalogSichtbar || gefilterteMoebel.length > 0 || !suchText) return null
     const andererSchritt = KATALOG_SCHRITTE.find(s => s !== schritt &&
-      alleKatalogItems.some(item => KATEGORIE_FILTER_JE_SCHRITT[s](item) && item.name.toLowerCase().includes(suche.toLowerCase())))
+      alleKatalogItems.some(item => KATEGORIE_FILTER_JE_SCHRITT[s](item) && passtZurSuche(item, suchText)))
     if (andererSchritt === undefined) return null
     const ziel = WIZARD_SCHRITTE.find(s => s.nummer === andererSchritt)
     return { schritt: andererSchritt, label: ziel?.label, beschreibung: ziel?.beschreibung }
@@ -100,7 +140,7 @@ export function KatalogProvider({ children }) {
 
   const schrittHinweis = useMemo(() => (katalogSichtbar ? null : WIZARD_SCHRITTE.find(s => s.nummer === schritt)?.hinweis), [katalogSichtbar, schritt])
 
-  const kategorienFuerAuswahl = useMemo(() => kategorien.filter(kat => kat !== FENSTER_TUEREN_KATEGORIE && kat !== LICHT_KATEGORIE), [])
+  const raeumeFuerAuswahl = useMemo(() => [{ key: 'alle', name: 'Alle Räume' }, ...RAEUME], [])
 
   // Farbe/Maße des konkret angeklickten Produkts stehen bereits auf dem Katalog-Eintrag selbst
   // (siehe gefilterteMoebel oben) — hier nur noch die Hilfsfelder abstreifen, die ausschließlich
@@ -113,10 +153,10 @@ export function KatalogProvider({ children }) {
   }, [addFurniture, addWandElement])
 
   const value = useMemo(() => ({
-    suche, setSuche, aktiveKategorie, setAktiveKategorie, gefilterteMoebel, katalogItemHinzufuegen,
-    katalogSichtbar, kategorieAuswahlSichtbar, kategorienFuerAuswahl, sprungHinweis, schrittHinweis,
+    suche, setSuche, aktiverRaum, setAktiverRaum, gefilterteMoebel, gruppen, katalogItemHinzufuegen,
+    katalogSichtbar, raumAuswahlSichtbar, raeumeFuerAuswahl, raumHinweis, sprungHinweis, schrittHinweis,
     springeZuSchritt: setSchritt,
-  }), [suche, aktiveKategorie, gefilterteMoebel, katalogItemHinzufuegen, katalogSichtbar, kategorieAuswahlSichtbar, kategorienFuerAuswahl, sprungHinweis, schrittHinweis, setSchritt])
+  }), [suche, aktiverRaum, gefilterteMoebel, gruppen, katalogItemHinzufuegen, katalogSichtbar, raumAuswahlSichtbar, raeumeFuerAuswahl, raumHinweis, sprungHinweis, schrittHinweis, setSchritt])
 
   return <KatalogContext.Provider value={value}>{children}</KatalogContext.Provider>
 }
