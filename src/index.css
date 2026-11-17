@@ -297,6 +297,12 @@ input[type=number]::-webkit-outer-spin-button { opacity: 1; }
 .schritt-pille:hover {
   background: #F3F2ED;
 }
+/* Tastaturfokus: ein grüner Ring wie die aktive Pille. :focus-visible statt :focus, damit ein
+   Mausklick keinen Ring hinterlässt. */
+.schritt-pille:focus-visible {
+  outline: 2px solid #2F4B39;
+  outline-offset: 2px;
+}
 .schritt-pille-aktiv,
 .schritt-pille-aktiv:hover {
   background: #E8F0EA;

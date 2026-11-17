@@ -56,6 +56,16 @@ export default function SchrittLeiste() {
             <div key={s.nummer} style={{ display: 'flex', alignItems: 'center' }}>
               <div onClick={() => { setSchritt(s.nummer); hinweisVerbergen() }}
                 onMouseEnter={e => hinweisZeigen(e, s)} onMouseLeave={hinweisVerbergen}
+                // Per Tastatur bedienbar (bis zum 17.11.2026 nicht erreichbar): Tab führt hin, Enter
+                // und Leertaste lösen aus wie ein Klick, und das Hinweiskästchen erscheint auch bei
+                // Fokus. Derselbe zugängliche Name wie in der mobilen Leiste.
+                role="button" tabIndex={0}
+                aria-label={`Zu Schritt ${s.nummer}: ${s.label} – ${s.beschreibung}`}
+                aria-current={schritt === s.nummer ? 'step' : undefined}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSchritt(s.nummer); hinweisVerbergen() }
+                }}
+                onFocus={e => hinweisZeigen(e, s)} onBlur={hinweisVerbergen}
                 className={`schritt-pille${schritt === s.nummer ? ' schritt-pille-aktiv' : ''}`}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '8px', borderRadius: '999px',

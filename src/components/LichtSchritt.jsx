@@ -104,7 +104,9 @@ export default function LichtSchritt() {
                     <div style={{ display: 'flex' }}>
                       {FARBTEMPERATUREN.map(ft => (
                         <button key={ft.name} onClick={() => setFarbtemperatur(item.id, ft.farbe)} aria-label={ft.name} title={ft.name} style={{
-                          width: '44px', height: '44px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          // Bis 44 px breit, darf aber auf 32 px schrumpfen: Bei 681–860 px Fensterbreite
+                          // ist die Zeile nur 125 px breit, und „Kaltweiß" ragte 7 px aus der Karte.
+                          flex: '0 1 44px', minWidth: '32px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center',
                           background: 'transparent', border: 'none', padding: 0, cursor: 'pointer',
                         }}>
                           <span style={{

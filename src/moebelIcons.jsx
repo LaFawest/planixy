@@ -6,8 +6,14 @@ export function moebelIconTyp(name) {
   if (n.includes('waschmaschine'))                       return 'waschmaschine'
   if (n.includes('handtuchhalter'))                     return 'balken'
   if (n.includes('badewanne'))                          return 'badewanne'
-  if (n.includes('dusche'))                             return 'dusche'
+  // „dusch" statt „dusche": „Duschkabine Eck" enthält kein „dusche" und fiel bis zum 17.11.2026
+  // auf das Symbol standard, ein leeres Viereck.
+  if (n.includes('dusch'))                              return 'dusche'
   if (n.includes('mikrowelle'))                         return 'mikrowelle'
+  // Vitrine (Glasfront, Böden sichtbar) als Regal, Kommode als Schrank — beide fielen bis zum
+  // 17.11.2026 auf standard, ein leeres Viereck (Katalog-Inventur vom 16.11.).
+  if (n.includes('vitrine'))                            return 'regal'
+  if (n.includes('kommode'))                            return 'schrank'
   if (n.includes('board') || n.includes('sideboard'))   return 'schrank'
   if (n.includes('insel'))                              return 'tisch'
   if (n.includes('schrank'))                            return 'schrank'
@@ -63,7 +69,23 @@ export function moebelIconTyp(name) {
   return 'standard'
 }
 
-export function moebelShapes(f, s) {
+// Helle Kante für sehr dunkle Füllfarben: Die übergebene Kantenfarbe ist ein abgedunkelter Ton der
+// Füllung, auf Schwarz also wieder fast Schwarz — die Innenlinien verschwanden, das Symbol wurde ein
+// dunkles Viereck (Katalog-Inventur vom 16.11.2026: Hocker, Rollcontainer, Mikrowelle, Lautsprecher).
+// Nur für Hex-Farben (#rrggbb oder #rgb); alles andere bleibt, wie es kommt.
+const KANTE_AUF_DUNKEL = '#B4B2A9'
+const DUNKEL_SCHWELLE = 80 // wahrgenommene Helligkeit 0–255
+const kanteFuer = (fuellung, kante) => {
+  const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(fuellung || '')
+  if (!m) return kante
+  const hex = m[1].length === 3 ? m[1].split('').map(z => z + z).join('') : m[1]
+  const wert = parseInt(hex, 16)
+  const helligkeit = 0.299 * ((wert >> 16) & 255) + 0.587 * ((wert >> 8) & 255) + 0.114 * (wert & 255)
+  return helligkeit < DUNKEL_SCHWELLE ? KANTE_AUF_DUNKEL : kante
+}
+
+export function moebelShapes(f, kante) {
+  const s = kanteFuer(f, kante)
   return {
     sofa: <>
       <rect x="2" y="9" width="24" height="6" rx="2" fill={f} stroke={s} strokeWidth="1.3" />
