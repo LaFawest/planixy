@@ -3,6 +3,7 @@ import { migriereRaum } from './roomsStorage'
 import { rechteckPolygon } from '../raumPolygon'
 import { raeumeBereinigen } from '../data/moebelFilter'
 import { migriereV7ZuV8 } from './migrationV8'
+import { wandelementeNachrechnen } from './wandelementeNachrechnen'
 
 const STORAGE_KEY = 'planixy-rooms'
 export const SCHEMA_VERSION = 8
@@ -173,8 +174,17 @@ export const migriereProjekteDaten = (rohDaten) => {
   // (projektExport.js). Bewusst nur beim Laden, nie beim Speichern: Ist die Regel einmal falsch,
   // bleibt es ein Anzeigefehler, bis das Projekt das nächste Mal gespeichert wird. Kein Schema-
   // Bump, weil die Regel an MODELL_DATEIEN hängt und sich mit jedem neuen Modell ändert.
+  //
+  // Danach Fenster und Türen: left/top/rotation aus wandSegment und wandPosition nachrechnen, damit
+  // der Grundriss sie dort zeigt, wo 3D sie zeigt (siehe wandelementeNachrechnen.js). Ebenfalls bei
+  // jedem Laden und ohne Schema-Wechsel; ein Raum, an dem sich nichts ändert, bleibt dieselbe
+  // Referenz.
   return daten.projekte.map(projekt => {
-    const raeume = raeumeBereinigen(projekt.raeume)
+    const bereinigt = raeumeBereinigen(projekt.raeume)
+    const nachgerechnet = Array.isArray(bereinigt) ? bereinigt.map(wandelementeNachrechnen) : bereinigt
+    const raeume = Array.isArray(bereinigt) && nachgerechnet.every((raum, i) => raum === bereinigt[i])
+      ? bereinigt
+      : nachgerechnet
     return raeume === projekt.raeume ? projekt : { ...projekt, raeume }
   })
 }

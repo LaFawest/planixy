@@ -433,12 +433,19 @@ export function naechsteKante(punkt, eckpunkte) {
 
 // Platziert ein Fenster/Tür-Element (Breite w, Höhe h) zentriert auf der Dicke eines bereits
 // gewählten Wandsegments (halb im Wandstreifen, halb im Raum — wie ein echter Wanddurchbruch),
-// so nah wie möglich an gewuenschtePosition (Pixel vom Segmentanfang in Richtung Segmentende,
-// wird hier auf die tatsächliche Segmentlänge geklemmt). eckpunkte/segment müssen die
-// Wandinnenkante sein (innenEckpunkte), nicht die Möbelgrenze — sonst sitzt das Element zu weit
-// im Raum versetzt. Reine Platzierungsgeometrie, getrennt von der Segment-Auswahl — genutzt
-// sowohl von snappeWandElement (Segment über die nächstgelegene Kante gesucht) als auch von
-// platziereAufWandSegment (Segment über seinen Index vorgegeben, siehe dort).
+// so nah wie möglich an gewuenschtePosition (Pixel vom Segmentanfang bis zur NAHEN Kante des
+// Elements, in Richtung Segmentende; wird hier auf die tatsächliche Segmentlänge geklemmt).
+// eckpunkte/segment müssen die Wandinnenkante sein (innenEckpunkte), nicht die Möbelgrenze — sonst
+// sitzt das Element zu weit im Raum versetzt. Reine Platzierungsgeometrie, getrennt von der
+// Segment-Auswahl — genutzt sowohl von snappeWandElement (Segment über die nächstgelegene Kante
+// gesucht) als auch von platziereAufWandSegment (Segment über seinen Index vorgegeben, siehe dort).
+//
+// wandPosition zählt bis zur nahen Kante, so wie 3D sie liest (scene/wandelemente.js: Mitte =
+// wandPosition + Breite / 2 ab Segmentanfang) und wie das Ziehen im Wand-Fokus sie speichert. Bis
+// zum 16.11.2026 zählte der Grundriss an rückwärts laufenden Segmenten (beim Rechteck Süd und West)
+// bis zur FERNEN Kante — ein Fenster stand dort in 3D um seine eigene Breite versetzt gegenüber dem
+// Grundriss. Gespeicherte Werte bleiben unverändert; 3D zeigt sie wie bisher, der Grundriss jetzt
+// an derselben Stelle.
 function platziereAufSegment(segment, gewuenschtePosition, w, h, wandDicke) {
   const horizontal = segment.start.y === segment.ende.y
   const vorwaerts = horizontal ? segment.ende.x >= segment.start.x : segment.ende.y >= segment.start.y
@@ -448,21 +455,22 @@ function platziereAufSegment(segment, gewuenschtePosition, w, h, wandDicke) {
     rotation = 0
     const minX = Math.min(segment.start.x, segment.ende.x)
     const maxX = Math.max(segment.start.x, segment.ende.x)
-    const ziel = vorwaerts ? segment.start.x + gewuenschtePosition : segment.start.x - gewuenschtePosition
+    const ziel = vorwaerts ? segment.start.x + gewuenschtePosition : segment.start.x - gewuenschtePosition - w
     left = Math.max(minX, Math.min(maxX - w, ziel))
     top = segment.start.y + segment.normale.y * wandDicke / 2 - h / 2
   } else {
     rotation = 90
     const minY = Math.min(segment.start.y, segment.ende.y)
     const maxY = Math.max(segment.start.y, segment.ende.y)
-    const ziel = vorwaerts ? segment.start.y + gewuenschtePosition : segment.start.y - gewuenschtePosition
+    const ziel = vorwaerts ? segment.start.y + gewuenschtePosition : segment.start.y - gewuenschtePosition - w
     top = Math.max(minY, Math.min(maxY - w, ziel))
     left = segment.start.x + segment.normale.x * wandDicke / 2 - h / 2
   }
 
-  const wandPosition = horizontal
-    ? Math.abs(left - segment.start.x) / 60
-    : Math.abs(top - segment.start.y) / 60
+  // Nahe Kante: bei vorwärts laufendem Segment die linke bzw. obere, bei rückwärts laufendem die
+  // rechte bzw. untere.
+  const naheKante = horizontal ? (vorwaerts ? left : left + w) : (vorwaerts ? top : top + w)
+  const wandPosition = Math.abs(naheKante - (horizontal ? segment.start.x : segment.start.y)) / 60
 
   return { left, top, wandSegment: segment.index, wandPosition, rotation }
 }
@@ -499,9 +507,12 @@ export function wandElementMitte(left, top, w, h, rotation) {
 export function snappeWandElement(cx, cy, w, h, eckpunkte, wandDicke) {
   const segment = naechsteKante({ x: cx, y: cy }, eckpunkte)
   const horizontal = segment.start.y === segment.ende.y
-  const gewuenschtePosition = horizontal
-    ? Math.abs((cx - w / 2) - segment.start.x)
-    : Math.abs((cy - w / 2) - segment.start.y)
+  // Abstand vom Segmentanfang bis zur nahen Kante des Elements, in Laufrichtung des Segments
+  // gemessen — dieselbe Vereinbarung wie wandPosition (siehe platziereAufSegment). Negativ oder
+  // zu groß klemmt platziereAufSegment.
+  const vorwaerts = horizontal ? segment.ende.x >= segment.start.x : segment.ende.y >= segment.start.y
+  const mitteAbAnfang = (horizontal ? cx - segment.start.x : cy - segment.start.y) * (vorwaerts ? 1 : -1)
+  const gewuenschtePosition = mitteAbAnfang - w / 2
   return platziereAufSegment(segment, gewuenschtePosition, w, h, wandDicke)
 }
 
