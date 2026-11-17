@@ -5,6 +5,7 @@ import { useUI } from '../context/UIContext'
 import { useRooms } from '../context/RoomsContext'
 import { useWizard } from '../context/WizardContext'
 import { useFurniture } from '../context/FurnitureContext'
+import { AKZENT, AKZENT_HELL } from '../farben'
 
 const MIN_FENSTER_GROESSE_CM = 30 // muss zu MIN_FENSTER_GROESSE (0.3m) in RoomView3D.jsx passen
 
@@ -24,11 +25,11 @@ export default function Sidebar() {
       <div>
         {rooms.map(room => (
           <div key={room.id} className="room-item" onClick={() => waehleRaum(room.id)}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', borderRadius: '10px', marginBottom: '3px', background: activeRoomId === room.id ? '#EEF4FC' : 'transparent', cursor: 'pointer', transition: 'background 0.15s' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', borderRadius: '10px', marginBottom: '3px', background: activeRoomId === room.id ? AKZENT_HELL : 'transparent', cursor: 'pointer', transition: 'background 0.15s' }}
             onMouseEnter={e => { if (activeRoomId !== room.id) e.currentTarget.style.background = '#F7F6F2' }}
             onMouseLeave={e => { if (activeRoomId !== room.id) e.currentTarget.style.background = 'transparent' }}
           >
-            <span style={{ fontSize: '13px', color: activeRoomId === room.id ? '#185FA5' : '#444441', fontWeight: activeRoomId === room.id ? '500' : '400', flex: 1 }}>
+            <span style={{ fontSize: '13px', color: activeRoomId === room.id ? AKZENT : '#444441', fontWeight: activeRoomId === room.id ? '500' : '400', flex: 1 }}>
               {room.name}
             </span>
             {rooms.length > 1 && (
@@ -42,7 +43,7 @@ export default function Sidebar() {
       </div>
       <div onClick={addRoom}
         style={{ marginTop: '12px', padding: '9px 12px', borderRadius: '10px', border: '1.5px dashed #D3D1C7', cursor: 'pointer', fontSize: '12px', color: '#888780', textAlign: 'center', transition: 'all 0.15s' }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = '#185FA5'; e.currentTarget.style.color = '#185FA5' }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = AKZENT; e.currentTarget.style.color = AKZENT }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = '#D3D1C7'; e.currentTarget.style.color = '#888780' }}>
         + Raum hinzufügen
       </div>
@@ -54,11 +55,11 @@ export default function Sidebar() {
           sichtbar ist (siehe PanelRechts.jsx) — der Knopf hätte dort also keine sinnvolle Wirkung. */}
       {(schritt === 1 || schritt === 2) && (
         <div onClick={() => setRaumPanelOffen(offen => !offen)}
-          style={{ marginTop: '8px', padding: '10px 12px', borderRadius: '10px', border: `1px solid ${raumPanelOffen ? '#185FA5' : '#E8E6E0'}`, background: raumPanelOffen ? '#EEF4FC' : 'white', cursor: 'pointer', fontSize: '12px', color: raumPanelOffen ? '#185FA5' : '#444441', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all 0.15s' }}
+          style={{ marginTop: '8px', padding: '10px 12px', borderRadius: '10px', border: `1px solid ${raumPanelOffen ? AKZENT : '#E8E6E0'}`, background: raumPanelOffen ? AKZENT_HELL : 'white', cursor: 'pointer', fontSize: '12px', color: raumPanelOffen ? AKZENT : '#444441', display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'all 0.15s' }}
           onMouseEnter={e => { if (!raumPanelOffen) e.currentTarget.style.background = '#F7F6F2' }}
           onMouseLeave={e => { if (!raumPanelOffen) e.currentTarget.style.background = 'white' }}>
           <span>⚙ Raumeinstellungen</span>
-          <span style={{ fontSize: '10px', color: raumPanelOffen ? '#185FA5' : '#B4B2A9' }}>{raumPanelOffen ? '▾' : '▸'}</span>
+          <span style={{ fontSize: '10px', color: raumPanelOffen ? AKZENT : '#B4B2A9' }}>{raumPanelOffen ? '▾' : '▸'}</span>
         </div>
       )}
 
@@ -124,7 +125,7 @@ export default function Sidebar() {
                 <span style={{ fontSize: '11px', color: '#888780' }}>Backstein-Einfassung</span>
                 <div onClick={() => positioniereWandElement(ausgewaehltesWandElement.id, { backstein: !ausgewaehltesWandElement.backstein })} style={{
                   width: '36px', height: '20px', borderRadius: '10px', cursor: 'pointer', transition: 'background 0.2s',
-                  background: ausgewaehltesWandElement.backstein ? '#185FA5' : '#E8E6E0', position: 'relative',
+                  background: ausgewaehltesWandElement.backstein ? AKZENT : '#E8E6E0', position: 'relative',
                 }}>
                   <div style={{
                     position: 'absolute', top: '2px', left: ausgewaehltesWandElement.backstein ? '18px' : '2px',

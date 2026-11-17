@@ -14,6 +14,7 @@ import { useDesign } from './context/DesignContext'
 import { useUI } from './context/UIContext'
 import { materialShape } from './moebelIcons'
 import { wandMaterialien, istGestrichen, wandMaterialInfo, istWandtattoo, istDeckenleuchte, istVerschiebbareDeckenleuchte, istEndpunktVerstellbareDeckenleuchte, istEckSkalierbareDeckenleuchte, berechneInnenmasse, bogenMasse, FUSSLEISTE_TIEFE_M } from './constants'
+import { AKZENT, AKZENT_HELL, AKZENT_3D } from './farben'
 
 export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deckenFokus = false, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt, onAusschnittGeaendert, ausschnittSprung = null } = {}) {
   const { activeRoom: room } = useRooms()
@@ -2364,7 +2365,7 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
         if (breite > 0.01 && hoehe > 0.01) {
           if (!wandZeichnenDrag.mesh) {
             const geo = new THREE.PlaneGeometry(breite, hoehe)
-            const mat = new THREE.MeshBasicMaterial({ color: '#185FA5', transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthTest: false })
+            const mat = new THREE.MeshBasicMaterial({ color: AKZENT_3D, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthTest: false })
             wandZeichnenDrag.mesh = new THREE.Mesh(geo, mat)
             wandZeichnenDrag.mesh.renderOrder = 999
             wandZeichnenDrag.mesh.rotation.copy(segment.mesh.rotation)
@@ -2911,7 +2912,7 @@ return () => {
     // Ring-Mesh knapp unter der Decke, markiert die aktuell ausgewählte Leuchte visuell.
     const deckenleuchteRing = new THREE.Mesh(
       new THREE.RingGeometry(0.18, 0.24, 32),
-      new THREE.MeshBasicMaterial({ color: '#185FA5', side: THREE.DoubleSide, transparent: true, opacity: 0.6 }),
+      new THREE.MeshBasicMaterial({ color: AKZENT_3D, side: THREE.DoubleSide, transparent: true, opacity: 0.6 }),
     )
     deckenleuchteRing.rotation.x = -Math.PI / 2
     deckenleuchteRing.visible = false
@@ -3076,8 +3077,8 @@ return () => {
                 <div onClick={() => kachelAngeklickt(material)} title={material.name} className="materialkachel" style={{
                   borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: '14px', cursor: 'pointer',
-                  border: `${istArmiert || istOffen ? '2px' : '1px'} solid ${istArmiert || istOffen ? '#185FA5' : '#E8E6E0'}`,
-                  background: istArmiert ? '#EEF4FC' : '#FAFAF8',
+                  border: `${istArmiert || istOffen ? '2px' : '1px'} solid ${istArmiert || istOffen ? AKZENT : '#E8E6E0'}`,
+                  background: istArmiert ? AKZENT_HELL : '#FAFAF8',
                 }}>
                   {materialShape(material.klasse)
                     ? <svg viewBox="0 0 24 24" width="20" height="20">{materialShape(material.klasse)}</svg>
@@ -3100,8 +3101,8 @@ return () => {
                       <div key={ausfuehrung.klasse} onClick={() => ausfuehrungAngeklickt(ausfuehrung.klasse)} style={{
                         display: 'flex', alignItems: 'center', gap: '8px',
                         padding: '5px 6px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px',
-                        background: zeichenModusMaterial === ausfuehrung.klasse ? '#EEF4FC' : 'transparent',
-                        color: zeichenModusMaterial === ausfuehrung.klasse ? '#185FA5' : '#444441',
+                        background: zeichenModusMaterial === ausfuehrung.klasse ? AKZENT_HELL : 'transparent',
+                        color: zeichenModusMaterial === ausfuehrung.klasse ? AKZENT : '#444441',
                       }}>
                         {ausfuehrung.icon ? (
                           <span style={{ fontSize: '14px', width: '16px', flexShrink: 0, textAlign: 'center' }}>{ausfuehrung.icon}</span>
@@ -3136,8 +3137,8 @@ return () => {
       {fokusWand != null && zeichnenLiveGroesse && (
         <div className="wandfokus-beschriftung" style={{
           position: 'absolute', zIndex: 10,
-          padding: '6px 14px', borderRadius: '20px', background: 'white', border: '1px solid #185FA5',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.08)', fontSize: '12px', color: '#185FA5',
+          padding: '6px 14px', borderRadius: '20px', background: 'white', border: `1px solid ${AKZENT}`,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.08)', fontSize: '12px', color: AKZENT,
           fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap',
         }}>
           {zeichnenLiveGroesse.breiteCm} × {zeichnenLiveGroesse.hoeheCm} cm
@@ -3148,7 +3149,7 @@ return () => {
           <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 9, pointerEvents: 'none' }}>
             <polygon
               points={`${bereichAuswahl.ecken.tl.x},${bereichAuswahl.ecken.tl.y} ${bereichAuswahl.ecken.tr.x},${bereichAuswahl.ecken.tr.y} ${bereichAuswahl.ecken.br.x},${bereichAuswahl.ecken.br.y} ${bereichAuswahl.ecken.bl.x},${bereichAuswahl.ecken.bl.y}`}
-              fill="none" stroke="#185FA5" strokeWidth={1.5} strokeDasharray="4 4" />
+              fill="none" stroke={AKZENT} strokeWidth={1.5} strokeDasharray="4 4" />
           </svg>
           {['tl', 'tr', 'bl', 'br'].map(ecke => (
             <div key={ecke}
@@ -3158,7 +3159,7 @@ return () => {
                 position: 'absolute', left: bereichAuswahl.ecken[ecke].x, top: bereichAuswahl.ecken[ecke].y,
                 transform: 'translate(-50%, -50%)', zIndex: 10,
                 width: '14px', height: '14px', borderRadius: '3px', background: 'white',
-                border: '2px solid #185FA5', cursor: ecke === 'tl' || ecke === 'br' ? 'nwse-resize' : 'nesw-resize',
+                border: `2px solid ${AKZENT}`, cursor: ecke === 'tl' || ecke === 'br' ? 'nwse-resize' : 'nesw-resize',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
               }} />
           ))}
@@ -3174,8 +3175,8 @@ return () => {
             left: (bereichAuswahl.ecken.tl.x + bereichAuswahl.ecken.tr.x) / 2,
             top: Math.min(bereichAuswahl.ecken.tl.y, bereichAuswahl.ecken.tr.y) - 14,
             transform: 'translate(-50%, -100%)', zIndex: 10, pointerEvents: 'none',
-            padding: '3px 8px', borderRadius: '10px', background: 'white', border: '1px solid #185FA5',
-            fontSize: '11px', color: '#185FA5', fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap',
+            padding: '3px 8px', borderRadius: '10px', background: 'white', border: `1px solid ${AKZENT}`,
+            fontSize: '11px', color: AKZENT, fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap',
           }}>{bereichAuswahl.breiteCm} × {bereichAuswahl.hoeheCm} cm</div>
         </>
       )}
@@ -3204,7 +3205,7 @@ return () => {
           ].map(({ key, titel, pfade }) => (
             <button key={key} onClick={() => waehleZiehModus(key)} title={titel} aria-label={titel} style={{
               width: '34px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: ziehModus === key ? '#2F4B39' : 'white', color: ziehModus === key ? 'white' : '#888780',
+              background: ziehModus === key ? AKZENT : 'white', color: ziehModus === key ? 'white' : '#888780',
               border: 'none', cursor: 'pointer', padding: 0,
             }}>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor"
@@ -3250,7 +3251,7 @@ return () => {
               <line key={seite}
                 x1={massLinien[seite].x1} y1={massLinien[seite].y1}
                 x2={massLinien[seite].x2} y2={massLinien[seite].y2}
-                stroke="#185FA5" strokeWidth={1.5} strokeDasharray="3 3" />
+                stroke={AKZENT} strokeWidth={1.5} strokeDasharray="3 3" />
             ))}
           </svg>
           {['links', 'rechts', 'unten'].map(seite => {
@@ -3269,12 +3270,12 @@ return () => {
                       if (e.key === 'Enter') e.currentTarget.blur()
                       if (e.key === 'Escape') setBearbeiteSeite(null)
                     }}
-                    style={{ width: '54px', fontSize: '11px', padding: '2px 4px', borderRadius: '4px', border: '1px solid #185FA5', textAlign: 'center' }} />
+                    style={{ width: '54px', fontSize: '11px', padding: '2px 4px', borderRadius: '4px', border: `1px solid ${AKZENT}`, textAlign: 'center' }} />
                 ) : (
                   <span onClick={() => { setBearbeiteSeite(seite); setBearbeiteWert(String(linie.wertCm)) }}
                     style={{
                       cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', background: 'white',
-                      border: '1px solid #185FA5', color: '#185FA5', fontSize: '11px',
+                      border: `1px solid ${AKZENT}`, color: AKZENT, fontSize: '11px',
                       boxShadow: '0 1px 3px rgba(0,0,0,0.1)', whiteSpace: 'nowrap',
                     }}>{linie.wertCm} cm</span>
                 )}
@@ -3288,7 +3289,7 @@ return () => {
           <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 9, pointerEvents: 'none' }}>
             <polygon
               points={`${fensterAuswahl.ecken.tl.x},${fensterAuswahl.ecken.tl.y} ${fensterAuswahl.ecken.tr.x},${fensterAuswahl.ecken.tr.y} ${fensterAuswahl.ecken.br.x},${fensterAuswahl.ecken.br.y} ${fensterAuswahl.ecken.bl.x},${fensterAuswahl.ecken.bl.y}`}
-              fill="none" stroke="#185FA5" strokeWidth={1.5} strokeDasharray="4 4" />
+              fill="none" stroke={AKZENT} strokeWidth={1.5} strokeDasharray="4 4" />
           </svg>
           {/* Bei einem Durchgang nur die zwei OBEREN Anfasser — die Unterkante bleibt immer am
               Boden (Bodenanschluss wie bei Türen), kein Hochziehen der Unterkante möglich. */}
@@ -3300,7 +3301,7 @@ return () => {
                 position: 'absolute', left: fensterAuswahl.ecken[ecke].x, top: fensterAuswahl.ecken[ecke].y,
                 transform: 'translate(-50%, -50%)', zIndex: 10,
                 width: '14px', height: '14px', borderRadius: '3px', background: 'white',
-                border: '2px solid #185FA5', cursor: ecke === 'tl' || ecke === 'br' ? 'nwse-resize' : 'nesw-resize',
+                border: `2px solid ${AKZENT}`, cursor: ecke === 'tl' || ecke === 'br' ? 'nwse-resize' : 'nesw-resize',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
               }} />
           ))}
@@ -3309,8 +3310,8 @@ return () => {
             left: (fensterAuswahl.ecken.tl.x + fensterAuswahl.ecken.tr.x) / 2,
             top: Math.min(fensterAuswahl.ecken.tl.y, fensterAuswahl.ecken.tr.y) - 14,
             transform: 'translate(-50%, -100%)', zIndex: 10, pointerEvents: 'none',
-            padding: '3px 8px', borderRadius: '10px', background: 'white', border: '1px solid #185FA5',
-            fontSize: '11px', color: '#185FA5', fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap',
+            padding: '3px 8px', borderRadius: '10px', background: 'white', border: `1px solid ${AKZENT}`,
+            fontSize: '11px', color: AKZENT, fontFamily: "'DM Sans', sans-serif", whiteSpace: 'nowrap',
           }}>{fensterAuswahl.breiteCm} × {fensterAuswahl.hoeheCm} cm</div>
         </>
       )}

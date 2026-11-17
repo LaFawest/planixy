@@ -4,6 +4,7 @@ import { produktEmpfehlungen } from '../data/produktempfehlungen'
 import PlanixyLogo from './PlanixyLogo'
 import LegalLinks from './LegalLinks'
 import { moebelIconTyp, moebelShapes } from '../moebelIcons'
+import { AKZENT } from '../farben'
 
 // Die Kategorie der Leuchten aus Schritt 3. Bewusst hier als eigene Konstante und nicht aus einer
 // gemeinsamen Datei importiert: Es ist dieselbe Zeichenfolge, die KatalogContext.jsx für seinen
@@ -115,7 +116,7 @@ export default function ZusammenfassungSeite() {
                       </div>
                       {g.produkt ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <a href={g.produkt.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#185FA5', textDecoration: 'none' }}>
+                          <a href={g.produkt.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: AKZENT, textDecoration: 'none' }}>
                             {g.produkt.name} →
                           </a>
                           <span style={{ fontSize: '10px', color: '#B4B2A9' }}>Anzeige</span>
@@ -136,7 +137,7 @@ export default function ZusammenfassungSeite() {
           </div>
         ))}
 
-        <div style={{ background: '#2F4B39', borderRadius: '14px', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+        <div style={{ background: AKZENT, borderRadius: '14px', padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
           <div>
             <div style={{ fontSize: '11px', color: '#C9E0D2', letterSpacing: '0.06em' }}>GESCHÄTZTE GESAMTSUMME</div>
             <div style={{ fontSize: '11px', color: '#C9E0D2', marginTop: '2px' }}>

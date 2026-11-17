@@ -1,5 +1,20 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Farben der Bedienoberfläche — dieselben Werte wie in src/farben.js; bei einer Änderung beide
+   Stellen anpassen. accent-color färbt die Browser-Standardelemente (Schieberegler, Checkboxen)
+   im Akzent statt in Chrome-Blau und wird vererbt, gilt also für die ganze Seite (17.11.2026). */
+:root {
+  --akzent: #2F4B39;
+  --akzent-hell: #E8F0EA;
+  --akzent-rand: #B8CCBE;
+  accent-color: var(--akzent);
+}
+
+/* Markierter Text hellgrün statt Chrome-Blau; die Schriftfarbe bleibt. */
+::selection {
+  background: #CFE0D3;
+}
+
 body {
   font-family: 'DM Sans', sans-serif;
   background: #FBF6EC;

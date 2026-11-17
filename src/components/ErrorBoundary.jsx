@@ -1,4 +1,5 @@
 import { Component } from 'react'
+import { AKZENT } from '../farben'
 
 // Nur als Klasse möglich: getDerivedStateFromError/componentDidCatch haben keine Hook-Entsprechung.
 export default class ErrorBoundary extends Component {
@@ -42,7 +43,7 @@ export default class ErrorBoundary extends Component {
             <button
               onClick={() => window.location.reload()}
               style={{
-                padding: '10px 20px', background: '#185FA5', color: 'white', border: 'none', borderRadius: '10px',
+                padding: '10px 20px', background: AKZENT, color: 'white', border: 'none', borderRadius: '10px',
                 fontSize: '13px', fontWeight: '500', cursor: 'pointer',
               }}
             >

@@ -1,6 +1,7 @@
 import { useFurniture } from '../context/FurnitureContext'
 import { useDesign } from '../context/DesignContext'
 import { FARBTEMPERATUREN } from '../constants'
+import { AKZENT, AKZENT_HELL } from '../farben'
 
 const tageszeitLabel = (stunde) => {
   const h = Math.floor(stunde)
@@ -54,8 +55,8 @@ export default function LichtSchritt() {
             return (
               <div key={item.id} onClick={() => setSelectedId(item.id)} style={{
                 padding: '4px 0 4px 10px', borderRadius: '8px', marginBottom: '6px', cursor: 'pointer',
-                background: ausgewaehlt ? '#EEF4FC' : '#FAFAF8',
-                border: `1px solid ${ausgewaehlt ? '#185FA5' : '#E8E6E0'}`,
+                background: ausgewaehlt ? AKZENT_HELL : '#FAFAF8',
+                border: `1px solid ${ausgewaehlt ? AKZENT : '#E8E6E0'}`,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
@@ -74,7 +75,7 @@ export default function LichtSchritt() {
                     }}>
                       <span style={{
                         width: '32px', height: '18px', borderRadius: '9px', position: 'relative', display: 'block',
-                        background: an ? '#185FA5' : '#E8E6E0', transition: 'background 0.2s',
+                        background: an ? AKZENT : '#E8E6E0', transition: 'background 0.2s',
                       }}>
                         <span style={{
                           position: 'absolute', top: '2px', left: an ? '16px' : '2px',
@@ -111,7 +112,7 @@ export default function LichtSchritt() {
                         }}>
                           <span style={{
                             width: '20px', height: '20px', borderRadius: '50%', display: 'block',
-                            background: ft.farbe, border: `${farbe === ft.farbe ? '2px' : '1px'} solid ${farbe === ft.farbe ? '#185FA5' : '#E8E6E0'}`,
+                            background: ft.farbe, border: `${farbe === ft.farbe ? '2px' : '1px'} solid ${farbe === ft.farbe ? AKZENT : '#E8E6E0'}`,
                           }}></span>
                         </button>
                       ))}
@@ -133,7 +134,7 @@ export default function LichtSchritt() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                       <span style={{ fontSize: '10px', color: '#B4B2A9' }}>Ausrichtung</span>
-                      <span style={{ fontSize: '11px', color: '#185FA5' }}>{item.rotation || 0}°</span>
+                      <span style={{ fontSize: '11px', color: AKZENT }}>{item.rotation || 0}°</span>
                     </div>
                     <input type="range" min="0" max="359"
                       value={item.rotation || 0}

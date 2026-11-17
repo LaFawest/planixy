@@ -1,5 +1,6 @@
 import { useUI } from '../context/UIContext'
 import { useFurniture } from '../context/FurnitureContext'
+import { AKZENT } from '../farben'
 
 export default function RotationsPanel() {
   const { ansicht } = useUI()
@@ -30,12 +31,12 @@ export default function RotationsPanel() {
             onChange={e => rotateFurniture(selectedItem.id, Number(e.target.value))}
             style={{ width: '160px', cursor: 'pointer' }}
           />
-          <span style={{ fontSize: '13px', color: '#185FA5', fontWeight: '500', minWidth: '40px' }}>{selectedItem.rotation || 0}°</span>
+          <span style={{ fontSize: '13px', color: AKZENT, fontWeight: '500', minWidth: '40px' }}>{selectedItem.rotation || 0}°</span>
           <div style={{ display: 'flex', gap: '6px' }}>
             {[0, 90, 180, 270].map(w => (
               <div key={w} onClick={() => rotateFurniture(selectedItem.id, w)} style={{
                 padding: '4px 10px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer',
-                background: (selectedItem.rotation || 0) === w ? '#185FA5' : '#F7F6F2',
+                background: (selectedItem.rotation || 0) === w ? AKZENT : '#F7F6F2',
                 color: (selectedItem.rotation || 0) === w ? 'white' : '#888780',
                 border: '1px solid #E8E6E0',
               }}>{w}°</div>

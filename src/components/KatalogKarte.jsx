@@ -1,5 +1,6 @@
 import { kategorieFarben } from '../constants'
 import { moebelIconTyp, moebelShapes, wandElementIconTyp, wandElementShapes } from '../moebelIcons'
+import { AKZENT, AKZENT_HELL } from '../farben'
 
 function MoebelIcon({ item }) {
   const typ = moebelIconTyp(item.name)
@@ -40,7 +41,7 @@ export function KatalogKarte({ item, onClick }) {
   return (
     <div onClick={onClick}
       style={{ padding: '10px 6px', border: '1px solid #E8E6E0', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', background: '#FAFAF8', fontSize: '11px', color: '#444441', transition: 'all 0.15s' }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = '#185FA5'; e.currentTarget.style.background = '#EEF4FC' }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = AKZENT; e.currentTarget.style.background = AKZENT_HELL }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E6E0'; e.currentTarget.style.background = '#FAFAF8' }}>
       <div style={{ width: '44px', height: '44px', margin: '0 auto 6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <MoebelIcon item={item} />

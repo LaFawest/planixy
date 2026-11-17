@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { HIMMELSRICHTUNG_NAME } from '../constants'
 import { himmelsrichtungAusNormale } from '../raumPolygon'
+import { AKZENT } from '../farben'
 
 // ausschnitt: { wand, ganz, von, bis } aus RoomView3D — welcher Teil der Fokuswand im Bild ist,
 // als Anteil von segment.start (0) bis segment.ende (1). onSprung(anteil): Klick auf die aktive Wand.
@@ -76,15 +77,15 @@ export default function WandMiniKarte({ wandSegmente, aktiveWand, onWechsel, aus
           <polygon points={pfad} fill="none" stroke="#D3D1C7" strokeWidth="1.5" />
           {teil ? (
             <>
-              <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#185FA5" strokeOpacity="0.3" strokeWidth="3.5" strokeLinecap="round" />
-              <line x1={punktAuf(teil.von).x} y1={punktAuf(teil.von).y} x2={punktAuf(teil.bis).x} y2={punktAuf(teil.bis).y} stroke="#185FA5" strokeWidth="5" strokeLinecap="round" />
+              <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={AKZENT} strokeOpacity="0.3" strokeWidth="3.5" strokeLinecap="round" />
+              <line x1={punktAuf(teil.von).x} y1={punktAuf(teil.von).y} x2={punktAuf(teil.bis).x} y2={punktAuf(teil.bis).y} stroke={AKZENT} strokeWidth="5" strokeLinecap="round" />
             </>
           ) : (
-            <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="#185FA5" strokeWidth="3.5" strokeLinecap="round" />
+            <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={AKZENT} strokeWidth="3.5" strokeLinecap="round" />
           )}
           <polygon
             points="0,-4 4,4 -4,4"
-            fill="#185FA5"
+            fill={AKZENT}
             transform={`translate(${mitte.x + segment.normale.x * 8}, ${mitte.y + segment.normale.y * 8}) rotate(${normWinkel + 270})`}
           />
         </svg>

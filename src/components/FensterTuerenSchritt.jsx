@@ -3,6 +3,7 @@ import { himmelsrichtungAusNormale } from '../raumPolygon'
 import { useDesign } from '../context/DesignContext'
 import { useRaumGeometrie } from '../context/useRaumGeometrie'
 import { materialShape } from '../moebelIcons'
+import { AKZENT, AKZENT_HELL } from '../farben'
 
 export default function FensterTuerenSchritt() {
   const { wandSegmente } = useRaumGeometrie()
@@ -65,7 +66,7 @@ export default function FensterTuerenSchritt() {
           <p style={{ fontSize: '10px', color: '#B4B2A9', letterSpacing: '0.06em' }}>FUSSLEISTE</p>
           <div onClick={() => setFussleiste(!fussleiste)} style={{
             width: '36px', height: '20px', borderRadius: '10px', cursor: 'pointer', transition: 'background 0.2s',
-            background: fussleiste ? '#185FA5' : '#E8E6E0', position: 'relative',
+            background: fussleiste ? AKZENT : '#E8E6E0', position: 'relative',
           }}>
             <div style={{
               position: 'absolute', top: '2px', left: fussleiste ? '18px' : '2px',
@@ -100,7 +101,7 @@ export default function FensterTuerenSchritt() {
             ].map(f => (
               <div key={f.name} onClick={() => setFussleisteFarbe(f.farbe)} style={{
                 width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer',
-                background: f.farbe, border: `${fussleisteFarbe === f.farbe ? '3px' : '1px'} solid ${fussleisteFarbe === f.farbe ? '#185FA5' : '#E8E6E0'}`,
+                background: f.farbe, border: `${fussleisteFarbe === f.farbe ? '3px' : '1px'} solid ${fussleisteFarbe === f.farbe ? AKZENT : '#E8E6E0'}`,
                 title: f.name,
               }} title={f.name}></div>
             ))}
@@ -116,9 +117,9 @@ export default function FensterTuerenSchritt() {
           {wandChips.map(w => (
             <div key={w.seite} onClick={() => setAktiveWand(w.seite)} style={{
               padding: '4px 10px', borderRadius: '20px', fontSize: '11px', cursor: 'pointer',
-              background: aktiveWand === w.seite ? '#185FA5' : '#F7F6F2',
+              background: aktiveWand === w.seite ? AKZENT : '#F7F6F2',
               color: aktiveWand === w.seite ? 'white' : '#888780',
-              border: `1px solid ${aktiveWand === w.seite ? '#185FA5' : '#E8E6E0'}`,
+              border: `1px solid ${aktiveWand === w.seite ? AKZENT : '#E8E6E0'}`,
             }}>{w.name}</div>
           ))}
         </div>
@@ -142,9 +143,9 @@ export default function FensterTuerenSchritt() {
             // Mustertapete. Ein Klick wählt weiterhin material.klasse, also die erste Ausführung.
             <div key={material.name} onClick={() => setWandmaterialFuer(material.klasse)} style={{
               padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s',
-              border: `${aktuelleKachel.klasse === material.klasse ? '2px' : '1px'} solid ${aktuelleKachel.klasse === material.klasse ? '#185FA5' : '#E8E6E0'}`,
-              background: aktuelleKachel.klasse === material.klasse ? '#EEF4FC' : '#FAFAF8',
-              fontSize: '10px', color: aktuelleKachel.klasse === material.klasse ? '#185FA5' : '#444441',
+              border: `${aktuelleKachel.klasse === material.klasse ? '2px' : '1px'} solid ${aktuelleKachel.klasse === material.klasse ? AKZENT : '#E8E6E0'}`,
+              background: aktuelleKachel.klasse === material.klasse ? AKZENT_HELL : '#FAFAF8',
+              fontSize: '10px', color: aktuelleKachel.klasse === material.klasse ? AKZENT : '#444441',
               overflowWrap: 'anywhere', lineHeight: 1.25,
             }}>
               {/* Dieselbe Musterprobe wie in der Paint-Palette und bei den Bodenbelägen (RaumSchritt),
@@ -173,11 +174,11 @@ export default function FensterTuerenSchritt() {
           {wandFarben.map(wand => (
             <div key={wand.name} onClick={() => setWandfarbeFuer(wand.farbe)} style={{
               padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s',
-              border: `${aktuelleWandfarbe === wand.farbe ? '2px' : '1px'} solid ${aktuelleWandfarbe === wand.farbe ? '#185FA5' : '#E8E6E0'}`,
-              background: aktuelleWandfarbe === wand.farbe ? '#EEF4FC' : '#FAFAF8',
+              border: `${aktuelleWandfarbe === wand.farbe ? '2px' : '1px'} solid ${aktuelleWandfarbe === wand.farbe ? AKZENT : '#E8E6E0'}`,
+              background: aktuelleWandfarbe === wand.farbe ? AKZENT_HELL : '#FAFAF8',
             }}>
               <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: wand.farbe, margin: '0 auto 4px', border: '1px solid #E8E6E0' }}></div>
-              <div style={{ fontSize: '10px', color: aktuelleWandfarbe === wand.farbe ? '#185FA5' : '#444441', fontWeight: aktuelleWandfarbe === wand.farbe ? '500' : '400', overflowWrap: 'anywhere', lineHeight: 1.25 }}>{wand.name}</div>
+              <div style={{ fontSize: '10px', color: aktuelleWandfarbe === wand.farbe ? AKZENT : '#444441', fontWeight: aktuelleWandfarbe === wand.farbe ? '500' : '400', overflowWrap: 'anywhere', lineHeight: 1.25 }}>{wand.name}</div>
             </div>
           ))}
 
@@ -197,8 +198,8 @@ export default function FensterTuerenSchritt() {
           <label style={{
             display: 'block', padding: '8px 4px', borderRadius: '10px', textAlign: 'center',
             cursor: 'pointer', transition: 'all 0.15s',
-            border: `${istEigeneFarbe ? '2px' : '1px'} solid ${istEigeneFarbe ? '#185FA5' : '#E8E6E0'}`,
-            background: istEigeneFarbe ? '#EEF4FC' : '#FAFAF8',
+            border: `${istEigeneFarbe ? '2px' : '1px'} solid ${istEigeneFarbe ? AKZENT : '#E8E6E0'}`,
+            background: istEigeneFarbe ? AKZENT_HELL : '#FAFAF8',
           }}>
             <div style={{
               width: '28px', height: '28px', borderRadius: '50%', margin: '0 auto 4px',
@@ -209,7 +210,7 @@ export default function FensterTuerenSchritt() {
             }}></div>
             <div style={{
               fontSize: '10px',
-              color: istEigeneFarbe ? '#185FA5' : '#444441',
+              color: istEigeneFarbe ? AKZENT : '#444441',
               fontWeight: istEigeneFarbe ? '500' : '400',
             }}>
               {istEigeneFarbe ? aktuelleWandfarbe.toUpperCase() : 'Eigene Farbe'}
@@ -236,8 +237,8 @@ export default function FensterTuerenSchritt() {
               {aktuelleAusfuehrungen.map(ausfuehrung => (
                 <div key={ausfuehrung.klasse} onClick={() => setWandmaterialFuer(ausfuehrung.klasse)} style={{
                   padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s',
-                  border: `${aktuellesWandmaterial === ausfuehrung.klasse ? '2px' : '1px'} solid ${aktuellesWandmaterial === ausfuehrung.klasse ? '#185FA5' : '#E8E6E0'}`,
-                  background: aktuellesWandmaterial === ausfuehrung.klasse ? '#EEF4FC' : '#FAFAF8',
+                  border: `${aktuellesWandmaterial === ausfuehrung.klasse ? '2px' : '1px'} solid ${aktuellesWandmaterial === ausfuehrung.klasse ? AKZENT : '#E8E6E0'}`,
+                  background: aktuellesWandmaterial === ausfuehrung.klasse ? AKZENT_HELL : '#FAFAF8',
                 }}>
                   {ausfuehrung.icon ? (
                     <div style={{ fontSize: '18px', marginBottom: '4px' }}>{ausfuehrung.icon}</div>
@@ -249,7 +250,7 @@ export default function FensterTuerenSchritt() {
                   )}
                   <div style={{
                     fontSize: '10px',
-                    color: aktuellesWandmaterial === ausfuehrung.klasse ? '#185FA5' : '#444441',
+                    color: aktuellesWandmaterial === ausfuehrung.klasse ? AKZENT : '#444441',
                     fontWeight: aktuellesWandmaterial === ausfuehrung.klasse ? '500' : '400',
                     overflowWrap: 'anywhere', lineHeight: 1.25,
                   }}>{ausfuehrung.name}</div>

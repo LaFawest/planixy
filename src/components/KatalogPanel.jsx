@@ -1,5 +1,6 @@
 import { KatalogKarte } from './KatalogKarte'
 import { useKatalog } from '../context/KatalogContext'
+import { AKZENT, AKZENT_HELL } from '../farben'
 
 // Gemeinsame Katalog-Ansicht für Desktop-Sidebar und mobilen Möbel-Tab: Suche, Kategorie-Chips
 // und Ergebnisraster, plus die beiden Sonderfälle "kein Katalog in diesem Schritt" und
@@ -30,9 +31,9 @@ export default function KatalogPanel({ spalten, onItemHinzugefuegt }) {
             <div key={kat} onClick={() => setAktiveKategorie(kat)} style={{
               padding: '5px 12px', borderRadius: '20px', fontSize: '12px', cursor: 'pointer',
               fontWeight: aktiveKategorie === kat ? '500' : '400',
-              background: aktiveKategorie === kat ? '#185FA5' : '#F7F6F2',
+              background: aktiveKategorie === kat ? AKZENT : '#F7F6F2',
               color: aktiveKategorie === kat ? 'white' : '#888780',
-              border: `1px solid ${aktiveKategorie === kat ? '#185FA5' : '#E8E6E0'}`,
+              border: `1px solid ${aktiveKategorie === kat ? AKZENT : '#E8E6E0'}`,
             }}>{kat}</div>
           ))}
         </div>
@@ -41,7 +42,7 @@ export default function KatalogPanel({ spalten, onItemHinzugefuegt }) {
       {sprungHinweis ? (
         <div onClick={() => springeZuSchritt(sprungHinweis.schritt)}
           style={{ padding: '12px', borderRadius: '10px', border: '1px solid #E8E6E0', background: '#F7F6F2', fontSize: '12px', color: '#444441', cursor: 'pointer', lineHeight: 1.5 }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = '#2F4B39'; e.currentTarget.style.background = '#E8F0EA' }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = AKZENT; e.currentTarget.style.background = AKZENT_HELL }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E6E0'; e.currentTarget.style.background = '#F7F6F2' }}>
           Das findest du in Schritt {sprungHinweis.schritt} „{sprungHinweis.label}" ({sprungHinweis.beschreibung}) →
         </div>

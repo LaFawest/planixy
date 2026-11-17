@@ -12,6 +12,7 @@ import { useFurniture } from '../context/FurnitureContext'
 import { useTrennwand } from '../context/TrennwandContext'
 import { useWizard } from '../context/WizardContext'
 import { istDeckenleuchte, istGestrichen, wandGrundfarbe } from '../constants'
+import { AKZENT, AKZENT_RAND, AKZENT_SCHATTEN } from '../farben'
 
 // Dieselbe Regel wie in der 3D-Ansicht (wandMatFuer in RoomView3D.jsx): Eine gestrichene Wand
 // zeigt die gewählte Farbe, eine gekaufte Ausführung ihren eigenen Ton. Im Grundriss gibt es
@@ -132,8 +133,8 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
             style={{
               position: 'absolute', top: '16px', left: '16px', zIndex: 10, cursor: 'pointer',
               padding: '8px 16px', borderRadius: '20px', fontSize: '12px', fontWeight: '500',
-              background: zeichneWand ? '#185FA5' : 'white', color: zeichneWand ? 'white' : '#444441',
-              border: `1px solid ${zeichneWand ? '#185FA5' : '#E8E6E0'}`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+              background: zeichneWand ? AKZENT : 'white', color: zeichneWand ? 'white' : '#444441',
+              border: `1px solid ${zeichneWand ? AKZENT : '#E8E6E0'}`, boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
             }}>
             {zeichneWand ? '✕ Zeichnen beenden' : '+ Trennwand zeichnen'}
           </div>
@@ -146,7 +147,7 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
             border: '1px solid #E8E6E0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
           }}>
             <span style={{ fontSize: '12px', color: '#444441', fontWeight: '500' }}>Trennwand bauen?</span>
-            <div onClick={bestaetigeWand} style={{ cursor: 'pointer', padding: '5px 14px', borderRadius: '14px', fontSize: '12px', fontWeight: '500', background: '#185FA5', color: 'white' }}>Bauen</div>
+            <div onClick={bestaetigeWand} style={{ cursor: 'pointer', padding: '5px 14px', borderRadius: '14px', fontSize: '12px', fontWeight: '500', background: AKZENT, color: 'white' }}>Bauen</div>
             <div onClick={verwerfeWand} style={{ cursor: 'pointer', padding: '5px 14px', borderRadius: '14px', fontSize: '12px', fontWeight: '500', background: '#F7F6F2', color: '#888780', border: '1px solid #E8E6E0' }}>Verwerfen</div>
           </div>
         )}
@@ -154,8 +155,8 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
           <div id="canvas" style={{
             width: `${canvasB}px`, height: `${canvasT}px`,
             borderRadius: '6px', position: 'relative', overflow: 'hidden',
-            boxShadow: '0 4px 24px rgba(24,95,165,0.08)',
-            outline: '2px solid #B5D4F4',
+            boxShadow: `0 4px 24px ${AKZENT_SCHATTEN}`,
+            outline: `2px solid ${AKZENT_RAND}`,
             boxSizing: 'border-box',
           }}>
             {/* Wände einzeln einfärbbar — ein oder mehrere Streifen pro Wandsegment, mit Lücken
@@ -199,7 +200,7 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
               {trennwaende.map(wand => (
                 <g key={wand.id}>
                   {selectedWandId === wand.id && (
-                    <line x1={wand.x1} y1={wand.y1} x2={wand.x2} y2={wand.y2} stroke="#185FA5" strokeWidth={(wand.dicke || 10) + 6} strokeLinecap="square" opacity={0.25} pointerEvents="none" />
+                    <line x1={wand.x1} y1={wand.y1} x2={wand.x2} y2={wand.y2} stroke={AKZENT} strokeWidth={(wand.dicke || 10) + 6} strokeLinecap="square" opacity={0.25} pointerEvents="none" />
                   )}
                   <line x1={wand.x1} y1={wand.y1} x2={wand.x2} y2={wand.y2} stroke={wand.farbe} strokeWidth={wand.dicke || 10} strokeLinecap="square"
                     style={{ cursor: 'grab', pointerEvents: 'stroke', touchAction: 'none' }}
@@ -210,22 +211,22 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
                       {/* Sichtbarer Griff bleibt klein; unsichtbarer Kreis darunter liefert eine 44×44px-Trefferfläche für Touch */}
                       <circle cx={wand.x1} cy={wand.y1} r={22} fill="transparent" style={{ cursor: 'move', pointerEvents: 'all', touchAction: 'none' }}
                         onMouseDown={(e) => handleWandDrag(e, wand.id, 'start')} onTouchStart={(e) => handleWandDrag(e, wand.id, 'start')} />
-                      <circle cx={wand.x1} cy={wand.y1} r={7} fill="white" stroke="#185FA5" strokeWidth={2} style={{ pointerEvents: 'none' }} />
+                      <circle cx={wand.x1} cy={wand.y1} r={7} fill="white" stroke={AKZENT} strokeWidth={2} style={{ pointerEvents: 'none' }} />
                       <circle cx={wand.x2} cy={wand.y2} r={22} fill="transparent" style={{ cursor: 'move', pointerEvents: 'all', touchAction: 'none' }}
                         onMouseDown={(e) => handleWandDrag(e, wand.id, 'end')} onTouchStart={(e) => handleWandDrag(e, wand.id, 'end')} />
-                      <circle cx={wand.x2} cy={wand.y2} r={7} fill="white" stroke="#185FA5" strokeWidth={2} style={{ pointerEvents: 'none' }} />
+                      <circle cx={wand.x2} cy={wand.y2} r={7} fill="white" stroke={AKZENT} strokeWidth={2} style={{ pointerEvents: 'none' }} />
                     </>
                   )}
                 </g>
               ))}
               {wandEntwurf && (
                 <line x1={wandEntwurf.x1} y1={wandEntwurf.y1} x2={wandEntwurf.x2} y2={wandEntwurf.y2}
-                  stroke={wandEntwurf.gueltig ? '#185FA5' : '#E24B4A'} strokeWidth={10} strokeLinecap="square" strokeDasharray="6 5" opacity={0.7} pointerEvents="none" />
+                  stroke={wandEntwurf.gueltig ? AKZENT : '#E24B4A'} strokeWidth={10} strokeLinecap="square" strokeDasharray="6 5" opacity={0.7} pointerEvents="none" />
               )}
               {wandVorschau && (
                 <>
                   <line x1={wandVorschau.x1} y1={wandVorschau.y1} x2={wandVorschau.x2} y2={wandVorschau.y2}
-                    stroke="#185FA5" strokeWidth={16} strokeLinecap="square" opacity={0.25} pointerEvents="none" />
+                    stroke={AKZENT} strokeWidth={16} strokeLinecap="square" opacity={0.25} pointerEvents="none" />
                   <line x1={wandVorschau.x1} y1={wandVorschau.y1} x2={wandVorschau.x2} y2={wandVorschau.y2}
                     stroke="#B4B2A9" strokeWidth={10} strokeLinecap="square" strokeDasharray="4 4" pointerEvents="none" />
                 </>
@@ -271,7 +272,7 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
                 onTouchStart={(e) => { handleDrag(e, item.id); setSelectedId(item.id) }}
                 onClick={(e) => { e.stopPropagation(); setSelectedId(item.id) }}
                 onMouseEnter={e => e.currentTarget.style.boxShadow = `0 0 0 2px ${item.border}`}
-                onMouseLeave={e => e.currentTarget.style.boxShadow = item.ungueltig ? '0 0 0 2px #E24B4A' : selectedId === item.id ? '0 0 0 2px #185FA5' : 'none'}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = item.ungueltig ? '0 0 0 2px #E24B4A' : selectedId === item.id ? `0 0 0 2px ${AKZENT}` : 'none'}
                 style={{
                 position: 'absolute',
                 // Tür-/Fenster-Elemente sitzen jetzt zentriert auf der Wanddicke (siehe
@@ -306,7 +307,7 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
                 // dieselbe Farbe wie die ungültige Trennwand-Vorschau (Schritt 6), damit "hier
                 // muss manuell nachjustiert werden" auf einen Blick erkennbar ist. Geht der
                 // Selektions-Umrandung vor, bleibt also auch beim Anklicken sichtbar.
-                boxShadow: item.ungueltig ? '0 0 0 2px #E24B4A' : selectedId === item.id ? '0 0 0 2px #185FA5' : 'none',
+                boxShadow: item.ungueltig ? '0 0 0 2px #E24B4A' : selectedId === item.id ? `0 0 0 2px ${AKZENT}` : 'none',
               }}>
                 {/* Füllung, Rahmen und Inhalt. Umrandung, Hover und Bedienung sitzen am
                     Wrapper darüber. */}

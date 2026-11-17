@@ -3,6 +3,7 @@ import { alleKatalogItems } from '../constants'
 import { produktEmpfehlungen } from '../data/produktempfehlungen'
 import { produktAufKatalogItemAnwenden, formatPreis } from '../data/produktAuswahl'
 import { moebelIconTyp, moebelShapes } from '../moebelIcons'
+import { AKZENT, AKZENT_HELL } from '../farben'
 
 // Eigenes, in der aufgelösten Produktfarbe eingefärbtes Icon statt Amazon-Foto — dieselbe
 // Icon-Form wie im Katalog (KatalogKarte.jsx), nur mit der Farbe/Kantenfarbe dieses konkreten
@@ -45,11 +46,11 @@ export default function ProduktPanel() {
               onClick={() => wechsleProdukt(selectedItem.id, produkt)}
               style={{
                 display: 'flex', gap: '10px', padding: '8px', borderRadius: '10px', cursor: 'pointer',
-                border: aktiv ? '2px solid #185FA5' : '1px solid #E8E6E0',
-                background: aktiv ? '#EEF4FC' : 'transparent',
+                border: aktiv ? `2px solid ${AKZENT}` : '1px solid #E8E6E0',
+                background: aktiv ? AKZENT_HELL : 'transparent',
                 transition: 'border-color 0.15s',
               }}
-              onMouseEnter={e => { if (!aktiv) e.currentTarget.style.borderColor = '#185FA5' }}
+              onMouseEnter={e => { if (!aktiv) e.currentTarget.style.borderColor = AKZENT }}
               onMouseLeave={e => { if (!aktiv) e.currentTarget.style.borderColor = '#E8E6E0' }}>
               <div style={{ width: '40px', height: '40px', flexShrink: 0, borderRadius: '6px', background: '#F7F6F2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <ProduktIcon moebelName={selectedItem.name} farbe={color} kante={border} />
@@ -64,7 +65,7 @@ export default function ProduktPanel() {
                   {produkt.name}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '3px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#185FA5' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '600', color: AKZENT }}>
                     {formatPreis(produkt.preis)}
                   </div>
                   <span style={{ fontSize: '10px', color: '#B4B2A9' }}>Anzeige</span>

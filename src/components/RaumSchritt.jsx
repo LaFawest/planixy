@@ -3,6 +3,7 @@ import { useDesign } from '../context/DesignContext'
 import { polygonFlaeche, rechteckPolygon, lFormPolygon, uFormPolygon, boundingBox } from '../raumPolygon'
 import { RAUM_FORMEN, L_FORM_ECKEN, U_FORM_SEITEN, MIN_RAUM_SCHENKEL_M, bodenBelaege } from '../constants'
 import { materialShape } from '../moebelIcons'
+import { AKZENT, AKZENT_HELL } from '../farben'
 
 // Breite/Tiefe/Aussparung klemmen wir schon beim Tippen auf mindestens MIN_RAUM_SCHENKEL_M —
 // nicht wegen der Optik, sondern weil ein Zwischenwert, der einen Schenkel schmaler als die
@@ -41,7 +42,7 @@ function KonturVorschau({ eckpunkte, aktiv }) {
   return (
     <svg width={VORSCHAU_GROESSE} height={VORSCHAU_GROESSE}>
       <polygon points={vorschauPunkte(eckpunkte)}
-        fill={aktiv ? '#EEF4FC' : '#FAFAF8'} stroke={aktiv ? '#185FA5' : '#B4B2A9'}
+        fill={aktiv ? AKZENT_HELL : '#FAFAF8'} stroke={aktiv ? AKZENT : '#B4B2A9'}
         strokeWidth="2" strokeLinejoin="round" />
     </svg>
   )
@@ -49,11 +50,11 @@ function KonturVorschau({ eckpunkte, aktiv }) {
 
 const kachelStyle = (aktiv) => ({
   padding: '5px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', flex: 1,
-  border: `${aktiv ? '2px' : '1px'} solid ${aktiv ? '#185FA5' : '#E8E6E0'}`,
-  background: aktiv ? '#EEF4FC' : '#FAFAF8',
+  border: `${aktiv ? '2px' : '1px'} solid ${aktiv ? AKZENT : '#E8E6E0'}`,
+  background: aktiv ? AKZENT_HELL : '#FAFAF8',
 })
 const kachelLabelStyle = (aktiv) => ({
-  fontSize: '10px', color: aktiv ? '#185FA5' : '#444441', fontWeight: aktiv ? '500' : '400', marginTop: '2px',
+  fontSize: '10px', color: aktiv ? AKZENT : '#444441', fontWeight: aktiv ? '500' : '400', marginTop: '2px',
 })
 
 export default function RaumSchritt() {
@@ -193,9 +194,9 @@ export default function RaumSchritt() {
           {bodenBelaege.map(boden => (
             <div key={boden.name} onClick={() => setBoden(boden.klasse)} style={{
               padding: '8px 4px', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.15s',
-              border: `${(activeRoom?.boden || 'boden-standard') === boden.klasse ? '2px' : '1px'} solid ${(activeRoom?.boden || 'boden-standard') === boden.klasse ? '#185FA5' : '#E8E6E0'}`,
-              background: (activeRoom?.boden || 'boden-standard') === boden.klasse ? '#EEF4FC' : '#FAFAF8',
-              fontSize: '10px', color: (activeRoom?.boden || 'boden-standard') === boden.klasse ? '#185FA5' : '#444441',
+              border: `${(activeRoom?.boden || 'boden-standard') === boden.klasse ? '2px' : '1px'} solid ${(activeRoom?.boden || 'boden-standard') === boden.klasse ? AKZENT : '#E8E6E0'}`,
+              background: (activeRoom?.boden || 'boden-standard') === boden.klasse ? AKZENT_HELL : '#FAFAF8',
+              fontSize: '10px', color: (activeRoom?.boden || 'boden-standard') === boden.klasse ? AKZENT : '#444441',
             }}>
               {/* Musterprobe statt Emoji. Der Rückfall auf boden.icon bleibt: Käme ein Belag ohne
                   gezeichnete Probe dazu, stünde dort wieder das Emoji statt einer Lücke. */}
