@@ -1461,7 +1461,9 @@ export const produktEmpfehlungen = [
   },
   {
     id: "lampe-01",
-    moebelName: "Lampe",
+    // Bis zum 17.11.2026 unter "Lampe" (Modell: Stehlampe) — eine Nachttischlampe gehört zur
+    // Tischlampe. Die id bleibt, damit gespeicherte Möbel ihr Produkt weiter finden.
+    moebelName: "Tischlampe",
     marke: "BASRAE",
     name: "BASRAE Nachttischlampe klein, LED, 3 Farbtemperaturen, oval, Weiß, dimmbar",
     farbe: "Weiß",
@@ -1477,7 +1479,9 @@ export const produktEmpfehlungen = [
   },
   {
     id: "stehlampe-01",
-    moebelName: "Stehlampe",
+    // Bis zum 17.11.2026 unter "Stehlampe" (ohne 3D-Modell, in Schritt 4 nicht sichtbar). Die Bauart
+    // "Lampe" hat das Stehlampen-Modell; die id bleibt.
+    moebelName: "Lampe",
     marke: "unbekannt",
     name: "Stehlampe Wohnzimmer, dimmbar, mit Fernbedienung, Timing-Funktion",
     farbe: "Schwarz",
