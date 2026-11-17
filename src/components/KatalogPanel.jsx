@@ -5,16 +5,25 @@ import { AKZENT, AKZENT_HELL } from '../farben'
 // Gemeinsame Katalog-Ansicht für Desktop-Sidebar und mobilen Möbel-Tab: Suche, Kategorie-Chips
 // und Ergebnisraster, plus die beiden Sonderfälle "kein Katalog in diesem Schritt" und
 // "Suche trifft nur im jeweils anderen Katalog-Schritt" (siehe KatalogContext.jsx).
-export default function KatalogPanel({ spalten, onItemHinzugefuegt }) {
+// produktwahlRechts: Am Desktop (Sidebar.jsx) wählt ein Klick in Schritt 4 nur die Bauart, das
+// Produkt wählt man rechts (ProduktWahl.jsx). Am Handy (MoebelTab.jsx) fügt der Klick bis zum
+// eigenen Blatt (Katalog-Umbau Teil 5) weiter direkt das erste Produkt ein.
+export default function KatalogPanel({ spalten, onItemHinzugefuegt, produktwahlRechts = false }) {
   const {
     suche, setSuche, aktiverRaum, setAktiverRaum, gefilterteMoebel, gruppen, katalogItemHinzufuegen,
     katalogSichtbar, raumAuswahlSichtbar, raeumeFuerAuswahl, raumHinweis, sprungHinweis, schrittHinweis,
-    springeZuSchritt,
+    springeZuSchritt, gewaehlteBauart, waehleBauart,
   } = useKatalog()
 
+  const mitProduktwahl = produktwahlRechts && Boolean(gruppen)
   const karte = (item) => (
     <KatalogKarte key={item.katalogKey || item.name} item={item} ohneEtikett={Boolean(gruppen)}
-      onClick={() => { katalogItemHinzufuegen(item); onItemHinzugefuegt?.() }} />
+      aktiv={mitProduktwahl && gewaehlteBauart === item.name}
+      onClick={() => {
+        if (mitProduktwahl) { waehleBauart(item.name); return }
+        katalogItemHinzufuegen(item)
+        onItemHinzugefuegt?.()
+      }} />
   )
   const raster = (items) => (
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${spalten}, 1fr)`, gap: '8px' }}>

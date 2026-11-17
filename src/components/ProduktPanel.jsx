@@ -2,22 +2,11 @@ import { useFurniture } from '../context/FurnitureContext'
 import { alleKatalogItems } from '../constants'
 import { produktEmpfehlungen } from '../data/produktempfehlungen'
 import { produktAufKatalogItemAnwenden } from '../data/produktAuswahl'
-import { moebelIconTyp, moebelShapes } from '../moebelIcons'
-import { AKZENT, AKZENT_HELL } from '../farben'
+import { produktFuerKatalog } from '../data/bauarten'
+import ProduktKarte from './ProduktKarte'
 
-// Eigenes, in der aufgelösten Produktfarbe eingefärbtes Icon statt Amazon-Foto — dieselbe
-// Icon-Form wie im Katalog (KatalogKarte.jsx), nur mit der Farbe/Kantenfarbe dieses konkreten
-// Produkts statt der generischen Katalogfarbe des Möbeltyps.
-function ProduktIcon({ moebelName, farbe, kante }) {
-  const typ = moebelIconTyp(moebelName)
-  const shapes = moebelShapes(farbe, kante)
-  return (
-    <svg viewBox="0 0 28 28" width="28" height="28">
-      {shapes[typ] || shapes.standard}
-    </svg>
-  )
-}
-
+// Produktwechsel für ein platziertes Möbel. Die Karten teilen sich seit dem 17.11.2026 Aufbau und
+// Fotoplatz mit der Produktwahl beim Einfügen (ProduktKarte.jsx).
 export default function ProduktPanel() {
   const { selectedId, furniture, wechsleProdukt } = useFurniture()
   const selectedItem = furniture.find(f => f.id === selectedId)
@@ -42,40 +31,9 @@ export default function ProduktPanel() {
             ? produktAufKatalogItemAnwenden(katalogDefault, produkt)
             : { color: '#D3D1C7', border: '#888780' }
           return (
-            <div key={produkt.id}
-              onClick={() => wechsleProdukt(selectedItem.id, produkt)}
-              style={{
-                display: 'flex', gap: '10px', padding: '8px', borderRadius: '10px', cursor: 'pointer',
-                border: aktiv ? `2px solid ${AKZENT}` : '1px solid #E8E6E0',
-                background: aktiv ? AKZENT_HELL : 'transparent',
-                transition: 'border-color 0.15s',
-              }}
-              onMouseEnter={e => { if (!aktiv) e.currentTarget.style.borderColor = AKZENT }}
-              onMouseLeave={e => { if (!aktiv) e.currentTarget.style.borderColor = '#E8E6E0' }}>
-              <div style={{ width: '40px', height: '40px', flexShrink: 0, borderRadius: '6px', background: '#F7F6F2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <ProduktIcon moebelName={selectedItem.name} farbe={color} kante={border} />
-              </div>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                {produkt.marke && (
-                  <div style={{ fontSize: '10px', color: '#B4B2A9', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    {produkt.marke}
-                  </div>
-                )}
-                <div style={{ fontSize: '11px', color: '#444441', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                  {produkt.name}
-                </div>
-                {/* Keine Preise (17.11.2026): Die Werte in produktempfehlungen.js sind von Hand
-                    erfasst und veralten. Preise kommen erst zurück, wenn ein Händler-Feed sie live
-                    liefert, dann mit Abrufdatum. Das Feld preis bleibt in den Daten. */}
-                <div style={{ marginTop: '3px' }}>
-                  <span style={{ fontSize: '10px', color: '#B4B2A9' }}>Anzeige</span>
-                </div>
-              </div>
-              <a href={produkt.link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
-                style={{ fontSize: '10px', color: '#B4B2A9', alignSelf: 'flex-start', flexShrink: 0, textDecoration: 'none' }}>
-                Amazon ↗
-              </a>
-            </div>
+            <ProduktKarte key={produkt.id} produkt={produktFuerKatalog(produkt)} bauart={selectedItem.name}
+              farbe={color} kante={border} aktiv={aktiv}
+              onWaehlen={() => wechsleProdukt(selectedItem.id, produkt)} />
           )
         })
       )}

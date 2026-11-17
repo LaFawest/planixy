@@ -8,6 +8,8 @@ import FensterTuerenSchritt from './FensterTuerenSchritt'
 import LichtSchritt from './LichtSchritt'
 import MoebelDekoSchritt from './MoebelDekoSchritt'
 import ProduktPanel from './ProduktPanel'
+import ProduktWahl from './ProduktWahl'
+import { useKatalog } from '../context/KatalogContext'
 
 // Dieselbe Zeichenfolge wie in KatalogContext.jsx und ZusammenfassungSeite.jsx. Bewusst je Datei
 // eigen und nicht zentral: Die drei haben nichts miteinander zu tun außer dem Wort.
@@ -48,6 +50,11 @@ export default function PanelRechts() {
   const zeigtProduktwahl = gewaehltesMoebel != null
     && gewaehltesMoebel.kategorie !== LICHT_KATEGORIE
     && !gewaehltesMoebel.istWandElement
+  // Produktwahl zum Einfügen (Katalog-Umbau Teil 4, 17.11.2026): links ist eine Bauart gewählt und
+  // kein Möbel ausgewählt. Steht oben, vor der Liste "MÖBEL & DEKO" — sonst rutscht sie bei vielen
+  // Möbeln aus dem Bild.
+  const { gewaehlteBauart } = useKatalog()
+  const zeigtProduktwahlEinfuegen = schritt === 4 && gewaehlteBauart != null && gewaehltesMoebel == null
 
   // Licht-Schritt (Phase 6, Teilschritt 1 — 7. Nachbesserung, ersetzt die 6.): die Leuchten-Liste
   // aus LichtSchritt (Überschrift "LEUCHTEN (n)" + eine Zeile je eingefügter Leuchte) hing in der
@@ -79,6 +86,12 @@ export default function PanelRechts() {
     <div className="panel-rechts" style={{ width: '220px', background: 'white', borderLeft: '1px solid #E8E6E0', padding: '16px', flexShrink: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', boxShadow: '-2px 0 8px rgba(0,0,0,0.04)' }}>
       {zeigtListeImmer ? (
         <>
+          {zeigtProduktwahlEinfuegen && (
+            <>
+              <ProduktWahl />
+              <div style={{ height: '1px', background: '#E8E6E0' }}></div>
+            </>
+          )}
           <SchrittInhalt />
           {zeigtProduktwahl && (
             <>

@@ -15,7 +15,8 @@ function MoebelIcon({ item }) {
 // ohneEtikett: In Schritt 4 steht die Karte unter ihrer Familien-Überschrift (Katalog-Umbau Teil 3,
 // 17.11.2026). Das alte Kategorie-Etikett ("Wohnen", "Schlafen" …) würde dort nur verwirren, weil es
 // nicht zum Raumfilter passt. In Schritt 3 (Leuchten) bleibt es.
-export function KatalogKarte({ item, onClick, ohneEtikett = false }) {
+// aktiv: Die Bauart ist gerade für die Produktwahl rechts gewählt (Katalog-Umbau Teil 4).
+export function KatalogKarte({ item, onClick, ohneEtikett = false, aktiv = false }) {
   if (item.typ) {
     return (
       <div onClick={onClick}
@@ -41,11 +42,14 @@ export function KatalogKarte({ item, onClick, ohneEtikett = false }) {
   // Kein Produktfoto, keine Marke, kein Preis. Im Katalog wählt man eine Bauart, kein Produkt —
   // ein Foto genau einer Lampe sieht aus, als würde man genau diese setzen. Die Produktdaten
   // bleiben vollständig erhalten; die Zusammenfassung zeigt sie weiterhin, dort gehören sie hin.
+  const randRuhe = aktiv ? AKZENT : '#E8E6E0'
+  const flaecheRuhe = aktiv ? AKZENT_HELL : '#FAFAF8'
   return (
-    <div onClick={onClick}
-      style={{ padding: '10px 6px', border: '1px solid #E8E6E0', borderRadius: '10px', textAlign: 'center', cursor: 'pointer', background: '#FAFAF8', fontSize: '11px', color: '#444441', transition: 'all 0.15s' }}
+    <div onClick={onClick} role="button" tabIndex={0} aria-pressed={aktiv}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick?.() } }}
+      style={{ padding: '10px 6px', border: `1px solid ${randRuhe}`, borderRadius: '10px', textAlign: 'center', cursor: 'pointer', background: flaecheRuhe, fontSize: '11px', color: '#444441', transition: 'all 0.15s' }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = AKZENT; e.currentTarget.style.background = AKZENT_HELL }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = '#E8E6E0'; e.currentTarget.style.background = '#FAFAF8' }}>
+      onMouseLeave={e => { e.currentTarget.style.borderColor = randRuhe; e.currentTarget.style.background = flaecheRuhe }}>
       <div style={{ width: '44px', height: '44px', margin: '0 auto 6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <MoebelIcon item={item} />
       </div>

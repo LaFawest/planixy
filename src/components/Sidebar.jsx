@@ -65,7 +65,7 @@ export default function Sidebar() {
 
       <div style={{ height: '1px', background: '#E8E6E0', margin: '18px 0' }}></div>
 
-      <KatalogPanel spalten={2} />
+      <KatalogPanel spalten={2} produktwahlRechts />
 
       {schritt === 2 && (
         <>

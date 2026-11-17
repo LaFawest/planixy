@@ -44,8 +44,19 @@ function passtZurSuche(item, s) {
 }
 
 export function KatalogProvider({ children }) {
-  const { addFurniture, addWandElement } = useFurniture()
+  const { addFurniture, addWandElement, selectedId, setSelectedId } = useFurniture()
   const { schritt, setSchritt } = useWizard()
+  // Produktwahl rechts (Katalog-Umbau Teil 4, 17.11.2026): Ein Klick auf eine Karte in Schritt 4
+  // wählt am Desktop nur die Bauart; eingefügt wird erst mit dem Produkt (ProduktWahl.jsx).
+  const [gewaehlteBauart, setGewaehlteBauart] = useState(null)
+  // Die Produktwahl schließt, sobald man ein platziertes Möbel auswählt oder den Schritt wechselt.
+  // Als Abgleich beim Rendern statt in einem Effekt (React: "Adjusting some state when a prop
+  // changes"), damit die Wahl nicht erst einen Zwischenstand lang sichtbar bleibt.
+  const [abgleich, setAbgleich] = useState({ selectedId, schritt })
+  if (abgleich.selectedId !== selectedId || abgleich.schritt !== schritt) {
+    setAbgleich({ selectedId, schritt })
+    if (gewaehlteBauart !== null && (selectedId !== null || abgleich.schritt !== schritt)) setGewaehlteBauart(null)
+  }
   // Raumfilter in Schritt 4 (Katalog-Umbau Teil 3, 17.11.2026) statt der früheren Kategorie-Chips:
   // 'alle' oder ein Raum-Schlüssel aus RAEUME (data/bauarten.js). Eine Bauart kann in mehreren
   // Räumen stehen.
@@ -152,11 +163,29 @@ export function KatalogProvider({ children }) {
     addFurniture(rest)
   }, [addFurniture, addWandElement])
 
+  // Bauart wählen hebt die Auswahl eines platzierten Möbels auf, sonst stünde rechts dessen
+  // Produktwechsel statt der Produktwahl.
+  const waehleBauart = useCallback((name) => {
+    setSelectedId(null)
+    setGewaehlteBauart(name)
+  }, [setSelectedId])
+  const schliesseProduktwahl = useCallback(() => setGewaehlteBauart(null), [])
+
+  // Fügt ein Produkt der gewählten Bauart ein, mit dessen Maßen, Höhe und Farbe — wie bisher der
+  // Klick auf die Karte. produkt ist ein Eintrag aus produktempfehlungen.js oder null (Bauart ohne
+  // Produkt: Katalogmaße).
+  const fuegeProduktEin = useCallback((produkt) => {
+    const katalogDefault = alleKatalogItems.find(k => k.name === gewaehlteBauart)
+    if (!katalogDefault) return
+    addFurniture({ ...katalogDefault, ...produktAufKatalogItemAnwenden(katalogDefault, produkt) })
+  }, [addFurniture, gewaehlteBauart])
+
   const value = useMemo(() => ({
     suche, setSuche, aktiverRaum, setAktiverRaum, gefilterteMoebel, gruppen, katalogItemHinzufuegen,
     katalogSichtbar, raumAuswahlSichtbar, raeumeFuerAuswahl, raumHinweis, sprungHinweis, schrittHinweis,
     springeZuSchritt: setSchritt,
-  }), [suche, aktiverRaum, gefilterteMoebel, gruppen, katalogItemHinzufuegen, katalogSichtbar, raumAuswahlSichtbar, raeumeFuerAuswahl, raumHinweis, sprungHinweis, schrittHinweis, setSchritt])
+    gewaehlteBauart, waehleBauart, schliesseProduktwahl, fuegeProduktEin,
+  }), [suche, aktiverRaum, gefilterteMoebel, gruppen, katalogItemHinzufuegen, katalogSichtbar, raumAuswahlSichtbar, raeumeFuerAuswahl, raumHinweis, sprungHinweis, schrittHinweis, setSchritt, gewaehlteBauart, waehleBauart, schliesseProduktwahl, fuegeProduktEin])
 
   return <KatalogContext.Provider value={value}>{children}</KatalogContext.Provider>
 }
