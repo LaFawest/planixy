@@ -59,6 +59,17 @@ for (const p of produktEmpfehlungen) {
   if (k.bildUrl && k.bildUrl.includes('media-amazon')) melde(`Produkt ${p.id}: Amazon-Bildadresse`)
 }
 
+// 5. Regel seit dem 17.11.2026: Je Bauart steht genau ein Produkt im Katalog, und zwar das, aus
+// dessen Foto das 3D-Modell gemacht wurde (modellProdukt). Andere Produkte kommen erst mit eigenem
+// Modell zurück.
+for (const [name, info] of Object.entries(BAUARTEN)) {
+  const produkte = produktEmpfehlungen.filter(p => p.moebelName === name)
+  if (!info.modellProdukt) { melde(`${name}: modellProdukt fehlt`); continue }
+  if (produkte.length !== 1 || produkte[0].id !== info.modellProdukt) {
+    melde(`${name}: erwartet genau ${info.modellProdukt}, gefunden: ${produkte.map(p => p.id).join(', ') || 'keins'}`)
+  }
+}
+
 // Übersicht
 const jeFamilie = FAMILIEN.map(f => `${f.name}: ${Object.values(BAUARTEN).filter(b => b.familie === f.key).length}`)
 const jeRaum = RAEUME.map(r => `${r.name}: ${Object.values(BAUARTEN).filter(b => b.raeume.includes(r.key)).length}`)
