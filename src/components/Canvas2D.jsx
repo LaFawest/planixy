@@ -199,8 +199,13 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
             <svg width={innenB} height={innenT} style={{ position: 'absolute', inset: 0, zIndex: 1, pointerEvents: (zeichneWand || schritt !== 1) ? 'none' : 'auto' }}>
               {trennwaende.map(wand => (
                 <g key={wand.id}>
+                  {/* Auswahl: grüner Saum mit weißem Außenrand unter der Wand (17.11.2026). Das
+                      frühere grüne Band zu 25 % verschwand unter grünen Trennwandfarben. */}
                   {selectedWandId === wand.id && (
-                    <line x1={wand.x1} y1={wand.y1} x2={wand.x2} y2={wand.y2} stroke={AKZENT} strokeWidth={(wand.dicke || 10) + 6} strokeLinecap="square" opacity={0.25} pointerEvents="none" />
+                    <>
+                      <line x1={wand.x1} y1={wand.y1} x2={wand.x2} y2={wand.y2} stroke="white" strokeWidth={(wand.dicke || 10) + 8} strokeLinecap="square" opacity={0.95} pointerEvents="none" />
+                      <line x1={wand.x1} y1={wand.y1} x2={wand.x2} y2={wand.y2} stroke={AKZENT} strokeWidth={(wand.dicke || 10) + 4} strokeLinecap="square" pointerEvents="none" />
+                    </>
                   )}
                   <line x1={wand.x1} y1={wand.y1} x2={wand.x2} y2={wand.y2} stroke={wand.farbe} strokeWidth={wand.dicke || 10} strokeLinecap="square"
                     style={{ cursor: 'grab', pointerEvents: 'stroke', touchAction: 'none' }}
@@ -271,8 +276,10 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
                 onMouseDown={(e) => { handleDrag(e, item.id); setSelectedId(item.id) }}
                 onTouchStart={(e) => { handleDrag(e, item.id); setSelectedId(item.id) }}
                 onClick={(e) => { e.stopPropagation(); setSelectedId(item.id) }}
-                onMouseEnter={e => e.currentTarget.style.boxShadow = `0 0 0 2px ${item.border}`}
-                onMouseLeave={e => e.currentTarget.style.boxShadow = item.ungueltig ? '0 0 0 2px #E24B4A' : selectedId === item.id ? `0 0 0 2px ${AKZENT}` : 'none'}
+                // Ausgewählt: Der grün-weiße Auswahlring bleibt auch beim Überfahren (17.11.2026) —
+                // vorher sprang er hier auf die Kantenfarbe und beim Verlassen zurück.
+                onMouseEnter={e => e.currentTarget.style.boxShadow = selectedId === item.id && !item.ungueltig ? `0 0 0 2px ${AKZENT}, 0 0 0 3.5px white` : `0 0 0 2px ${item.border}`}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = item.ungueltig ? '0 0 0 2px #E24B4A' : selectedId === item.id ? `0 0 0 2px ${AKZENT}, 0 0 0 3.5px white` : 'none'}
                 style={{
                 position: 'absolute',
                 // Tür-/Fenster-Elemente sitzen jetzt zentriert auf der Wanddicke (siehe
@@ -307,7 +314,9 @@ export default function Canvas2D({ canvasB, canvasT, innenB, innenT, wandDicke, 
                 // dieselbe Farbe wie die ungültige Trennwand-Vorschau (Schritt 6), damit "hier
                 // muss manuell nachjustiert werden" auf einen Blick erkennbar ist. Geht der
                 // Selektions-Umrandung vor, bleibt also auch beim Anklicken sichtbar.
-                boxShadow: item.ungueltig ? '0 0 0 2px #E24B4A' : selectedId === item.id ? `0 0 0 2px ${AKZENT}` : 'none',
+                // Grüner Ring mit weißem Außenrand (17.11.2026): Ein ausgewähltes Fenster liegt in
+                // der Wand, und auf einer grünen Wand verschwand der grüne Ring allein.
+                boxShadow: item.ungueltig ? '0 0 0 2px #E24B4A' : selectedId === item.id ? `0 0 0 2px ${AKZENT}, 0 0 0 3.5px white` : 'none',
               }}>
                 {/* Füllung, Rahmen und Inhalt. Umrandung, Hover und Bedienung sitzen am
                     Wrapper darüber. */}

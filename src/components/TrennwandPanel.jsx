@@ -22,6 +22,8 @@ export default function TrennwandPanel() {
             style={{
               width: '20px', height: '20px', borderRadius: '50%', cursor: 'pointer', background: f.farbe,
               border: `${selectedWand.farbe === f.farbe ? '2px' : '1px'} solid ${selectedWand.farbe === f.farbe ? AKZENT : '#E8E6E0'}`,
+              // Weißer Innenring: trennt den grünen Auswahlrand von einer grünen Farbe (17.11.2026).
+              boxShadow: selectedWand.farbe === f.farbe ? 'inset 0 0 0 1.5px white' : 'none',
             }} />
         ))}
       </div>

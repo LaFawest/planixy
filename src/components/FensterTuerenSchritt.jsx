@@ -102,6 +102,8 @@ export default function FensterTuerenSchritt() {
               <div key={f.name} onClick={() => setFussleisteFarbe(f.farbe)} style={{
                 width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer',
                 background: f.farbe, border: `${fussleisteFarbe === f.farbe ? '3px' : '1px'} solid ${fussleisteFarbe === f.farbe ? AKZENT : '#E8E6E0'}`,
+                // Weißer Innenring: trennt den grünen Auswahlrand von einer grünen Farbe (17.11.2026).
+                boxShadow: fussleisteFarbe === f.farbe ? 'inset 0 0 0 2px white' : 'none',
                 title: f.name,
               }} title={f.name}></div>
             ))}

@@ -18,7 +18,7 @@ import { AKZENT, AKZENT_HELL, AKZENT_3D } from './farben'
 
 export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deckenFokus = false, onDeckenleuchteAusgewaehlt, onDeckenleuchteBewegt, onAusschnittGeaendert, ausschnittSprung = null } = {}) {
   const { activeRoom: room } = useRooms()
-  const { furniture } = useFurniture()
+  const { furniture, selectedId } = useFurniture()
   const {
     fussleiste, fussleisteFarbe, raumHoehe, tageszeit,
     wandBereiche, fuegeWandBereichHinzu, aktualisiereWandBereich, entferneWandBereich,
@@ -81,6 +81,17 @@ export default function RoomView3D({ fokusWand = null, onWandElementBewegt, deck
   // Klicks hier heraus, statt sie als lokale Variablen zu schließen. Ist null, solange der
   // Möbel-Effekt noch nichts gebaut hat.
   const moebelGruppenRef = useRef(null)
+  // Der Auswahl-Ring folgt der geteilten Auswahl (selectedId aus FurnitureContext), nicht nur dem
+  // Klick in 3D (17.11.2026). Vorher setzten ihn nur die Maus-Handler: Nach dem Ziehen eines Spots
+  // baut der Möbel-Effekt neu, der neue Ring startete unsichtbar, und die Leuchte blieb in der
+  // Liste ausgewählt, ohne Ring in 3D. Ebenso zeigte eine Auswahl aus der Leuchten-Liste keinen
+  // Ring. ringAnAuswahlRef setzt der Möbel-Effekt, weil nur er Ring, Gruppen und Raumhöhe kennt.
+  const auswahlIdRef = useRef(selectedId)
+  const ringAnAuswahlRef = useRef(() => {})
+  useEffect(() => {
+    auswahlIdRef.current = selectedId
+    ringAnAuswahlRef.current()
+  }, [selectedId])
   // Der feste Licht-Vorrat (siehe scene/lichtPool.js). Lebt in der dauerhaften Szene und übersteht
   // deshalb jeden Neuaufbau der Möbel — genau darum geht es: Die Anzahl der Lichter soll sich nicht
   // bei jeder Bearbeitung ändern, weil Three.js sonst sämtliche Shader neu übersetzt.
@@ -2910,10 +2921,19 @@ return () => {
     const TREFFER_RAND = 0.14
 
     // Ring-Mesh knapp unter der Decke, markiert die aktuell ausgewählte Leuchte visuell.
+    // Bis zum 17.11.2026 dünn (6 cm) und zu 60 % deckend — im warmen Lichtschein der Lampe in jedem
+    // Grünton kaum zu sehen. Jetzt breiter, fast deckend und ohne Filmkurve (toneMapped: false, sonst
+    // hellt die Belichtung den Ton auf und nimmt ihm die Sättigung), dazu ein weißer Außenring als
+    // Kind-Mesh: Er folgt Position und Sichtbarkeit des Rings von selbst und trennt das Grün von
+    // jedem Untergrund, auch von einer grünen Decke.
     const deckenleuchteRing = new THREE.Mesh(
-      new THREE.RingGeometry(0.18, 0.24, 32),
-      new THREE.MeshBasicMaterial({ color: AKZENT_3D, side: THREE.DoubleSide, transparent: true, opacity: 0.6 }),
+      new THREE.RingGeometry(0.17, 0.25, 40),
+      new THREE.MeshBasicMaterial({ color: AKZENT_3D, side: THREE.DoubleSide, transparent: true, opacity: 0.9, toneMapped: false }),
     )
+    deckenleuchteRing.add(new THREE.Mesh(
+      new THREE.RingGeometry(0.25, 0.28, 40),
+      new THREE.MeshBasicMaterial({ color: '#FFFFFF', side: THREE.DoubleSide, transparent: true, opacity: 0.9, toneMapped: false }),
+    ))
     deckenleuchteRing.rotation.x = -Math.PI / 2
     deckenleuchteRing.visible = false
     if (deckenFokusRef.current) moebelWurzel.add(deckenleuchteRing)
@@ -2980,6 +3000,15 @@ return () => {
     })
 
     moebelGruppenRef.current = { deckenleuchtenGruppen, ledGriffe, panelGriffe, deckenleuchteRing, ausblendbareGruppen }
+    // Ring an die aktuelle Auswahl setzen, jetzt und bei jeder späteren Auswahländerung (siehe
+    // auswahlIdRef oben). Ist keine Deckenleuchte ausgewählt, bleibt er unsichtbar.
+    ringAnAuswahlRef.current = () => {
+      const eintrag = deckenleuchtenGruppen.find(d => d.item.id === auswahlIdRef.current)
+      if (!eintrag) { deckenleuchteRing.visible = false; return }
+      deckenleuchteRing.position.set(eintrag.gruppe.position.x, wandHoehe - 0.02, eintrag.gruppe.position.z)
+      deckenleuchteRing.visible = true
+    }
+    ringAnAuswahlRef.current()
 
     // Licht-Vorrat (siehe scene/lichtPool.js): Die Leuchten haben beim Bauen keine eigenen
     // Lichtquellen erzeugt, sondern nur leere Platzhalter mit userData.lichtWunsch hinterlassen.
@@ -3012,6 +3041,7 @@ return () => {
 
     return () => {
       moebelGruppenRef.current = null
+      ringAnAuswahlRef.current = () => {}
       // Der Vorrat selbst bleibt stehen (er gehört der dauerhaften Szene), aber die Zuordnung zu den
       // gleich abgeräumten Platzhaltern muss weg — sonst zeigt sie auf Objekte, die es nicht mehr
       // gibt, und die Lichter würden an ihrer letzten Stelle weiterleuchten.
@@ -3147,9 +3177,15 @@ return () => {
       {fokusWand != null && bereichAuswahl && (
         <>
           <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 9, pointerEvents: 'none' }}>
+            {/* Weiße Begleitlinie unter der grünen Strichlinie (17.11.2026): Auf grünen Wänden
+                verschwand der grüne Rahmen fast ganz; Weiß in den Lücken hält ihn auf jedem
+                Untergrund sichtbar. */}
             <polygon
               points={`${bereichAuswahl.ecken.tl.x},${bereichAuswahl.ecken.tl.y} ${bereichAuswahl.ecken.tr.x},${bereichAuswahl.ecken.tr.y} ${bereichAuswahl.ecken.br.x},${bereichAuswahl.ecken.br.y} ${bereichAuswahl.ecken.bl.x},${bereichAuswahl.ecken.bl.y}`}
-              fill="none" stroke={AKZENT} strokeWidth={1.5} strokeDasharray="4 4" />
+              fill="none" stroke="white" strokeWidth={3.5} strokeOpacity={0.9} />
+            <polygon
+              points={`${bereichAuswahl.ecken.tl.x},${bereichAuswahl.ecken.tl.y} ${bereichAuswahl.ecken.tr.x},${bereichAuswahl.ecken.tr.y} ${bereichAuswahl.ecken.br.x},${bereichAuswahl.ecken.br.y} ${bereichAuswahl.ecken.bl.x},${bereichAuswahl.ecken.bl.y}`}
+              fill="none" stroke={AKZENT} strokeWidth={2} strokeDasharray="4 4" />
           </svg>
           {['tl', 'tr', 'bl', 'br'].map(ecke => (
             <div key={ecke}
@@ -3160,7 +3196,8 @@ return () => {
                 transform: 'translate(-50%, -50%)', zIndex: 10,
                 width: '14px', height: '14px', borderRadius: '3px', background: 'white',
                 border: `2px solid ${AKZENT}`, cursor: ecke === 'tl' || ecke === 'br' ? 'nwse-resize' : 'nesw-resize',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                // Weißer Außenring: hält den grünen Rand auch auf grüner Wand sichtbar.
+                boxShadow: '0 0 0 1.5px white, 0 1px 3px rgba(0,0,0,0.25)',
               }} />
           ))}
           <div onClick={loescheBereich} title="Bereich löschen" style={{
@@ -3248,10 +3285,17 @@ return () => {
         <>
           <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 9, pointerEvents: 'none' }}>
             {['links', 'rechts', 'unten'].map(seite => massLinien[seite] && (
-              <line key={seite}
-                x1={massLinien[seite].x1} y1={massLinien[seite].y1}
-                x2={massLinien[seite].x2} y2={massLinien[seite].y2}
-                stroke={AKZENT} strokeWidth={1.5} strokeDasharray="3 3" />
+              // Weiße Begleitlinie darunter wie beim Auswahlrahmen (17.11.2026).
+              <g key={seite}>
+                <line
+                  x1={massLinien[seite].x1} y1={massLinien[seite].y1}
+                  x2={massLinien[seite].x2} y2={massLinien[seite].y2}
+                  stroke="white" strokeWidth={3.5} strokeOpacity={0.9} />
+                <line
+                  x1={massLinien[seite].x1} y1={massLinien[seite].y1}
+                  x2={massLinien[seite].x2} y2={massLinien[seite].y2}
+                  stroke={AKZENT} strokeWidth={2} strokeDasharray="3 3" />
+              </g>
             ))}
           </svg>
           {['links', 'rechts', 'unten'].map(seite => {
@@ -3287,9 +3331,13 @@ return () => {
       {fokusWand != null && fensterAuswahl && (
         <>
           <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', zIndex: 9, pointerEvents: 'none' }}>
+            {/* Weiße Begleitlinie wie bei der gemalten Fläche (17.11.2026). */}
             <polygon
               points={`${fensterAuswahl.ecken.tl.x},${fensterAuswahl.ecken.tl.y} ${fensterAuswahl.ecken.tr.x},${fensterAuswahl.ecken.tr.y} ${fensterAuswahl.ecken.br.x},${fensterAuswahl.ecken.br.y} ${fensterAuswahl.ecken.bl.x},${fensterAuswahl.ecken.bl.y}`}
-              fill="none" stroke={AKZENT} strokeWidth={1.5} strokeDasharray="4 4" />
+              fill="none" stroke="white" strokeWidth={3.5} strokeOpacity={0.9} />
+            <polygon
+              points={`${fensterAuswahl.ecken.tl.x},${fensterAuswahl.ecken.tl.y} ${fensterAuswahl.ecken.tr.x},${fensterAuswahl.ecken.tr.y} ${fensterAuswahl.ecken.br.x},${fensterAuswahl.ecken.br.y} ${fensterAuswahl.ecken.bl.x},${fensterAuswahl.ecken.bl.y}`}
+              fill="none" stroke={AKZENT} strokeWidth={2} strokeDasharray="4 4" />
           </svg>
           {/* Bei einem Durchgang nur die zwei OBEREN Anfasser — die Unterkante bleibt immer am
               Boden (Bodenanschluss wie bei Türen), kein Hochziehen der Unterkante möglich. */}
@@ -3302,7 +3350,8 @@ return () => {
                 transform: 'translate(-50%, -50%)', zIndex: 10,
                 width: '14px', height: '14px', borderRadius: '3px', background: 'white',
                 border: `2px solid ${AKZENT}`, cursor: ecke === 'tl' || ecke === 'br' ? 'nwse-resize' : 'nesw-resize',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                // Weißer Außenring: hält den grünen Rand auch auf grüner Wand sichtbar.
+                boxShadow: '0 0 0 1.5px white, 0 1px 3px rgba(0,0,0,0.25)',
               }} />
           ))}
           <div style={{
