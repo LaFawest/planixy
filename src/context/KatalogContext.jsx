@@ -62,6 +62,19 @@ export function KatalogProvider({ children }) {
   // Räumen stehen.
   const [aktiverRaum, setAktiverRaum] = useState('alle')
   const [suche, setSuche] = useState('')
+  // Aufklappbare Familien und Untergruppen (17.11.2026, Hassans Wunsch nach mehr Überblick). Beim
+  // Öffnen ist alles zugeklappt; gemerkt werden die geöffneten Schlüssel ('sofas', 'deko/stehlampen').
+  // Liegt hier und nicht im Panel, damit der Zustand das Schließen der Handy-Schublade übersteht.
+  // Während einer Suche ist alles mit Treffern offen, unabhängig davon.
+  const [offeneGruppen, setOffeneGruppen] = useState(() => new Set())
+  const schalteGruppe = useCallback((schluessel) => {
+    setOffeneGruppen(vorher => {
+      const neu = new Set(vorher)
+      if (neu.has(schluessel)) neu.delete(schluessel)
+      else neu.add(schluessel)
+      return neu
+    })
+  }, [])
 
   const katalogSichtbar = KATALOG_SCHRITTE.includes(schritt)
   const raumAuswahlSichtbar = schritt === MOEBEL_SCHRITT
@@ -185,7 +198,8 @@ export function KatalogProvider({ children }) {
     katalogSichtbar, raumAuswahlSichtbar, raeumeFuerAuswahl, raumHinweis, sprungHinweis, schrittHinweis,
     springeZuSchritt: setSchritt,
     gewaehlteBauart, waehleBauart, schliesseProduktwahl, fuegeProduktEin,
-  }), [suche, aktiverRaum, gefilterteMoebel, gruppen, katalogItemHinzufuegen, katalogSichtbar, raumAuswahlSichtbar, raeumeFuerAuswahl, raumHinweis, sprungHinweis, schrittHinweis, setSchritt, gewaehlteBauart, waehleBauart, schliesseProduktwahl, fuegeProduktEin])
+    offeneGruppen, schalteGruppe,
+  }), [suche, aktiverRaum, gefilterteMoebel, gruppen, katalogItemHinzufuegen, katalogSichtbar, raumAuswahlSichtbar, raeumeFuerAuswahl, raumHinweis, sprungHinweis, schrittHinweis, setSchritt, gewaehlteBauart, waehleBauart, schliesseProduktwahl, fuegeProduktEin, offeneGruppen, schalteGruppe])
 
   return <KatalogContext.Provider value={value}>{children}</KatalogContext.Provider>
 }

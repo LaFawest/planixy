@@ -12,8 +12,32 @@ export default function KatalogPanel({ spalten, onItemHinzugefuegt, produktwahlR
   const {
     suche, setSuche, aktiverRaum, setAktiverRaum, gefilterteMoebel, gruppen, katalogItemHinzufuegen,
     katalogSichtbar, raumAuswahlSichtbar, raeumeFuerAuswahl, raumHinweis, sprungHinweis, schrittHinweis,
-    springeZuSchritt, gewaehlteBauart, waehleBauart,
+    springeZuSchritt, gewaehlteBauart, waehleBauart, offeneGruppen, schalteGruppe,
   } = useKatalog()
+
+  // Während einer Suche ist jede Gruppe mit Treffern offen, sonst gilt, was man aufgeklappt hat.
+  const sucheAktiv = suche.trim() !== ''
+  const istOffen = (schluessel) => sucheAktiv || offeneGruppen.has(schluessel)
+  // Kopfzeile einer Familie oder Untergruppe: ein Knopf mit Pfeil, Name und Anzahl. aria-expanded
+  // sagt Bildschirmlesern, ob die Gruppe offen ist.
+  const kopf = (schluessel, name, anzahl, untergruppe) => {
+    const offen = istOffen(schluessel)
+    return (
+      <button type="button" onClick={() => schalteGruppe(schluessel)} aria-expanded={offen} disabled={sucheAktiv}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '6px', width: '100%', textAlign: 'left',
+          background: 'transparent', border: 'none', cursor: sucheAktiv ? 'default' : 'pointer',
+          fontFamily: "'DM Sans', sans-serif",
+          padding: untergruppe ? '4px 0 4px 14px' : '8px 0',
+          fontSize: untergruppe ? '11px' : '12px', fontWeight: untergruppe ? '400' : '500',
+          color: untergruppe ? '#888780' : '#444441',
+        }}>
+        <span aria-hidden="true" style={{ width: '10px', fontSize: '10px', color: '#B4B2A9' }}>{offen ? '▾' : '▸'}</span>
+        <span style={{ flex: 1 }}>{name}</span>
+        <span style={{ fontSize: '10px', color: '#B4B2A9' }}>{anzahl}</span>
+      </button>
+    )
+  }
 
   const mitProduktwahl = produktwahlRechts && Boolean(gruppen)
   const karte = (item) => (
@@ -85,16 +109,23 @@ export default function KatalogPanel({ spalten, onItemHinzugefuegt, produktwahlR
             ? <p style={{ fontSize: '12px', color: '#B4B2A9', textAlign: 'center', marginTop: '20px' }}>Nichts gefunden 🔍</p>
             : gruppen
               ? gruppen.map(familie => (
-                  <section key={familie.key} style={{ marginBottom: '16px' }}>
-                    <h3 style={{ fontSize: '12px', fontWeight: '500', color: '#444441', margin: '0 0 8px' }}>{familie.name}</h3>
-                    {familie.untergruppen
-                      ? familie.untergruppen.map(u => (
-                          <div key={u.key} style={{ marginBottom: '10px' }}>
-                            <h4 style={{ fontSize: '10px', fontWeight: '400', color: '#B4B2A9', letterSpacing: '0.06em', margin: '0 0 6px' }}>{u.name.toUpperCase()}</h4>
-                            {raster(u.items)}
-                          </div>
-                        ))
-                      : raster(familie.items)}
+                  <section key={familie.key} style={{ borderBottom: '1px solid #F0EFEA' }}>
+                    {kopf(familie.key, familie.name, familie.items.length, false)}
+                    {istOffen(familie.key) && (
+                      <div style={{ paddingBottom: '10px' }}>
+                        {familie.untergruppen
+                          ? familie.untergruppen.map(u => {
+                              const schluessel = `${familie.key}/${u.key}`
+                              return (
+                                <div key={u.key}>
+                                  {kopf(schluessel, u.name, u.items.length, true)}
+                                  {istOffen(schluessel) && <div style={{ padding: '4px 0 8px' }}>{raster(u.items)}</div>}
+                                </div>
+                              )
+                            })
+                          : raster(familie.items)}
+                      </div>
+                    )}
                   </section>
                 ))
               : raster(gefilterteMoebel)
