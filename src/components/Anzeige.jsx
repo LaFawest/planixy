@@ -1,4 +1,4 @@
-// Werbekennzeichnung „· Anzeige“ hinter einem Händler-Link (Teil E, 18.11.2026). Eine Stelle für
+// Werbekennzeichnung „· Anzeige“ hinter einem Händler-Link (Shop-Verweise Teil B und E, 18.11.2026). Eine Stelle für
 // alle Kennzeichnungen in der App: Shop-Verweise, Produktkarten und Zusammenfassung.
 //
 // #5F5E5A auf Weiß ≈ 6,4 : 1 — eine Pflichtkennzeichnung muss lesbar sein; das blasse #B4B2A9 der

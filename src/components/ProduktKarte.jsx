@@ -1,6 +1,7 @@
 import { moebelIconTyp, moebelShapes } from '../moebelIcons'
 import { AKZENT, AKZENT_HELL } from '../farben'
 import { HAENDLER } from '../data/shopVerweise'
+import Anzeige from './Anzeige'
 
 // Eine Produktkarte mit festem Fotoplatz (Katalog-Umbau Teil 4, 17.11.2026). Gemeinsam genutzt von
 // der Produktwahl beim Einfügen (ProduktWahl.jsx) und beim Wechseln (ProduktPanel.jsx).
@@ -66,12 +67,13 @@ export default function ProduktKarte({ produkt, bauart, farbe, kante, aktiv = fa
         </div>
         {masse && <div style={{ fontSize: '10px', color: '#888780', marginTop: '2px' }}>{masse}</div>}
         {produkt.link && (
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', marginTop: '4px' }}>
+          <div style={{ fontSize: '10px', lineHeight: 1.4, marginTop: '4px' }}>
             <a href={produkt.link} target="_blank" rel="noopener noreferrer sponsored" onClick={e => e.stopPropagation()}
               style={{ fontSize: '10px', color: AKZENT, textDecoration: 'none' }}>
               {haendlerName ? `${haendlerName} ↗` : 'Zum Händler ↗'}
             </a>
-            <span style={{ fontSize: '10px', color: '#B4B2A9' }}>Anzeige</span>
+            {' '}
+            <Anzeige />
           </div>
         )}
       </div>

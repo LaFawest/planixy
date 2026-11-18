@@ -10,6 +10,18 @@ import { AKZENT } from '../farben'
 // WICHTIG für die Rechtslage: "Alle akzeptieren" und "Nur notwendige" sind absichtlich gleich
 // gestaltet (gleiche Größe, gleicher Kontrast). Eine hervorgehobene Zustimmung neben einer blassen
 // Ablehnung gilt in Deutschland als unzulässiges Dark Pattern.
+// Schalter für Statistik und Marketing (18.11.2026): vorerst ausgeblendet, weil sie nichts
+// bewirken — hatEinwilligung (EinwilligungContext.jsx) fragt bisher kein einziger Dienst ab, und
+// die Werbelinks („Anzeige“) sind reine Links, für die Planixy nichts lädt und keine Cookies setzt.
+// Ein Schalter ohne Wirkung täuscht eine Wahl vor. Die Kategorien bleiben im Code und im
+// gespeicherten Zustand; „Auswahl speichern“ übernimmt unsichtbar den bisher gespeicherten Wert.
+// WIEDER EINBLENDEN (auf true setzen), sobald die App in dieser Kategorie etwas Einwilligungs-
+// pflichtiges lädt oder speichert und dafür hatEinwilligung(...) abfragt — etwa ein Statistik-
+// Skript, ein Awin-MasterTag oder ein Tracking-Pixel. Dann auch EINWILLIGUNG_VERSION hochzählen,
+// damit alle neu gefragt werden.
+const STATISTIK_SCHALTER_SICHTBAR = false
+const MARKETING_SCHALTER_SICHTBAR = false
+
 export default function CookieBanner() {
   const { bannerSichtbar } = useEinwilligung()
   if (!bannerSichtbar) return null
@@ -45,8 +57,8 @@ function BannerInhalt() {
         </h2>
         <p style={{ fontSize: '13px', lineHeight: 1.55, margin: '0 0 14px', color: '#444441' }}>
           Planixy speichert nur das, was für den Betrieb nötig ist — deine Anmeldung und deine
-          Raumplanungen. Statistik- und Marketing-Funktionen sind derzeit nicht im Einsatz; wenn sie
-          später dazukommen, werden sie nur mit deiner Zustimmung geladen. Mehr dazu in der{' '}
+          Raumplanungen. Statistik- und Marketing-Cookies setzt Planixy derzeit nicht ein; kommt so etwas
+          später dazu, wird es nur mit deiner Zustimmung geladen. Mehr dazu in der{' '}
           <a href="https://planixy.app/datenschutz" target="_blank" rel="noopener noreferrer"
             style={{ color: AKZENT, textDecoration: 'underline' }}>Datenschutzerklärung</a>.
         </p>
@@ -61,15 +73,19 @@ function BannerInhalt() {
             />
             <KategorieZeile
               titel="Statistik"
-              beschreibung="Anonyme Auswertung, welche Bereiche der App genutzt werden, um sie zu verbessern. Derzeit nicht im Einsatz."
+              beschreibung="Anonyme Auswertung, welche Bereiche der App genutzt werden, um sie zu verbessern."
               an={statistik}
               onChange={setStatistik}
+              ohneSchalter={!STATISTIK_SCHALTER_SICHTBAR}
+              vermerk="derzeit nicht im Einsatz"
             />
             <KategorieZeile
               titel="Marketing"
-              beschreibung="Messung von Empfehlungslinks zu Möbelshops, damit eine Vermittlung zugeordnet werden kann. Derzeit nicht im Einsatz."
+              beschreibung="Planixy enthält mit „Anzeige“ gekennzeichnete Werbelinks zu Partnershops (über das Partnernetzwerk Awin). Planixy selbst setzt dafür keine Cookies und lädt nichts von Awin. Erst wenn du auf einen solchen Link klickst, setzen Awin und der jeweilige Shop auf ihren eigenen Seiten Cookies, um einen Kauf zuzuordnen."
               an={marketing}
               onChange={setMarketing}
+              ohneSchalter={!MARKETING_SCHALTER_SICHTBAR}
+              vermerk="keine Einwilligung nötig"
               letzte
             />
           </div>
@@ -107,14 +123,21 @@ function BannerInhalt() {
   )
 }
 
-function KategorieZeile({ titel, beschreibung, an, onChange, fest, letzte }) {
+// ohneSchalter: Die Kategorie steht nur als Hinweis da, mit vermerk statt Häkchen. Ein leerer Platz
+// in Häkchenbreite hält die Texte aller Zeilen bündig.
+function KategorieZeile({ titel, beschreibung, an, onChange, fest, letzte, ohneSchalter, vermerk }) {
+  const zusatz = fest ? 'immer aktiv' : ohneSchalter ? vermerk : null
   return (
     <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', padding: '8px 0', borderBottom: letzte ? 'none' : '1px solid #E8E6E0' }}>
-      <input type="checkbox" checked={an} disabled={!!fest} onChange={e => onChange?.(e.target.checked)}
-        style={{ marginTop: '3px', width: '16px', height: '16px', accentColor: AKZENT, cursor: fest ? 'not-allowed' : 'pointer' }} />
+      {ohneSchalter ? (
+        <span aria-hidden="true" style={{ width: '16px', height: '16px', marginTop: '3px', flexShrink: 0 }} />
+      ) : (
+        <input type="checkbox" checked={an} disabled={!!fest} onChange={e => onChange?.(e.target.checked)}
+          style={{ marginTop: '3px', width: '16px', height: '16px', accentColor: AKZENT, cursor: fest ? 'not-allowed' : 'pointer' }} />
+      )}
       <div>
         <div style={{ fontSize: '13px', fontWeight: '500', color: '#2C2C2A' }}>
-          {titel}{fest && <span style={{ fontSize: '11px', color: '#B4B2A9', fontWeight: '400' }}> — immer aktiv</span>}
+          {titel}{zusatz && <span style={{ fontSize: '11px', color: '#B4B2A9', fontWeight: '400' }}> — {zusatz}</span>}
         </div>
         <div style={{ fontSize: '12px', color: '#666661', lineHeight: 1.45 }}>{beschreibung}</div>
       </div>

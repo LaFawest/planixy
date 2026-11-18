@@ -3,6 +3,7 @@ import { useRooms } from '../context/RoomsContext'
 import { produktEmpfehlungen } from '../data/produktempfehlungen'
 import PlanixyLogo from './PlanixyLogo'
 import LegalLinks from './LegalLinks'
+import Anzeige from './Anzeige'
 import { moebelIconTyp, moebelShapes } from '../moebelIcons'
 import { AKZENT } from '../farben'
 
@@ -101,11 +102,12 @@ export default function ZusammenfassungSeite() {
                         {g.name} {g.anzahl > 1 && <span style={{ color: '#B4B2A9' }}>× {g.anzahl}</span>}
                       </div>
                       {g.produkt ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <a href={g.produkt.link} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: AKZENT, textDecoration: 'none' }}>
+                        <div style={{ fontSize: '11px', lineHeight: 1.4 }}>
+                          <a href={g.produkt.link} target="_blank" rel="sponsored noopener noreferrer" style={{ fontSize: '11px', color: AKZENT, textDecoration: 'none' }}>
                             {g.produkt.name} →
                           </a>
-                          <span style={{ fontSize: '10px', color: '#B4B2A9' }}>Anzeige</span>
+                          {' '}
+                          <Anzeige />
                         </div>
                       ) : g.istLicht ? null : (
                         <div style={{ fontSize: '11px', color: '#B4B2A9' }}>
@@ -121,7 +123,7 @@ export default function ZusammenfassungSeite() {
         ))}
 
         <p style={{ fontSize: '12px', color: '#888780', lineHeight: 1.5, margin: '4px 0 0' }}>
-          Preis und Verfügbarkeit siehst du beim jeweiligen Händler. Mit „Anzeige“ gekennzeichnete Links sind Werbelinks.
+          Preis und Verfügbarkeit siehst du beim jeweiligen Händler. Mit „Anzeige“ gekennzeichnete Links sind Werbelinks (Affiliate-Links). Bei einem Kauf über einen solchen Link erhält Planixy eine Provision; der Preis ändert sich dadurch nicht.
         </p>
 
         <LegalLinks style={{ marginTop: '28px', justifyContent: 'center' }} />
