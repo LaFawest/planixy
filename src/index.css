@@ -687,3 +687,19 @@ input[type=number]::-webkit-outer-spin-button { opacity: 1; }
     width: 100%;
   }
 }
+/* Links in den Shop-Verweisen (ShopVerweise.jsx): unterstrichen beim Hover, Tastaturfokus als
+   grüner Ring wie bei den Schritt-Pillen (:focus-visible, damit ein Mausklick keinen Ring lässt). */
+.shop-verweis-link:hover {
+  text-decoration: underline !important;
+}
+.shop-verweis-link:focus-visible {
+  outline: 2px solid var(--akzent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+/* Im schmalen rechten Panel (681–860 px, siehe .panel-rechts oben) lange Wörter nach Silben
+   trennen; braucht lang="de" in index.html. hyphenate-limit-chars: erst ab 12 Zeichen, je Seite
+   mindestens 5 — sonst trennt Chrome auch „Lam-penwelt“ und „entde-cken“. */
+@media (min-width: 681px) and (max-width: 860px) {
+  .shop-verweise { hyphens: auto; hyphenate-limit-chars: 12 5 5; }
+}

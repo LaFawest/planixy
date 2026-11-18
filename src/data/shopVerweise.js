@@ -1,4 +1,4 @@
-// Shop-Verweise (18.11.2026): Links wie „Pendelleuchten bei Lampenwelt entdecken“ auf eine
+// Shop-Verweise (18.11.2026): Links wie „Pendelleuchten bei Lampenwelt“ auf eine
 // Kategorieseite eines Händlers, mit Awin-Tracking. Sie ersetzen KEINE Produktkarten: Im Katalog
 // steht je Bauart weiter nur das Produkt mit eigenem 3D-Modell (modellProdukt in bauarten.js). Ein
 // Verweis zeigt nur, wo es mehr davon gibt.
@@ -29,43 +29,43 @@ export const SHOP_VERWEISE = [
   // Schritt 3 „Atmosphäre“: Leuchtentypen
   {
     art: 'leuchte', id: 'Pendelleuchte', haendler: 'lampenwelt',
-    text: 'Pendelleuchten bei Lampenwelt entdecken',
+    text: 'Pendelleuchten bei Lampenwelt',
     url: 'https://www.awin1.com/cread.php?awinmid=7619&awinaffid=3151150&ued=https%3A%2F%2Fwww.lampenwelt.de%2Fc%2Finnenleuchten%2Fpendelleuchten-hangelampen',
     geprueftAm: '2026-11-18',
   },
   {
     art: 'leuchte', id: 'Kronleuchter', haendler: 'lampenwelt',
-    text: 'Kronleuchter bei Lampenwelt entdecken',
+    text: 'Kronleuchter bei Lampenwelt',
     url: 'https://www.awin1.com/cread.php?awinmid=7619&awinaffid=3151150&ued=https%3A%2F%2Fwww.lampenwelt.de%2Fc%2Finnenleuchten%2Fkronleuchter',
     geprueftAm: '2026-11-18',
   },
   {
     art: 'leuchte', id: 'Deckenlampe', haendler: 'lampenwelt',
-    text: 'Deckenleuchten bei Lampenwelt entdecken',
+    text: 'Deckenleuchten bei Lampenwelt',
     url: 'https://www.awin1.com/cread.php?awinmid=7619&awinaffid=3151150&ued=https%3A%2F%2Fwww.lampenwelt.de%2Fc%2Finnenleuchten%2Fdeckenleuchten',
     geprueftAm: '2026-11-18',
   },
   {
     art: 'leuchte', id: 'LED-Panel', haendler: 'lampenwelt',
-    text: 'LED-Panels bei Lampenwelt entdecken',
+    text: 'LED-Panels bei Lampenwelt',
     url: 'https://www.awin1.com/cread.php?awinmid=7619&awinaffid=3151150&ued=https%3A%2F%2Fwww.lampenwelt.de%2Fc%2Finnenleuchten%2Fdeckenleuchten%2Fled-panel',
     geprueftAm: '2026-11-18',
   },
   {
     art: 'leuchte', id: 'LED-Streifen', haendler: 'lampenwelt',
-    text: 'LED-Streifen bei Lampenwelt entdecken',
+    text: 'LED-Streifen bei Lampenwelt',
     url: 'https://www.awin1.com/cread.php?awinmid=7619&awinaffid=3151150&ued=https%3A%2F%2Fwww.lampenwelt.de%2Fc%2Fdekoleuchten%2Fled-streifen',
     geprueftAm: '2026-11-18',
   },
   {
     art: 'leuchte', id: 'Spot', haendler: 'lampenwelt',
-    text: 'Strahler & Spots bei Lampenwelt entdecken',
+    text: 'Strahler & Spots bei Lampenwelt',
     url: 'https://www.awin1.com/cread.php?awinmid=7619&awinaffid=3151150&ued=https%3A%2F%2Fwww.lampenwelt.de%2Fc%2Finnenleuchten%2Fstrahler-und-spots',
     geprueftAm: '2026-11-18',
   },
   {
     art: 'leuchte', id: 'Spot-Reihe', haendler: 'lampenwelt',
-    text: 'Strahler & Spots bei Lampenwelt entdecken',
+    text: 'Strahler & Spots bei Lampenwelt',
     url: 'https://www.awin1.com/cread.php?awinmid=7619&awinaffid=3151150&ued=https%3A%2F%2Fwww.lampenwelt.de%2Fc%2Finnenleuchten%2Fstrahler-und-spots',
     geprueftAm: '2026-11-18',
   },
@@ -73,7 +73,7 @@ export const SHOP_VERWEISE = [
     // Eine Spot-Reihe ist in der App eine feste Reihe von Spots; Schienensysteme sind die nächste
     // Entsprechung beim Händler und stehen deshalb als zweiter Verweis hier.
     art: 'leuchte', id: 'Spot-Reihe', haendler: 'lampenwelt',
-    text: 'Schienensysteme bei Lampenwelt entdecken',
+    text: 'Schienensysteme bei Lampenwelt',
     url: 'https://www.awin1.com/cread.php?awinmid=7619&awinaffid=3151150&ued=https%3A%2F%2Fwww.lampenwelt.de%2Fc%2Finnenleuchten%2Fschienensysteme',
     geprueftAm: '2026-11-18',
   },
@@ -81,20 +81,20 @@ export const SHOP_VERWEISE = [
   // Schritt 4, Katalog: Bauarten (Deko, Untergruppen Tischlampen und Wandleuchten)
   {
     art: 'bauart', id: 'Tischlampe', haendler: 'lampenwelt',
-    text: 'Weitere Tischlampen bei Lampenwelt entdecken',
+    text: 'Tischlampen bei Lampenwelt',
     url: 'https://www.awin1.com/cread.php?awinmid=7619&awinaffid=3151150&ued=https%3A%2F%2Fwww.lampenwelt.de%2Fc%2Finnenleuchten%2Ftischlampen',
     geprueftAm: '2026-11-18',
   },
   {
     // 'Lampe' ist eine Nachttischlampe (lampe-01) und steht ebenfalls unter Tischlampen.
     art: 'bauart', id: 'Lampe', haendler: 'lampenwelt',
-    text: 'Weitere Tischlampen bei Lampenwelt entdecken',
+    text: 'Tischlampen bei Lampenwelt',
     url: 'https://www.awin1.com/cread.php?awinmid=7619&awinaffid=3151150&ued=https%3A%2F%2Fwww.lampenwelt.de%2Fc%2Finnenleuchten%2Ftischlampen',
     geprueftAm: '2026-11-18',
   },
   {
     art: 'bauart', id: 'Wandleuchte', haendler: 'lampenwelt',
-    text: 'Weitere Wandleuchten bei Lampenwelt entdecken',
+    text: 'Wandleuchten bei Lampenwelt',
     url: 'https://www.awin1.com/cread.php?awinmid=7619&awinaffid=3151150&ued=https%3A%2F%2Fwww.lampenwelt.de%2Fc%2Finnenleuchten%2Fwandleuchten',
     geprueftAm: '2026-11-18',
   },
@@ -102,7 +102,7 @@ export const SHOP_VERWEISE = [
   // und steht deshalb nicht in BAUARTEN; die Untergruppe deko/stehlampen ist leer und unsichtbar.
   // {
   //   art: 'bauart', id: 'Stehlampe', haendler: 'lampenwelt',
-  //   text: 'Weitere Stehlampen bei Lampenwelt entdecken',
+  //   text: 'Stehlampen bei Lampenwelt',
   //   url: 'https://www.awin1.com/cread.php?awinmid=7619&awinaffid=3151150&ued=https%3A%2F%2Fwww.lampenwelt.de%2Fc%2Finnenleuchten%2Fstehlampen',
   //   geprueftAm: '2026-11-18',
   // },
@@ -110,13 +110,13 @@ export const SHOP_VERWEISE = [
   // Schritt 4, Raumfilter
   {
     art: 'raum', id: 'bad', haendler: 'lampenwelt',
-    text: 'Leuchten fürs Bad bei Lampenwelt entdecken',
+    text: 'Leuchten fürs Bad bei Lampenwelt',
     url: 'https://www.awin1.com/cread.php?awinmid=7619&awinaffid=3151150&ued=https%3A%2F%2Fwww.lampenwelt.de%2Fc%2Fraeume%2Fbad',
     geprueftAm: '2026-11-18',
   },
   {
     art: 'raum', id: 'kinderzimmer', haendler: 'lampenwelt',
-    text: 'Leuchten fürs Kinderzimmer bei Lampenwelt entdecken',
+    text: 'Leuchten fürs Kinderzimmer bei Lampenwelt',
     url: 'https://www.awin1.com/cread.php?awinmid=7619&awinaffid=3151150&ued=https%3A%2F%2Fwww.lampenwelt.de%2Fc%2Fraeume%2Fkinderzimmer',
     geprueftAm: '2026-11-18',
   },

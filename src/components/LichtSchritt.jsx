@@ -2,6 +2,7 @@ import { useFurniture } from '../context/FurnitureContext'
 import { useDesign } from '../context/DesignContext'
 import { FARBTEMPERATUREN } from '../constants'
 import { AKZENT, AKZENT_HELL } from '../farben'
+import ShopVerweise from './ShopVerweise'
 
 const tageszeitLabel = (stunde) => {
   const h = Math.floor(stunde)
@@ -141,6 +142,13 @@ export default function LichtSchritt() {
                       onChange={e => rotateFurniture(item.id, Number(e.target.value))}
                       style={{ width: '100%', minWidth: 0, boxSizing: 'border-box', margin: 0, cursor: 'pointer' }}
                     />
+                  </div>
+                )}
+                {/* Shop-Verweis (Teil B, 18.11.2026): nur in der gewählten Zeile, damit höchstens ein
+                    Verweis zu sehen ist. ShopVerweise hält Klicks selbst von der Zeile fern. */}
+                {ausgewaehlt && (
+                  <div style={{ padding: '0 10px 8px 0' }}>
+                    <ShopVerweise art="leuchte" id={item.name} />
                   </div>
                 )}
               </div>
